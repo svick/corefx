@@ -2,52 +2,29 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Globalization;
+using System.Collections.Generic;
 using Xunit;
 
-namespace System.Globalization.CalendarsTests
+namespace System.Globalization.Tests
 {
-    // System.Globalization.TaiwanCalendar.IsLeapDay(Int32,Int32,Int32,Int32)
     public class TaiwanCalendarIsLeapDay
     {
-        #region Positive Tests
-        // PosTest1: Verify the day  is not leap day
-        [Fact]
-        public void PosTest1()
+        public static IEnumerable<object[]> IsLeapDay_TestData()
         {
-            System.Globalization.Calendar tc = new TaiwanCalendar();
-            Random rand = new Random(-55);
-            int year = rand.Next(tc.MinSupportedDateTime.Year, tc.MaxSupportedDateTime.Year - 1911);
-            int month = rand.Next(1, 12);
-            int day = rand.Next(1, 29);
-            int era;
-
-            for (int i = 0; i < tc.Eras.Length; i++)
-            {
-                era = tc.Eras[i];
-                Assert.False(tc.IsLeapDay(year, month, era));
-            }
+            yield return new object[] { 2000 - 1911, 2, 28, false };
+            yield return new object[] { 2000 - 1911, 2, 29, true };
+            yield return new object[] { 2000 - 1911, 3, 1, false };
+            yield return new object[] { 2001 - 1911, 2, 28, false };
         }
 
-        // PosTest2: Verify the Date is leap day
-        [Fact]
-        public void PosTest2()
+        [Theory]
+        [MemberData(nameof(IsLeapDay_TestData))]
+        public void IsLeapDay(int year, int month, int day, bool expected)
         {
-            System.Globalization.Calendar tc = new TaiwanCalendar();
-            Random rand = new Random(-55);
-            int year = 2000 - 1911;
-            int month = 2;
-            int day = 29;
-            int era;
-
-            for (int i = 0; i < tc.Eras.Length; i++)
-            {
-                era = tc.Eras[i];
-                Assert.True(tc.IsLeapDay(year, month, day, era));
-            }
+            TaiwanCalendar calendar = new TaiwanCalendar();
+            Assert.Equal(expected, calendar.IsLeapDay(year, month, day));
+            Assert.Equal(expected, calendar.IsLeapDay(year, month, day, 0));
+            Assert.Equal(expected, calendar.IsLeapDay(year, month, day, 1));
         }
-        #endregion
     }
 }
-

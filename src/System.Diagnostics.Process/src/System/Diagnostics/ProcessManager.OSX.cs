@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -17,26 +16,9 @@ namespace System.Diagnostics
             return Interop.libproc.proc_listallpids();
         }
 
-        /// <summary>Gets process infos for each process on the specified machine.</summary>
-        /// <param name="machineName">The target machine.</param>
-        /// <returns>An array of process infos, one per found process.</returns>
-        public static ProcessInfo[] GetProcessInfos(string machineName)
+        private static string GetProcPath(int processId)
         {
-            ThrowIfRemoteMachine(machineName);
-            int[] procIds = GetProcessIds(machineName);
-
-            // Iterate through all process IDs to load information about each process
-            var processes = new List<ProcessInfo>(procIds.Length);
-            foreach (int pid in procIds)
-            {
-                ProcessInfo pi = CreateProcessInfo(pid);
-                if (pi != null)
-                {
-                    processes.Add(pi);
-                }
-            }
-
-            return processes.ToArray();
+            return Interop.libproc.proc_pidpath(processId);
         }
 
         // -----------------------------
@@ -73,7 +55,7 @@ namespace System.Diagnostics
             int sessionId = Interop.Sys.GetSid(pid);
             if (sessionId != -1)
                 procInfo.SessionId = sessionId;
-            
+
             // Create a threadinfo for each thread in the process
             List<KeyValuePair<ulong, Interop.libproc.proc_threadinfo?>> lstThreads = Interop.libproc.GetAllThreadsInProcess(pid);
             foreach (KeyValuePair<ulong, Interop.libproc.proc_threadinfo?> t in lstThreads)
@@ -98,83 +80,6 @@ namespace System.Diagnostics
             }
 
             return procInfo;
-        }
-
-        /// <summary>Gets an array of module infos for the specified process.</summary>
-        /// <param name="processId">The ID of the process whose modules should be enumerated.</param>
-        /// <returns>The array of modules.</returns>
-        internal static ModuleInfo[] GetModuleInfos(int processId)
-        {
-            var modules = new List<ModuleInfo>();
-
-            // On Linux we can read from procfs.  On OS X we can get similar data by getting the output from vmmap.
-            // This is the same basic approach taken by the PAL in libcoreclr.
-            IntPtr popenStdout = Interop.Sys.POpen($"/usr/bin/vmmap -interleaved {processId} -wide", "r");
-            Debug.Assert(popenStdout != IntPtr.Zero, $"popen failed: {Interop.Sys.GetLastErrorInfo()}");
-            if (popenStdout != IntPtr.Zero) // if this failed, we'll just return an empty set of modules
-            {
-                try
-                {
-                    string line;
-                    while ((line = Interop.Sys.GetLine(popenStdout)) != null)
-                    {
-                        // Example line (amongst other lines that don't look like this)
-                        // __TEXT   0000000104c85000-000000010513b000 [ 4824K] r-x/rwx SM=COW  /Users/mikem/coreclr/bin/Product/OSx.x64.Debug/libcoreclr.dylib
-                        const string __TEXT = "__TEXT";
-                        const int AddressLength = 16;
-                        const string PathStart = " /";
-
-                        // Only care about __TEXT entries
-                        if (!line.StartsWith(__TEXT))
-                        {
-                            continue;
-                        }
-
-                        // Move to the address
-                        int pos = __TEXT.Length;
-                        for (; pos < line.Length && char.IsWhiteSpace(line[pos]); pos++) ;
-                        int addressEndPos = checked(pos + AddressLength + 1 + AddressLength);
-                        if (addressEndPos >= line.Length)
-                        {
-                            continue;
-                        }
-
-                        // Parse the address range
-                        ulong startAddress, endAddress;
-                        if (!ulong.TryParse(line.Substring(pos, AddressLength), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out startAddress) ||
-                            !ulong.TryParse(line.Substring(pos + AddressLength + 1, AddressLength), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out endAddress))
-                        {
-                            continue;
-                        }
-
-                        // Find the first space-slash.  If it exists, that's the start of the path.
-                        int filePathPos = line.IndexOf(PathStart, addressEndPos);
-                        if (filePathPos < 0)
-                        {
-                            continue;
-                        }
-                        string filePath = line.SubstringTrim(filePathPos);
-
-                        // Add the module
-                        modules.Add(new ModuleInfo()
-                        {
-                            _fileName = filePath,
-                            _baseName = Path.GetFileName(filePath),
-                            _baseOfDll = new IntPtr((long)startAddress),
-                            _sizeOfImage = (int)(endAddress - startAddress),
-                            _entryPoint = IntPtr.Zero // unknown
-                        });
-                    }
-                }
-                finally
-                {
-                    int rv = Interop.Sys.PClose(popenStdout);
-                    Debug.Assert(rv == 0, $"pclose failed: {Interop.Sys.GetLastErrorInfo()}"); // ignore any release failures from closing
-                }
-            }
-
-            // Return the set of modules found.
-            return modules.ToArray();
         }
 
         // ----------------------------------

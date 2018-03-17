@@ -35,15 +35,14 @@ namespace Windows.Foundation
         private float _width;
         private float _height;
 
-        private readonly static Size s_empty = CreateEmptySize();
+        private static readonly Size s_empty = CreateEmptySize();
 
         public Size(double width, double height)
         {
             if (width < 0)
-                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(width));
+                throw new ArgumentOutOfRangeException(nameof(width), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (height < 0)
-                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(height));
-
+                throw new ArgumentOutOfRangeException(nameof(height), SR.ArgumentOutOfRange_NeedNonNegNum);
             _width = (float)width;
             _height = (float)height;
         }
@@ -54,7 +53,7 @@ namespace Windows.Foundation
             set
             {
                 if (value < 0)
-                    throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(Width));
+                    throw new ArgumentOutOfRangeException(nameof(Width), SR.ArgumentOutOfRange_NeedNonNegNum);
 
                 _width = (float)value;
             }
@@ -66,7 +65,7 @@ namespace Windows.Foundation
             set
             {
                 if (value < 0)
-                    throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(Height));
+                    throw new ArgumentOutOfRangeException(nameof(Height), SR.ArgumentOutOfRange_NeedNonNegNum);
 
                 _height = (float)value;
             }
@@ -83,7 +82,7 @@ namespace Windows.Foundation
             get { return Width < 0; }
         }
 
-        static private Size CreateEmptySize()
+        private static Size CreateEmptySize()
         {
             Size size = new Size();
             // We can't set these via the property setters because negatives widths

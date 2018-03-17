@@ -63,7 +63,8 @@ namespace System.Xml
         private const string xml = "xml";
         private const string xmlnsNamespace = "http://www.w3.org/2000/xmlns/";
         private const string xmlNamespace = "http://www.w3.org/XML/1998/namespace";
-
+        private XmlSigningNodeWriter _signingWriter;
+        private bool _signing;
 
         protected XmlBaseReader()
         {
@@ -122,7 +123,7 @@ namespace System.Xml
         protected void MoveToInitial(XmlDictionaryReaderQuotas quotas)
         {
             if (quotas == null)
-                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("quotas");
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(quotas));
 
             quotas.InternalCopyTo(_quotas);
             _quotas.MakeReadOnly();
@@ -491,6 +492,8 @@ namespace System.Xml
                 _elementNodes = null;
             _nsMgr.Close();
             _bufferReader.Close();
+            if (_signingWriter != null)
+                _signingWriter.Close();
             if (_attributeSorter != null)
                 _attributeSorter.Close();
         }
@@ -992,14 +995,14 @@ namespace System.Xml
         public override bool IsNamespaceUri(string namespaceUri)
         {
             if (namespaceUri == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("namespaceUri");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(namespaceUri));
             return _node.IsNamespaceUri(namespaceUri);
         }
 
         public override bool IsNamespaceUri(XmlDictionaryString namespaceUri)
         {
             if (namespaceUri == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("namespaceUri");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(namespaceUri));
             return _node.IsNamespaceUri(namespaceUri);
         }
         public override sealed bool IsStartElement()
@@ -1050,18 +1053,18 @@ namespace System.Xml
         public override bool IsStartElement(XmlDictionaryString localName, XmlDictionaryString namespaceUri)
         {
             if (localName == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("localName");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(localName));
             if (namespaceUri == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("namespaceUri");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(namespaceUri));
             return (_node.NodeType == XmlNodeType.Element || IsStartElement()) && _node.LocalName == localName && _node.IsNamespaceUri(namespaceUri);
         }
 
         public override int IndexOfLocalName(string[] localNames, string namespaceUri)
         {
             if (localNames == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("localNames");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(localNames));
             if (namespaceUri == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("namespaceUri");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(namespaceUri));
             QNameType qnameType = _node.QNameType;
             if (_node.IsNamespaceUri(namespaceUri))
             {
@@ -1101,9 +1104,9 @@ namespace System.Xml
         public override int IndexOfLocalName(XmlDictionaryString[] localNames, XmlDictionaryString namespaceUri)
         {
             if (localNames == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("localNames");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(localNames));
             if (namespaceUri == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("namespaceUri");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(namespaceUri));
             QNameType qnameType = _node.QNameType;
             if (_node.IsNamespaceUri(namespaceUri))
             {
@@ -1532,7 +1535,7 @@ namespace System.Xml
             return XmlConverter.ToInt32(ReadContentAsString());
         }
 
-        public DateTime ReadContentAsDateTime()
+        public override DateTime ReadContentAsDateTime()
         {
             XmlNode node = this.Node;
             if (_value == null && node.IsAtomicValue)
@@ -1869,6 +1872,128 @@ namespace System.Xml
             return _chars;
         }
 
+        private void SignStartElement(XmlSigningNodeWriter writer)
+        {
+            int prefixOffset, prefixLength;
+            byte[] prefixBuffer = _node.Prefix.GetString(out prefixOffset, out prefixLength);
+            int localNameOffset, localNameLength;
+            byte[] localNameBuffer = _node.LocalName.GetString(out localNameOffset, out localNameLength);
+            writer.WriteStartElement(prefixBuffer, prefixOffset, prefixLength, localNameBuffer, localNameOffset, localNameLength);
+        }
+
+        private void SignAttribute(XmlSigningNodeWriter writer, XmlAttributeNode attributeNode)
+        {
+            QNameType qnameType = attributeNode.QNameType;
+            if (qnameType == QNameType.Normal)
+            {
+                int prefixOffset, prefixLength;
+                byte[] prefixBuffer = attributeNode.Prefix.GetString(out prefixOffset, out prefixLength);
+                int localNameOffset, localNameLength;
+                byte[] localNameBuffer = attributeNode.LocalName.GetString(out localNameOffset, out localNameLength);
+                writer.WriteStartAttribute(prefixBuffer, prefixOffset, prefixLength, localNameBuffer, localNameOffset, localNameLength);
+                attributeNode.Value.Sign(writer);
+                writer.WriteEndAttribute();
+            }
+            else
+            {
+                Fx.Assert(qnameType == QNameType.Xmlns, "");
+                int prefixOffset, prefixLength;
+                byte[] prefixBuffer = attributeNode.Namespace.Prefix.GetString(out prefixOffset, out prefixLength);
+                int nsOffset, nsLength;
+                byte[] nsBuffer = attributeNode.Namespace.Uri.GetString(out nsOffset, out nsLength);
+                writer.WriteXmlnsAttribute(prefixBuffer, prefixOffset, prefixLength, nsBuffer, nsOffset, nsLength);
+            }
+        }
+
+        private void SignEndElement(XmlSigningNodeWriter writer)
+        {
+            int prefixOffset, prefixLength;
+            byte[] prefixBuffer = _node.Prefix.GetString(out prefixOffset, out prefixLength);
+            int localNameOffset, localNameLength;
+            byte[] localNameBuffer = _node.LocalName.GetString(out localNameOffset, out localNameLength);
+            writer.WriteEndElement(prefixBuffer, prefixOffset, prefixLength, localNameBuffer, localNameOffset, localNameLength);
+        }
+
+        private void SignNode(XmlSigningNodeWriter writer)
+        {
+            switch (_node.NodeType)
+            {
+                case XmlNodeType.None:
+                    break;
+                case XmlNodeType.Element:
+                    SignStartElement(writer);
+                    for (int i = 0; i < _attributeCount; i++)
+                        SignAttribute(writer, _attributeNodes[i]);
+                    writer.WriteEndStartElement(_node.IsEmptyElement);
+                    break;
+                case XmlNodeType.Text:
+                case XmlNodeType.Whitespace:
+                case XmlNodeType.SignificantWhitespace:
+                case XmlNodeType.CDATA:
+                    _node.Value.Sign(writer);
+                    break;
+                case XmlNodeType.XmlDeclaration:
+                    writer.WriteDeclaration();
+                    break;
+                case XmlNodeType.Comment:
+                    writer.WriteComment(_node.Value.GetString());
+                    break;
+                case XmlNodeType.EndElement:
+                    SignEndElement(writer);
+                    break;
+                default:
+                    throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException());
+            }
+        }
+
+        public override bool CanCanonicalize
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        protected bool Signing
+        {
+            get
+            {
+                return _signing;
+            }
+        }
+
+        protected void SignNode()
+        {
+            if (_signing)
+            {
+                SignNode(_signingWriter);
+            }
+        }
+
+        public override void StartCanonicalization(Stream stream, bool includeComments, string[] inclusivePrefixes)
+        {
+            if (_signing)
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(SR.XmlCanonicalizationStarted)));
+
+            if (_signingWriter == null)
+                _signingWriter = CreateSigningNodeWriter();
+
+            _signingWriter.SetOutput(XmlNodeWriter.Null, stream, includeComments, inclusivePrefixes);
+            _nsMgr.Sign(_signingWriter);
+            _signing = true;
+        }
+
+        public override void EndCanonicalization()
+        {
+            if (!_signing)
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(SR.XmlCanonicalizationNotStarted)));
+
+            _signingWriter.Flush();
+            _signingWriter.Close();
+            _signing = false;
+        }
+
+        protected abstract XmlSigningNodeWriter CreateSigningNodeWriter();
 
         protected enum QNameType
         {
@@ -2573,7 +2698,7 @@ namespace System.Xml
                 _lang = string.Empty;
             }
 
-            static public Namespace XmlNamespace
+            public static Namespace XmlNamespace
             {
                 get
                 {
@@ -2597,7 +2722,7 @@ namespace System.Xml
                 }
             }
 
-            static public Namespace EmptyNamespace
+            public static Namespace EmptyNamespace
             {
                 get
                 {
@@ -2672,6 +2797,30 @@ namespace System.Xml
                 _depth--;
             }
 
+            public void Sign(XmlSigningNodeWriter writer)
+            {
+                for (int i = 0; i < _nsCount; i++)
+                {
+                    PrefixHandle prefix = _namespaces[i].Prefix;
+                    bool found = false;
+                    for (int j = i + 1; j < _nsCount; j++)
+                    {
+                        if (Equals(prefix, _namespaces[j].Prefix))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        int prefixOffset, prefixLength;
+                        byte[] prefixBuffer = prefix.GetString(out prefixOffset, out prefixLength);
+                        int nsOffset, nsLength;
+                        byte[] nsBuffer = _namespaces[i].Uri.GetString(out nsOffset, out nsLength);
+                        writer.WriteXmlnsAttribute(prefixBuffer, prefixOffset, prefixLength, nsBuffer, nsOffset, nsLength);
+                    }
+                }
+            }
 
             public void AddLangAttribute(string lang)
             {

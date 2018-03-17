@@ -15,15 +15,24 @@ using Xunit.Abstractions;
 
 namespace System.Net.Security.Tests
 {
-    public class ServerAsyncAuthenticateTest
+    using Configuration = System.Net.Test.Common.Configuration;
+
+    public class ServerAsyncAuthenticateTest : IDisposable
     {
         private readonly ITestOutputHelper _log;
+        private readonly ITestOutputHelper _logVerbose;
         private readonly X509Certificate2 _serverCertificate;
 
         public ServerAsyncAuthenticateTest()
         {
             _log = TestLogging.GetInstance();
-            _serverCertificate = TestConfiguration.GetServerCertificate();
+            _logVerbose = VerboseTestLogging.GetInstance();
+            _serverCertificate = Configuration.Certificates.GetServerCertificate();
+        }
+
+        public void Dispose()
+        {
+            _serverCertificate.Dispose();
         }
 
         [Theory]
@@ -33,6 +42,7 @@ namespace System.Net.Security.Tests
             await ServerAsyncSslHelper(protocol, protocol);
         }
 
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "These protocols are explicitly disabled on .NET Core but still supported on .NET Framework.")] 
         [Theory]
         [ClassData(typeof(SslProtocolSupport.UnsupportedSslProtocolsTestData))]
         public async Task ServerAsyncAuthenticate_EachServerUnsupportedProtocol_Fail(SslProtocols protocol)
@@ -64,8 +74,9 @@ namespace System.Net.Security.Tests
                 });
         }
 
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "These protocols are explicitly disabled on .NET Core but still supported on .NET Framework.")] 
         [Fact]
-        public async Task ServerAsyncAuthenticate_UnsuportedAllServer_Fail()
+        public async Task ServerAsyncAuthenticate_UnsupportedAllServer_Fail()
         {
             await Assert.ThrowsAsync<NotSupportedException>(() =>
             {
@@ -120,8 +131,7 @@ namespace System.Net.Security.Tests
                 Task<TcpClient> serverAccept = server.AcceptTcpClientAsync();
 
                 // We expect that the network-level connect will always complete.
-                Task.WaitAll(
-                    new Task[] { clientConnect, serverAccept },
+                await Task.WhenAll(new Task[] { clientConnect, serverAccept }).TimeoutAfter(
                     TestConfiguration.PassingTestTimeoutMilliseconds);
 
                 using (TcpClient serverConnection = await serverAccept)
@@ -133,12 +143,14 @@ namespace System.Net.Security.Tests
                 {
                     string serverName = _serverCertificate.GetNameInfo(X509NameType.SimpleName, false);
 
+                    _logVerbose.WriteLine("ServerAsyncAuthenticateTest.AuthenticateAsClientAsync start.");
                     Task clientAuthentication = sslClientStream.AuthenticateAsClientAsync(
                         serverName,
                         null,
                         clientSslProtocols,
                         false);
 
+                    _logVerbose.WriteLine("ServerAsyncAuthenticateTest.AuthenticateAsServerAsync start.");
                     Task serverAuthentication = sslServerStream.AuthenticateAsServerAsync(
                         _serverCertificate,
                         true,
@@ -147,29 +159,17 @@ namespace System.Net.Security.Tests
 
                     try
                     {
-                        clientAuthentication.Wait(timeOut);
+                        await clientAuthentication.TimeoutAfter(timeOut);
+                        _logVerbose.WriteLine("ServerAsyncAuthenticateTest.clientAuthentication complete.");
                     }
-                    catch (AggregateException ex)
+                    catch (Exception ex)
                     {
                         // Ignore client-side errors: we're only interested in server-side behavior.
-                        _log.WriteLine("Client exception: " + ex.InnerException);
+                        _log.WriteLine("Client exception: " + ex);
                     }
 
-                    bool serverAuthenticationCompleted = false;
-
-                    try
-                    {
-                        serverAuthenticationCompleted = serverAuthentication.Wait(timeOut);
-                    }
-                    catch (AggregateException ex)
-                    {
-                        ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                    }
-
-                    if (!serverAuthenticationCompleted)
-                    {
-                        throw new TimeoutException();
-                    }
+                    await serverAuthentication.TimeoutAfter(timeOut);
+                    _logVerbose.WriteLine("ServerAsyncAuthenticateTest.serverAuthentication complete.");
 
                     _log.WriteLine(
                         "Server({0}) authenticated with encryption cipher: {1} {2}-bit strength",

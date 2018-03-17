@@ -8,13 +8,11 @@ using System.Xml;
 using System.Collections;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Text;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-
 
 namespace System.Xml
 {
@@ -48,7 +46,7 @@ namespace System.Xml
             _buffer = buffer;
         }
 
-        static public XmlBufferReader Empty
+        public static XmlBufferReader Empty
         {
             get
             {
@@ -391,12 +389,7 @@ namespace System.Xml
             return (hi << 32) + lo;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
-        unsafe public float ReadSingle()
+        public unsafe float ReadSingle()
         {
             int offset;
             byte[] buffer = GetBuffer(ValueHandleLength.Single, out offset);
@@ -411,12 +404,7 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
-        unsafe public double ReadDouble()
+        public unsafe double ReadDouble()
         {
             int offset;
             byte[] buffer = GetBuffer(ValueHandleLength.Double, out offset);
@@ -435,12 +423,7 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
-        unsafe public decimal ReadDecimal()
+        public unsafe decimal ReadDecimal()
         {
             int offset;
             byte[] buffer = GetBuffer(ValueHandleLength.Decimal, out offset);
@@ -525,21 +508,11 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
-        unsafe public void UnsafeReadArray(byte* dst, byte* dstMax)
+        public unsafe void UnsafeReadArray(byte* dst, byte* dstMax)
         {
             UnsafeReadArray(dst, (int)(dstMax - dst));
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe void UnsafeReadArray(byte* dst, int length)
         {
             if (_stream != null)
@@ -701,13 +674,6 @@ namespace System.Xml
             char[] chars = GetCharBuffer(length);
             int charCount = GetEscapedChars(offset, length, chars);
             return new string(chars, 0, charCount);
-        }
-
-        public string GetEscapedString(int offset, int length, XmlNameTable nameTable)
-        {
-            char[] chars = GetCharBuffer(length);
-            int charCount = GetEscapedChars(offset, length, chars);
-            return nameTable.Add(chars, 0, charCount);
         }
 
         private int GetLessThanCharEntity(int offset, int length)
@@ -948,17 +914,12 @@ namespace System.Xml
             return true;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
-        unsafe public bool Equals2(int offset1, int length1, string s2)
+        public unsafe bool Equals2(int offset1, int length1, string s2)
         {
             int byteLength = length1;
             int charLength = s2.Length;
 
-            // N unicode chars will be represented in at least N bytes, but
+            // N Unicode chars will be represented in at least N bytes, but
             // no more than N * 3 bytes.  If the byte count falls outside of this
             // range, then the strings cannot be equal.
             if (byteLength < charLength || byteLength > charLength * maxBytesPerChar)
@@ -989,7 +950,7 @@ namespace System.Xml
                     fixed (char* _pch = s2)
                     {
                         char* pch = _pch;
-                        // Try to do the fast comparison in ascii space
+                        // Try to do the fast comparison in ASCII space
                         int t = 0;
                         while (pb < pbMax && *pb < 0x80)
                         {
@@ -1071,12 +1032,7 @@ namespace System.Xml
             return (ulong)GetInt64(offset);
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
-        unsafe public float GetSingle(int offset)
+        public unsafe float GetSingle(int offset)
         {
             byte[] buffer = _buffer;
             float value;
@@ -1089,12 +1045,7 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
-        unsafe public double GetDouble(int offset)
+        public unsafe double GetDouble(int offset)
         {
             byte[] buffer = _buffer;
             double value;
@@ -1111,11 +1062,6 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         public unsafe decimal GetDecimal(int offset)
         {
             byte[] buffer = _buffer;

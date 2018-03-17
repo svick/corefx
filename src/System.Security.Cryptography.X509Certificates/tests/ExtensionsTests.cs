@@ -275,8 +275,8 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         [Fact]
         public static void EnhancedKeyUsageExtension_2Oids()
         {
-            Oid oid1 = Oid.FromOidValue("1.3.6.1.5.5.7.3.1", OidGroup.EnhancedKeyUsage);
-            Oid oid2 = Oid.FromOidValue("1.3.6.1.4.1.311.10.3.1", OidGroup.EnhancedKeyUsage);
+            Oid oid1 = new Oid("1.3.6.1.5.5.7.3.1");
+            Oid oid2 = new Oid("1.3.6.1.4.1.311.10.3.1");
             OidCollection usages = new OidCollection();
             usages.Add(oid1);
             usages.Add(oid2);
@@ -344,7 +344,13 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         [Fact]
         public static void SubjectKeyIdentifierExtension_PublicKey()
         {
-            PublicKey pk = new X509Certificate2(TestData.MsCertificate).PublicKey;
+            PublicKey pk;
+
+            using (var cert = new X509Certificate2(TestData.MsCertificate))
+            {
+                pk = cert.PublicKey;
+            }
+
             X509SubjectKeyIdentifierExtension e = new X509SubjectKeyIdentifierExtension(pk, false);
 
             byte[] rawData = e.RawData;
@@ -438,7 +444,12 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             byte[] expectedDer,
             string expectedIdentifier)
         {
-            PublicKey pk = new X509Certificate2(certBytes).PublicKey;
+            PublicKey pk;
+
+            using (var cert = new X509Certificate2(certBytes))
+            {
+                pk = cert.PublicKey;
+            }
 
             X509SubjectKeyIdentifierExtension ext =
                 new X509SubjectKeyIdentifierExtension(pk, algorithm, critical);

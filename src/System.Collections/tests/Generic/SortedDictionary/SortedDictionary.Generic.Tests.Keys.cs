@@ -39,14 +39,14 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void SortedDictionary_Generic_KeyCollection_Constructor_NullDictionary(int count)
         {
             Assert.Throws<ArgumentNullException>(() => new SortedDictionary<string, string>.KeyCollection(null));
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void SortedDictionary_Generic_KeyCollection_GetEnumerator(int count)
         {
             SortedDictionary<string, string> dictionary = new SortedDictionary<string, string>();
@@ -68,6 +68,7 @@ namespace System.Collections.Tests
         {
             return (ICollection)(new SortedDictionary<string, string>().Keys);
         }
+        protected override bool SupportsSerialization { get { return false; } }
 
         protected override ICollection NonGenericICollectionFactory(int count)
         {
@@ -93,7 +94,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public override void ICollection_NonGeneric_CopyTo_ArrayOfIncorrectValueType(int count)
         {
             ICollection collection = NonGenericICollectionFactory(count);
@@ -102,7 +103,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void SortedDictionary_Generic_KeyCollection_CopyTo_ExactlyEnoughSpaceInTypeCorrectArray(int count)
         {
             ICollection collection = NonGenericICollectionFactory(count);

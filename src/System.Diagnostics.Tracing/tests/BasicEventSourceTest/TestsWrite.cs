@@ -7,9 +7,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+#if USE_MDT_EVENTSOURCE
+using Microsoft.Diagnostics.Tracing;
+#else
 using System.Diagnostics.Tracing;
+#endif
 using Xunit;
-#if USE_ETW // TODO: Enable when TraceEvent is available on CoreCLR. GitHub issue #4864.
+#if USE_ETW
 using Microsoft.Diagnostics.Tracing.Session;
 #endif
 using System.Diagnostics;
@@ -28,6 +32,12 @@ namespace BasicEventSourceTests
 
     public class TestsWrite
     {
+#if USE_ETW
+        // Specifies whether the process is elevated or not.
+        private static readonly Lazy<bool> s_isElevated = new Lazy<bool>(() => AdminHelpers.IsProcessElevated());
+        private static bool IsProcessElevated => s_isElevated.Value;
+#endif // USE_ETW
+
         [EventData]
         private struct PartB_UserInfo
         {
@@ -38,33 +48,39 @@ namespace BasicEventSourceTests
         /// Tests the EventSource.Write[T] method (can only use the self-describing mechanism).  
         /// Tests the EventListener code path
         /// </summary>
-        [ActiveIssue(4871, PlatformID.AnyUnix)]
         [Fact]
+        [ActiveIssue("dotnet/corefx #19455", TargetFrameworkMonikers.NetFramework)]
         public void Test_Write_T_EventListener()
         {
-            Test_Write_T(new EventListenerListener());
+            using (var listener = new EventListenerListener())
+            {
+                Test_Write_T(listener);
+            }
         }
 
         /// <summary>
         /// Tests the EventSource.Write[T] method (can only use the self-describing mechanism).  
         /// Tests the EventListener code path using events instead of virtual callbacks.
         /// </summary>
-        [ActiveIssue(4871, PlatformID.AnyUnix)]
         [Fact]
+        [ActiveIssue("dotnet/corefx #19455", TargetFrameworkMonikers.NetFramework)]
         public void Test_Write_T_EventListener_UseEvents()
         {
             Test_Write_T(new EventListenerListener(true));
         }
 
-#if USE_ETW // TODO: Enable when TraceEvent is available on CoreCLR. GitHub issue #4864.
+#if USE_ETW
         /// <summary>
         /// Tests the EventSource.Write[T] method (can only use the self-describing mechanism).  
         /// Tests the ETW code path
         /// </summary>
-        [Fact]
+        [ConditionalFact(nameof(IsProcessElevated))]
         public void Test_Write_T_ETW()
         {
-            Test_Write_T(new EtwListener());
+            using (var listener = new EtwListener())
+            {
+                Test_Write_T(listener);
+            }
         }
 #endif //USE_ETW
         /// <summary>
@@ -220,7 +236,6 @@ namespace BasicEventSourceTests
                 var dictInt = new Dictionary<string, int>() { { "elem1", 10 }, { "elem2", 20 } };
 
                 /*************************************************************************/
-#if false   // TODO: enable when dictionary events are working again. GitHub issue #4867.
                 tests.Add(new SubTest("Write/Dict/EventWithStringDict_C",
                     delegate()
                     {
@@ -299,7 +314,6 @@ namespace BasicEventSourceTests
 
                         Assert.Equal(evt.PayloadValue(2, "s"), "end");
                     }));
-#endif // false
                 /*************************************************************************/
                 /**************************** Empty Event TESTING ************************/
                 /*************************************************************************/
@@ -372,6 +386,27 @@ namespace BasicEventSourceTests
                     Assert.Equal(evt.PayloadValue(1, "b"), "");
                 }));
 
+#if USE_ETW
+                // This test only applies to ETW and will fail on EventListeners due to different behavior
+                // for strings with embedded NULL characters.
+                if (listener is EtwListener)
+                {
+                    tests.Add(new SubTest("Write/Basic/WriteOfTWithEmbeddedNullString",
+                    delegate ()
+                    {
+                        string nullString = null;
+                        logger.Write("EmbeddedNullStringEvent", new { a = "Hello" + '\0' + "World!", b = nullString });
+                    },
+                    delegate (Event evt)
+                    {
+                        Assert.Equal(logger.Name, evt.ProviderName);
+                        Assert.Equal("EmbeddedNullStringEvent", evt.EventName);
+                        Assert.Equal(evt.PayloadValue(0, "a"), "Hello");
+                        Assert.Equal(evt.PayloadValue(1, "b"), "");
+                    }));
+                }
+#endif // USE_ETW
+
                 Guid activityId = new Guid("00000000-0000-0000-0000-000000000001");
                 Guid relActivityId = new Guid("00000000-0000-0000-0000-000000000002");
                 tests.Add(new SubTest("Write/Basic/WriteOfTWithOptios",
@@ -404,39 +439,60 @@ namespace BasicEventSourceTests
         /// Declare SelfDescribingSerialization.  In that case THOSE
         /// events MUST use SelfDescribing serialization.  
         /// </summary>
-        [ActiveIssue(4871, PlatformID.AnyUnix)]
         [Fact]
+        [ActiveIssue("dotnet/corefx #18806", TargetFrameworkMonikers.NetFramework)]
+        [ActiveIssue("https://github.com/dotnet/corefx/issues/27106")]
         public void Test_Write_T_In_Manifest_Serialization()
         {
-            var listenerGenerators = new Func<Listener>[]
-        {
-#if USE_ETW // TODO: Enable when TraceEvent is available on CoreCLR. GitHub issue #4864.
-                () => new EtwListener(),
-#endif // USE_ETW
-                () => new EventListenerListener()
-        };
-
-            foreach (Func<Listener> listenerGenerator in listenerGenerators)
+            using (var eventListener = new EventListenerListener())
             {
-                var events = new List<Event>();
-                using (var listener = listenerGenerator())
+#if USE_ETW
+                EtwListener etwListener = null;
+#endif
+                try
                 {
-                    Debug.WriteLine("Testing Listener " + listener);
-                    // Create an eventSource with manifest based serialization
-                    using (var logger = new SdtEventSources.EventSourceTest())
+                    var listenerGenerators = new List<Func<Listener>>();
+                    listenerGenerators.Add(() => eventListener);
+#if USE_ETW
+                    if(IsProcessElevated)
                     {
-                        listener.OnEvent = delegate (Event data) { events.Add(data); };
-                        listener.EventSourceSynchronousEnable(logger);
+                        etwListener = new EtwListener();
+                        listenerGenerators.Add(() => etwListener);
+                    }
+#endif // USE_ETW
 
-                        // Use the Write<T> API.   This is OK
-                        logger.Write("MyTestEvent", new { arg1 = 3, arg2 = "hi" });
+                    foreach (Func<Listener> listenerGenerator in listenerGenerators)
+                    {
+                        var events = new List<Event>();
+                        using (var listener = listenerGenerator())
+                        {
+                            Debug.WriteLine("Testing Listener " + listener);
+                            // Create an eventSource with manifest based serialization
+                            using (var logger = new SdtEventSources.EventSourceTest())
+                            {
+                                listener.OnEvent = delegate (Event data) { events.Add(data); };
+                                listener.EventSourceSynchronousEnable(logger);
+
+                                // Use the Write<T> API.   This is OK
+                                logger.Write("MyTestEvent", new { arg1 = 3, arg2 = "hi" });
+                            }
+                        }
+                        Assert.Equal(events.Count, 1);
+                        Event _event = events[0];
+                        Assert.Equal("MyTestEvent", _event.EventName);
+                        Assert.Equal(3, (int)_event.PayloadValue(0, "arg1"));
+                        Assert.Equal("hi", (string)_event.PayloadValue(1, "arg2"));
                     }
                 }
-                Assert.Equal(events.Count, 1);
-                Event _event = events[0];
-                Assert.Equal("MyTestEvent", _event.EventName);
-                Assert.Equal(3, (int)_event.PayloadValue(0, "arg1"));
-                Assert.Equal("hi", (string)_event.PayloadValue(1, "arg2"));
+                finally
+                {
+#if USE_ETW
+                    if(etwListener != null)
+                    {
+                        etwListener.Dispose();
+                    }
+#endif // USE_ETW
+                }
             }
         }
 

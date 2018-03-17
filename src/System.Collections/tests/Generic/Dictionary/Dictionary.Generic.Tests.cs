@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Xunit;
 
@@ -12,7 +11,7 @@ namespace System.Collections.Tests
     /// <summary>
     /// Contains tests that ensure the correctness of the Dictionary class.
     /// </summary>
-    public abstract class Dictionary_Generic_Tests<TKey, TValue> : IDictionary_Generic_Tests<TKey, TValue>
+    public abstract partial class Dictionary_Generic_Tests<TKey, TValue> : IDictionary_Generic_Tests<TKey, TValue>
     {
         #region IDictionary<TKey, TValue Helper Methods
 
@@ -21,12 +20,14 @@ namespace System.Collections.Tests
             return new Dictionary<TKey, TValue>();
         }
 
+        protected override Type ICollection_Generic_CopyTo_IndexLargerThanArrayCount_ThrowType => typeof(ArgumentOutOfRangeException);
+
         #endregion
 
         #region Constructors
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_Constructor_IDictionary(int count)
         {
             IDictionary<TKey, TValue> source = GenericIDictionaryFactory(count);
@@ -35,31 +36,29 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_Constructor_IDictionary_IEqualityComparer(int count)
         {
             IEqualityComparer<TKey> comparer = GetKeyIEqualityComparer();
             IDictionary<TKey, TValue> source = GenericIDictionaryFactory(count);
             Dictionary<TKey, TValue> copied = new Dictionary<TKey, TValue>(source, comparer);
             Assert.Equal(source, copied);
-            if (typeof(TKey) != typeof(string) || comparer != EqualityComparer<TKey>.Default)   // Dictionary special-cases the default comparer when TKEy=string
-                Assert.Equal(comparer, copied.Comparer);
+            Assert.Equal(comparer, copied.Comparer);
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_Constructor_IEqualityComparer(int count)
         {
             IEqualityComparer<TKey> comparer = GetKeyIEqualityComparer();
             IDictionary<TKey, TValue> source = GenericIDictionaryFactory(count);
             Dictionary<TKey, TValue> copied = new Dictionary<TKey, TValue>(source, comparer);
             Assert.Equal(source, copied);
-            if (typeof(TKey) != typeof(string) || comparer != EqualityComparer<TKey>.Default)   // Dictionary special-cases the default comparer when TKEy=string
-                Assert.Equal(comparer, copied.Comparer);
+            Assert.Equal(comparer, copied.Comparer);
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_Constructor_int(int count)
         {
             IDictionary<TKey, TValue> dictionary = new Dictionary<TKey, TValue>(count);
@@ -67,15 +66,13 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_Constructor_int_IEqualityComparer(int count)
         {
             IEqualityComparer<TKey> comparer = GetKeyIEqualityComparer();
             Dictionary<TKey, TValue> dictionary = new Dictionary<TKey, TValue>(count, comparer);
             Assert.Equal(0, dictionary.Count);
-            // Dictionary with TKey string when 
-            if (typeof(TKey) != typeof(string) || comparer != EqualityComparer<TKey>.Default)   // Dictionary special-cases the default comparer when TKEy=string
-                Assert.Equal(comparer, dictionary.Comparer);
+            Assert.Equal(comparer, dictionary.Comparer);
         }
 
         #endregion
@@ -83,10 +80,10 @@ namespace System.Collections.Tests
         #region ContainsValue
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_ContainsValue_NotPresent(int count)
         {
-            Dictionary<TKey, TValue> dictionary = (Dictionary < TKey, TValue> )GenericIDictionaryFactory(count);
+            Dictionary<TKey, TValue> dictionary = (Dictionary<TKey, TValue>)GenericIDictionaryFactory(count);
             int seed = 4315;
             TValue notPresent = CreateTValue(seed++);
             while (dictionary.Values.Contains(notPresent))
@@ -95,7 +92,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_ContainsValue_Present(int count)
         {
             Dictionary<TKey, TValue> dictionary = (Dictionary<TKey, TValue>)GenericIDictionaryFactory(count);
@@ -108,7 +105,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_ContainsValue_DefaultValueNotPresent(int count)
         {
             Dictionary<TKey, TValue> dictionary = (Dictionary<TKey, TValue>)GenericIDictionaryFactory(count);
@@ -116,7 +113,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_ContainsValue_DefaultValuePresent(int count)
         {
             Dictionary<TKey, TValue> dictionary = (Dictionary<TKey, TValue>)GenericIDictionaryFactory(count);
@@ -133,7 +130,7 @@ namespace System.Collections.Tests
         #region IReadOnlyDictionary<TKey, TValue>.Keys
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IReadOnlyDictionary_Generic_Keys_ContainsAllCorrectKeys(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -143,7 +140,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IReadOnlyDictionary_Generic_Values_ContainsAllCorrectValues(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);

@@ -77,22 +77,12 @@ namespace System.Linq.Parallel
         }
 
         //---------------------------------------------------------------------------------------
-        // Accessor the the key selector.
+        // Accessor the key selector.
         //
-
-        internal Func<TInputOutput, TSortKey> KeySelector
-        {
-            get { return _keySelector; }
-        }
 
         //---------------------------------------------------------------------------------------
-        // Accessor the the key comparer.
+        // Accessor the key comparer.
         //
-
-        internal IComparer<TSortKey> KeyComparer
-        {
-            get { return _comparer; }
-        }
 
         //---------------------------------------------------------------------------------------
         // Opens the current operator. This involves opening the child operator tree, enumerating
@@ -102,7 +92,7 @@ namespace System.Linq.Parallel
         internal override QueryResults<TInputOutput> Open(QuerySettings settings, bool preferStriping)
         {
             QueryResults<TInputOutput> childQueryResults = Child.Open(settings, false);
-            return new SortQueryOperatorResults<TInputOutput, TSortKey>(childQueryResults, this, settings, preferStriping);
+            return new SortQueryOperatorResults<TInputOutput, TSortKey>(childQueryResults, this, settings);
         }
 
 
@@ -115,7 +105,7 @@ namespace System.Linq.Parallel
             for (int i = 0; i < outputStream.PartitionCount; i++)
             {
                 outputStream[i] = new SortQueryOperatorEnumerator<TInputOutput, TKey, TSortKey>(
-                    inputStream[i], _keySelector, _comparer);
+                    inputStream[i], _keySelector);
             }
 
             recipient.Receive<TSortKey>(outputStream);
@@ -147,16 +137,14 @@ namespace System.Linq.Parallel
         protected QueryResults<TInputOutput> _childQueryResults; // Results of the child query
         private SortQueryOperator<TInputOutput, TSortKey> _op; // Operator that generated these results
         private QuerySettings _settings; // Settings collected from the query
-        private bool _preferStriping; // If the results are indexible, should we use striping when partitioning them
 
         internal SortQueryOperatorResults(
             QueryResults<TInputOutput> childQueryResults, SortQueryOperator<TInputOutput, TSortKey> op,
-            QuerySettings settings, bool preferStriping)
+            QuerySettings settings)
         {
             _childQueryResults = childQueryResults;
             _op = op;
             _settings = settings;
-            _preferStriping = preferStriping;
         }
 
         internal override bool IsIndexible
@@ -197,31 +185,23 @@ namespace System.Linq.Parallel
     {
         private readonly QueryOperatorEnumerator<TInputOutput, TKey> _source; // Data source to sort.
         private readonly Func<TInputOutput, TSortKey> _keySelector; // Key selector used when sorting.
-        private readonly IComparer<TSortKey> _keyComparer; // Key comparison logic to use during sorting.
 
         //---------------------------------------------------------------------------------------
         // Instantiates a new sort operator enumerator.
         //
 
         internal SortQueryOperatorEnumerator(QueryOperatorEnumerator<TInputOutput, TKey> source,
-            Func<TInputOutput, TSortKey> keySelector, IComparer<TSortKey> keyComparer)
+            Func<TInputOutput, TSortKey> keySelector)
         {
             Debug.Assert(source != null);
             Debug.Assert(keySelector != null, "need a key comparer");
-            Debug.Assert(keyComparer != null, "expected a compiled operator");
 
             _source = source;
             _keySelector = keySelector;
-            _keyComparer = keyComparer;
         }
         //---------------------------------------------------------------------------------------
         // Accessor for the key comparison routine.
         //
-
-        public IComparer<TSortKey> KeyComparer
-        {
-            get { return _keyComparer; }
-        }
 
         //---------------------------------------------------------------------------------------
         // Moves to the next element in the sorted output. When called for the first time, the

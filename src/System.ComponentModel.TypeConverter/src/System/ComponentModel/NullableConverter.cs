@@ -8,44 +8,40 @@ using System.Reflection;
 
 namespace System.ComponentModel
 {
-    /// <devdoc>
-    /// TypeConverter to convert Nullable types to adn from strings or the underlying simple type.
-    /// </devdoc>
+    /// <summary>
+    /// TypeConverter to convert Nullable types to and from strings or the underlying simple type.
+    /// </summary>
     public class NullableConverter : TypeConverter
     {
-        private Type _nullableType;
-        private Type _simpleType;
-        private TypeConverter _simpleTypeConverter;
-
-        /// <devdoc>
+        /// <summary>
         /// Nullable converter is initialized with the underlying simple type.
-        /// </devdoc>
+        /// </summary>
         public NullableConverter(Type type)
         {
-            _nullableType = type;
+            NullableType = type;
 
-            _simpleType = Nullable.GetUnderlyingType(type);
-            if (_simpleType == null)
+            UnderlyingType = Nullable.GetUnderlyingType(type);
+            if (UnderlyingType == null)
             {
                 throw new ArgumentException(SR.NullableConverterBadCtorArg, nameof(type));
             }
 
-            _simpleTypeConverter = TypeDescriptor.GetConverter(_simpleType);
+            UnderlyingTypeConverter = TypeDescriptor.GetConverter(UnderlyingType);
         }
 
-        /// <devdoc>
+        /// <summary>
         ///    <para>Gets a value indicating whether this converter can convert an object in the
         ///       given source type to the underlying simple type or a null.</para>
-        /// </devdoc>
+        /// </summary>
         public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
         {
-            if (sourceType == _simpleType)
+            if (sourceType == UnderlyingType)
             {
                 return true;
             }
-            else if (_simpleTypeConverter != null)
+            else if (UnderlyingTypeConverter != null)
             {
-                return _simpleTypeConverter.CanConvertFrom(context, sourceType);
+                return UnderlyingTypeConverter.CanConvertFrom(context, sourceType);
             }
             else
             {
@@ -53,12 +49,12 @@ namespace System.ComponentModel
             }
         }
 
-        /// <devdoc>
+        /// <summary>
         ///    Converts the given value to the converter's underlying simple type or a null.
-        /// </devdoc>
+        /// </summary>
         public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
         {
-            if (value == null || value.GetType() == _simpleType)
+            if (value == null || value.GetType() == UnderlyingType)
             {
                 return value;
             }
@@ -66,9 +62,9 @@ namespace System.ComponentModel
             {
                 return null;
             }
-            else if (_simpleTypeConverter != null)
+            else if (UnderlyingTypeConverter != null)
             {
-                return _simpleTypeConverter.ConvertFrom(context, culture, value);
+                return UnderlyingTypeConverter.ConvertFrom(context, culture, value);
             }
             else
             {
@@ -76,18 +72,18 @@ namespace System.ComponentModel
             }
         }
 
-        /// <devdoc>
+        /// <summary>
         /// Gets a value indicating whether this converter can convert a value object to the destination type.
-        /// </devdoc>
+        /// </summary>
         public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
         {
-            if (destinationType == _simpleType)
+            if (destinationType == UnderlyingType)
             {
                 return true;
             }
-            else if (_simpleTypeConverter != null)
+            else if (UnderlyingTypeConverter != null)
             {
-                return _simpleTypeConverter.CanConvertTo(context, destinationType);
+                return UnderlyingTypeConverter.CanConvertTo(context, destinationType);
             }
             else
             {
@@ -95,9 +91,9 @@ namespace System.ComponentModel
             }
         }
 
-        /// <devdoc>
+        /// <summary>
         /// Converts the given value object to the destination type.
-        /// </devdoc>
+        /// </summary>
         public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
         {
             if (destinationType == null)
@@ -105,7 +101,7 @@ namespace System.ComponentModel
                 throw new ArgumentNullException(nameof(destinationType));
             }
 
-            if (destinationType == _simpleType && value != null && _nullableType.GetTypeInfo().IsAssignableFrom(value.GetType().GetTypeInfo()))
+            if (destinationType == UnderlyingType && value != null && NullableType.IsInstanceOfType(value))
             {
                 return value;
             }
@@ -117,45 +113,168 @@ namespace System.ComponentModel
                     return string.Empty;
                 }
             }
-            else if (_simpleTypeConverter != null)
+            else if (UnderlyingTypeConverter != null)
             {
-                return _simpleTypeConverter.ConvertTo(context, culture, value, destinationType);
+                return UnderlyingTypeConverter.ConvertTo(context, culture, value, destinationType);
             }
 
             return base.ConvertTo(context, culture, value, destinationType);
         }
 
-        /// <devdoc>
+        /// <summary>
+        /// </summary>
+        public override object CreateInstance(ITypeDescriptorContext context, IDictionary propertyValues)
+        {
+            if (UnderlyingTypeConverter != null)
+            {
+                object instance = UnderlyingTypeConverter.CreateInstance(context, propertyValues);
+                return instance;
+            }
+
+            return base.CreateInstance(context, propertyValues);
+        }
+
+        /// <summary>
+        ///    <para>
+        ///        Gets a value indicating whether changing a value on this object requires a call to
+        ///        <see cref='System.ComponentModel.TypeConverter.CreateInstance'/> to create a new value,
+        ///        using the specified context.
+        ///    </para>
+        /// </summary>
+        public override bool GetCreateInstanceSupported(ITypeDescriptorContext context)
+        {
+            if (UnderlyingTypeConverter != null)
+            {
+                return UnderlyingTypeConverter.GetCreateInstanceSupported(context);
+            }
+
+            return base.GetCreateInstanceSupported(context);
+        }
+
+        /// <summary>
+        ///    <para>
+        ///        Gets a collection of properties for the type of array specified by the value
+        ///        parameter using the specified context and attributes.
+        ///    </para>
+        /// </summary>
+        public override PropertyDescriptorCollection GetProperties(ITypeDescriptorContext context, object value, Attribute[] attributes)
+        {
+            if (UnderlyingTypeConverter != null)
+            {
+                object unwrappedValue = value;
+                return UnderlyingTypeConverter.GetProperties(context, unwrappedValue, attributes);
+            }
+
+            return base.GetProperties(context, value, attributes);
+        }
+
+        /// <summary>
+        ///    <para>Gets a value indicating whether this object supports properties using the specified context.</para>
+        /// </summary>
+        public override bool GetPropertiesSupported(ITypeDescriptorContext context)
+        {
+            if (UnderlyingTypeConverter != null)
+            {
+                return UnderlyingTypeConverter.GetPropertiesSupported(context);
+            }
+
+            return base.GetPropertiesSupported(context);
+        }
+
+        /// <summary>
+        ///    <para>Gets a collection of standard values for the data type this type converter is designed for.</para>
+        /// </summary>
+        public override StandardValuesCollection GetStandardValues(ITypeDescriptorContext context)
+        {
+            if (UnderlyingTypeConverter != null)
+            {
+                StandardValuesCollection values = UnderlyingTypeConverter.GetStandardValues(context);
+                if (GetStandardValuesSupported(context) && values != null)
+                {
+                    // Create a set of standard values around nullable instances.  
+                    object[] wrappedValues = new object[values.Count + 1];
+                    int idx = 0;
+
+                    wrappedValues[idx++] = null;
+                    foreach (object value in values)
+                    {
+                        wrappedValues[idx++] = value;
+                    }
+
+                    return new StandardValuesCollection(wrappedValues);
+                }
+            }
+
+            return base.GetStandardValues(context);
+        }
+
+        /// <summary>
+        ///    <para>
+        ///        Gets a value indicating whether the collection of standard values returned from
+        ///        <see cref='System.ComponentModel.TypeConverter.GetStandardValues'/> is an exclusive 
+        ///        list of possible values, using the specified context.
+        ///    </para>
+        /// </summary>
+        public override bool GetStandardValuesExclusive(ITypeDescriptorContext context)
+        {
+            if (UnderlyingTypeConverter != null)
+            {
+                return UnderlyingTypeConverter.GetStandardValuesExclusive(context);
+            }
+
+            return base.GetStandardValuesExclusive(context);
+        }
+
+        /// <summary>
+        ///    <para>
+        ///        Gets a value indicating whether this object supports a standard set of values that can
+        ///        be picked from a list using the specified context.
+        ///    </para>
+        /// </summary>
+        public override bool GetStandardValuesSupported(ITypeDescriptorContext context)
+        {
+            if (UnderlyingTypeConverter != null)
+            {
+                return UnderlyingTypeConverter.GetStandardValuesSupported(context);
+            }
+
+            return base.GetStandardValuesSupported(context);
+        }
+
+        /// <summary>
+        ///    <para>Gets a value indicating whether the given value object is valid for this type.</para>
+        /// </summary>
+        public override bool IsValid(ITypeDescriptorContext context, object value)
+        {
+            if (UnderlyingTypeConverter != null)
+            {
+                object unwrappedValue = value;
+                if (unwrappedValue == null)
+                {
+                    return true; // null is valid for nullable.
+                }
+                else
+                {
+                    return UnderlyingTypeConverter.IsValid(context, unwrappedValue);
+                }
+            }
+
+            return base.IsValid(context, value);
+        }
+
+        /// <summary>
         /// The type this converter was initialized with.
-        /// </devdoc>
-        public Type NullableType
-        {
-            get
-            {
-                return _nullableType;
-            }
-        }
+        /// </summary>
+        public Type NullableType { get; }
 
-        /// <devdoc>
+        /// <summary>
         /// The simple type that is represented as a nullable.
-        /// </devdoc>
-        public Type UnderlyingType
-        {
-            get
-            {
-                return _simpleType;
-            }
-        }
+        /// </summary>
+        public Type UnderlyingType { get; }
 
-        /// <devdoc>
+        /// <summary>
         /// Converter associated with the underlying simple type.
-        /// </devdoc>
-        public TypeConverter UnderlyingTypeConverter
-        {
-            get
-            {
-                return _simpleTypeConverter;
-            }
-        }
+        /// </summary>
+        public TypeConverter UnderlyingTypeConverter { get; }
     }
 }

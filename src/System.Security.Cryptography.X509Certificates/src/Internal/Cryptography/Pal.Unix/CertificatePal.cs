@@ -17,11 +17,22 @@ namespace Internal.Cryptography.Pal
             if (handle == IntPtr.Zero)
                 throw new ArgumentException(SR.Arg_InvalidHandle, nameof(handle));
 
-            return new OpenSslX509CertificateReader(Interop.Crypto.X509Duplicate(handle));
+            return new OpenSslX509CertificateReader(Interop.Crypto.X509UpRef(handle));
         }
 
-        public static ICertificatePal FromBlob(byte[] rawData, string password, X509KeyStorageFlags keyStorageFlags)
+        public static ICertificatePal FromOtherCert(X509Certificate cert)
         {
+            Debug.Assert(cert.Pal != null);
+
+            // Ensure private key is copied
+            OpenSslX509CertificateReader certPal = (OpenSslX509CertificateReader)cert.Pal;
+            return certPal.DuplicateHandles();
+        }
+
+        public static ICertificatePal FromBlob(byte[] rawData, SafePasswordHandle password, X509KeyStorageFlags keyStorageFlags)
+        {
+            Debug.Assert(password != null);
+
             ICertificatePal cert;
 
             if (TryReadX509Der(rawData, out cert) ||
@@ -43,7 +54,7 @@ namespace Internal.Cryptography.Pal
             throw Interop.Crypto.CreateOpenSslCryptographicException();
         }
 
-        public static ICertificatePal FromFile(string fileName, string password, X509KeyStorageFlags keyStorageFlags)
+        public static ICertificatePal FromFile(string fileName, SafePasswordHandle password, X509KeyStorageFlags keyStorageFlags)
         {
             // If we can't open the file, fail right away.
             using (SafeBioHandle fileBio = Interop.Crypto.BioNewFile(fileName, "rb"))
@@ -54,7 +65,7 @@ namespace Internal.Cryptography.Pal
             }
         }
 
-        private static ICertificatePal FromBio(SafeBioHandle bio, string password)
+        private static ICertificatePal FromBio(SafeBioHandle bio, SafePasswordHandle password)
         {
             int bioPosition = Interop.Crypto.BioTell(bio);
 
@@ -128,6 +139,7 @@ namespace Internal.Cryptography.Pal
 
             if (certHandle.IsInvalid)
             {
+                certHandle.Dispose();
                 certPal = null;
                 return false;
             }
@@ -142,6 +154,7 @@ namespace Internal.Cryptography.Pal
 
             if (cert.IsInvalid)
             {
+                cert.Dispose();
                 certPal = null;
                 return false;
             }
@@ -167,6 +180,7 @@ namespace Internal.Cryptography.Pal
 
             if (cert.IsInvalid)
             {
+                cert.Dispose();
                 fromBio = null;
                 return false;
             }

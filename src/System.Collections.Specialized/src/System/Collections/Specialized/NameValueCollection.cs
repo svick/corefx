@@ -8,6 +8,7 @@
  *
  */
 
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace System.Collections.Specialized
@@ -18,8 +19,8 @@ namespace System.Collections.Specialized
     /// </devdoc>
     public class NameValueCollection : NameObjectCollectionBase
     {
-        private String[] _all;
-        private String[] _allKeys;
+        private String[] _all; // Do not rename (binary serialization)
+        private String[] _allKeys; // Do not rename (binary serialization)
 
         //
         // Constructors
@@ -43,6 +44,11 @@ namespace System.Collections.Specialized
             : base(col != null ? col.Comparer : null)
         {
             Add(col);
+        }
+
+        [Obsolete("Please use NameValueCollection(IEqualityComparer) instead.")]
+        public NameValueCollection(IHashCodeProvider hashProvider, IComparer comparer) 
+            : base(hashProvider, comparer) {
         }
 
         /// <devdoc>
@@ -79,6 +85,15 @@ namespace System.Collections.Specialized
 
             this.Comparer = col.Comparer;
             Add(col);
+        }
+
+        [Obsolete("Please use NameValueCollection(Int32, IEqualityComparer) instead.")]
+        public NameValueCollection(int capacity, IHashCodeProvider hashProvider, IComparer comparer) 
+            : base(capacity, hashProvider, comparer) {
+        }
+
+        protected NameValueCollection(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
         }
 
         //

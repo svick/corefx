@@ -10,7 +10,6 @@ namespace System.Diagnostics.Tests
 {
     public class ProcessCollectionTests : ProcessTestBase
     {
-        [ActiveIssue(6677, PlatformID.OSX)]
         [Fact]
         public void TestModuleCollectionBehavior()
         {
@@ -60,8 +59,11 @@ namespace System.Diagnostics.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "Retrieving information about local processes is not supported on uap")]
         public void TestThreadCollectionBehavior()
         {
+            CreateDefaultProcess();
+            
             ProcessThread[] tArray = _process.Threads.Cast<ProcessThread>().ToArray();
             int countOfTArray = tArray.Count();
 

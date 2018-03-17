@@ -10,10 +10,10 @@ namespace System.Collections.Tests
 {
     public class Dictionary_Generic_Tests_Values : ICollection_Generic_Tests<string>
     {
-        protected override bool DefaultValueAllowed { get { return true; } }
-        protected override bool DuplicateValuesAllowed { get { return true; } }
-        protected override bool IsReadOnly { get { return true; } }
-        protected override IEnumerable<ModifyEnumerable> ModifyEnumerables { get { return new List<ModifyEnumerable>(); } }
+        protected override bool DefaultValueAllowed => true;
+        protected override bool DuplicateValuesAllowed => true;
+        protected override bool IsReadOnly => true;
+        protected override IEnumerable<ModifyEnumerable> ModifyEnumerables => new List<ModifyEnumerable>();
 
         protected override ICollection<string> GenericICollectionFactory()
         {
@@ -38,15 +38,17 @@ namespace System.Collections.Tests
             return Convert.ToBase64String(bytes);
         }
 
+        protected override Type ICollection_Generic_CopyTo_IndexLargerThanArrayCount_ThrowType => typeof(ArgumentOutOfRangeException);
+
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_ValueCollection_Constructor_NullDictionary(int count)
         {
             Assert.Throws<ArgumentNullException>(() => new Dictionary<string, string>.ValueCollection(null));
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_ValueCollection_GetEnumerator(int count)
         {
             Dictionary<string, string> dictionary = new Dictionary<string, string>();
@@ -59,15 +61,19 @@ namespace System.Collections.Tests
 
     public class Dictionary_Generic_Tests_Values_AsICollection : ICollection_NonGeneric_Tests
     {
-        protected override bool NullAllowed { get { return true; } }
-        protected override bool DuplicateValuesAllowed { get { return true; } }
-        protected override bool IsReadOnly { get { return true; } }
-        protected override bool Enumerator_Current_UndefinedOperation_Throws { get { return true; } }
-        protected override bool ICollection_NonGeneric_CopyTo_ArrayOfEnumType_ThrowsArgumentException { get { return true; } }
-        protected override IEnumerable<ModifyEnumerable> ModifyEnumerables { get { return new List<ModifyEnumerable>(); } }
+        protected override bool NullAllowed => true;
+        protected override bool DuplicateValuesAllowed => true;
+        protected override bool IsReadOnly => true;
+        protected override bool Enumerator_Current_UndefinedOperation_Throws => true;
+        protected override Type ICollection_NonGeneric_CopyTo_ArrayOfEnumType_ThrowType => typeof(ArgumentException);
+        protected override IEnumerable<ModifyEnumerable> ModifyEnumerables => new List<ModifyEnumerable>();
+        protected override bool SupportsSerialization => false;
+
+        protected override Type ICollection_NonGeneric_CopyTo_IndexLargerThanArrayCount_ThrowType => typeof(ArgumentOutOfRangeException);
+
         protected override ICollection NonGenericICollectionFactory()
         {
-            return (ICollection)(new Dictionary<string, string>().Values);
+            return new Dictionary<string, string>().Values;
         }
 
         protected override ICollection NonGenericICollectionFactory(int count)
@@ -76,7 +82,7 @@ namespace System.Collections.Tests
             int seed = 13453;
             for (int i = 0; i < count; i++)
                 list.Add(CreateT(seed++), CreateT(seed++));
-            return (ICollection)(list.Values);
+            return list.Values;
         }
 
         private string CreateT(int seed)
@@ -94,7 +100,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Dictionary_Generic_ValueCollection_CopyTo_ExactlyEnoughSpaceInTypeCorrectArray(int count)
         {
             ICollection collection = NonGenericICollectionFactory(count);

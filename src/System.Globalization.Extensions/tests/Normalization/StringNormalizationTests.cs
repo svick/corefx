@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Text;
 using Xunit;
 
@@ -27,12 +28,15 @@ namespace System.Globalization.Tests
         public void IsNormalized_Invalid()
         {
             Assert.Throws<ArgumentException>(() => "\uFB01".IsNormalized((NormalizationForm)10));
+            AssertExtensions.Throws<ArgumentException>("strInput", () => "\uFFFE".IsNormalized()); // Invalid codepoint
+            AssertExtensions.Throws<ArgumentException>("strInput", () => "\uD800\uD800".IsNormalized()); // Invalid surrogate pair
+        }
 
-            Assert.Throws<ArgumentException>("value", () => "\uFFFE".IsNormalized()); // Invalid codepoint
-            Assert.Throws<ArgumentException>("value", () => "\uD800\uD800".IsNormalized()); // Invalid surrogate pair
-
-            Assert.Throws<ArgumentNullException>("value", () => StringNormalizationExtensions.IsNormalized(null));
-            Assert.Throws<ArgumentNullException>("value", () => ((string)null).IsNormalized());
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "Regular method on full framework: no point invoking on a null reference")]
+        public void IsNormalized_Null()
+        {
+            AssertExtensions.Throws<ArgumentNullException>("strInput", () => StringNormalizationExtensions.IsNormalized(null));
         }
 
         [Theory]
@@ -61,11 +65,15 @@ namespace System.Globalization.Tests
         {
             Assert.Throws<ArgumentException>(() => "\uFB01".Normalize((NormalizationForm)7));
 
-            Assert.Throws<ArgumentException>("value", () => "\uFFFE".Normalize()); // Invalid codepoint
-            Assert.Throws<ArgumentException>("value", () => "\uD800\uD800".Normalize()); // Invalid surrogate pair
+            AssertExtensions.Throws<ArgumentException>("strInput", () => "\uFFFE".Normalize()); // Invalid codepoint
+            AssertExtensions.Throws<ArgumentException>("strInput", () => "\uD800\uD800".Normalize()); // Invalid surrogate pair
+        }
 
-            Assert.Throws<ArgumentNullException>("value", () => StringNormalizationExtensions.Normalize(null));
-            Assert.Throws<ArgumentNullException>("value", () => ((string)null).Normalize());
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "Regular method on full framework: no point invoking on a null reference")]
+        public void Normalize_Null()
+        {
+            AssertExtensions.Throws<ArgumentNullException>("strInput", () => StringNormalizationExtensions.Normalize(null));
         }
     }
 }

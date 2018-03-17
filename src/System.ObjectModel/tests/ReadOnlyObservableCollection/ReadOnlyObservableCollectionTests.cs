@@ -4,6 +4,8 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
 using Xunit;
 
 namespace System.Collections.ObjectModel.Tests
@@ -132,16 +134,16 @@ namespace System.Collections.ObjectModel.Tests
             foreach (var index in iArrLargeValues)
             {
                 string[] aCopy = new string[anArray.Length];
-                Assert.Throws<ArgumentException>(() => readOnlyCol.CopyTo(aCopy, index));
+                AssertExtensions.Throws<ArgumentException>("destinationArray", null, () => readOnlyCol.CopyTo(aCopy, index));
             }
 
             Assert.Throws<ArgumentNullException>(() => readOnlyCol.CopyTo(null, 1));
 
             string[] copy = new string[anArray.Length - 1];
-            Assert.Throws<ArgumentException>(() => readOnlyCol.CopyTo(copy, 0));
+            AssertExtensions.Throws<ArgumentException>("destinationArray", "", () => readOnlyCol.CopyTo(copy, 0));
 
             copy = new string[0];
-            Assert.Throws<ArgumentException>(() => readOnlyCol.CopyTo(copy, 0));
+            AssertExtensions.Throws<ArgumentException>("destinationArray", "", () => readOnlyCol.CopyTo(copy, 0));
         }
 
         /// <summary>
@@ -161,7 +163,7 @@ namespace System.Collections.ObjectModel.Tests
             Assert.Equal(-1, readOnlyCollection.IndexOf("seven"));
             Assert.Equal(-1, readOnlyCollection.IndexOf(null));
 
-            // testing that the first occurance is the index returned.
+            // testing that the first occurrence is the index returned.
             ObservableCollection<int> intCol = new ObservableCollection<int>();
             for (int i = 0; i < 4; ++i)
                 intCol.Add(i % 2);
@@ -197,10 +199,25 @@ namespace System.Collections.ObjectModel.Tests
         }
 
         [Fact]
+        // skip the test on desktop as "new ObservableCollection<int>()" returns 0 length collection
+        // skip the test on UapAot as the requires Reflection on internal framework types.
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework | TargetFrameworkMonikers.UapAot)]
         public static void DebuggerAttribute_Tests()
         {
-            DebuggerAttributes.ValidateDebuggerDisplayReferences(new ReadOnlyObservableCollection<int>(new ObservableCollection<int>()));
-            DebuggerAttributes.ValidateDebuggerTypeProxyProperties(new ReadOnlyObservableCollection<int>(new ObservableCollection<int>()));
+            ReadOnlyObservableCollection<int> col = new ReadOnlyObservableCollection<int>(new ObservableCollection<int>(new[] {1, 2, 3, 4}));
+            DebuggerAttributes.ValidateDebuggerDisplayReferences(col);
+            DebuggerAttributeInfo info = DebuggerAttributes.ValidateDebuggerTypeProxyProperties(col);
+            PropertyInfo itemProperty = info.Properties.Single(pr => pr.GetCustomAttribute<DebuggerBrowsableAttribute>().State == DebuggerBrowsableState.RootHidden);
+            int[] items = itemProperty.GetValue(info.Instance) as int[];
+            Assert.Equal(col, items);
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework | TargetFrameworkMonikers.UapAot, "Cannot do DebuggerAttribute testing on UapAot: requires internal Reflection on framework types.")]
+        public static void DebuggerAttribute_NullCollection_ThrowsArgumentNullException()
+        {
+            TargetInvocationException ex = Assert.Throws<TargetInvocationException>(() => DebuggerAttributes.ValidateDebuggerTypeProxyProperties(typeof(ReadOnlyObservableCollection<int>), null));
+            ArgumentNullException argumentNullException = Assert.IsType<ArgumentNullException>(ex.InnerException);
         }
     }
 
@@ -323,7 +340,7 @@ namespace System.Collections.ObjectModel.Tests
 
                 // Verify we have not gotten more items then we expected
                 Assert.True(iterations < expectedCount,
-                    "Err_9844awpa More items have been returned fromt the enumerator(" + iterations + " items) than are in the expectedElements(" + expectedCount + " items)");
+                    "Err_9844awpa More items have been returned from the enumerator(" + iterations + " items) than are in the expectedElements(" + expectedCount + " items)");
 
                 // Verify Current returned the correct value
                 Assert.Equal(currentItem, expectedItems[iterations]);
@@ -368,7 +385,7 @@ namespace System.Collections.ObjectModel.Tests
 
                 // Verify we have not gotten more items then we expected                
                 Assert.True(iterations < expectedCount,
-                    "Err_9844awpa More items have been returned fromt the enumerator(" + iterations + " items) then are in the expectedElements(" + expectedCount + " items)");
+                    "Err_9844awpa More items have been returned from the enumerator(" + iterations + " items) then are in the expectedElements(" + expectedCount + " items)");
 
                 // Verify Current returned the correct value
                 itemFound = false;

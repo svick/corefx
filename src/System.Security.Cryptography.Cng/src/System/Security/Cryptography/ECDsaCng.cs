@@ -2,31 +2,29 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Diagnostics;
-
+using System.IO;
 using Internal.Cryptography;
 
 namespace System.Security.Cryptography
 {
     public sealed partial class ECDsaCng : ECDsa
     {
-        /// <summary>
-        ///     Create an ECDsaCng algorithm with a random 521 bit key pair.
-        /// </summary>
-        public ECDsaCng()
-            : this(521)
-        {
-        }
+        private CngAlgorithmCore _core;
+        private CngAlgorithm _hashAlgorithm;
 
         /// <summary>
-        ///     Creates a new ECDsaCng object that will use a randomly generated key of the specified size.
+        ///     Hash algorithm to use when generating a signature over arbitrary data
         /// </summary>
-        /// <param name="keySize">Size of the key to generate, in bits.</param>
-        /// <exception cref="CryptographicException">if <paramref name="keySize" /> is not valid</exception>
-        public ECDsaCng(int keySize)
+        public CngAlgorithm HashAlgorithm
         {
-            KeySize = keySize;
+            get
+            {
+                return _hashAlgorithm;
+            }
+            set
+            {
+                _hashAlgorithm = value ?? throw new ArgumentNullException(nameof(value));
+            }
         }
 
         /// <summary>
@@ -49,17 +47,14 @@ namespace System.Security.Cryptography
             Key = CngAlgorithmCore.Duplicate(key);
         }
 
-        public override KeySizes[] LegalKeySizes
-        {
-            get
-            {
-                return (KeySizes[])(s_legalKeySizes.Clone());
-            }
-        }
-
         protected override void Dispose(bool disposing)
         {
             _core.Dispose();
+        }
+
+        private void DisposeKey()
+        {
+            _core.DisposeKey();
         }
 
         private static bool IsEccAlgorithmGroup(CngAlgorithmGroup algorithmGroup)
@@ -72,16 +67,53 @@ namespace System.Security.Cryptography
             return algorithmGroup == CngAlgorithmGroup.ECDsa || algorithmGroup == CngAlgorithmGroup.ECDiffieHellman;
         }
 
-        private CngAlgorithmCore _core;
+        internal string GetCurveName()
+        {
+            return Key.GetCurveName();
+        }
 
-        // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb931354(v=vs.85).aspx
-        private static readonly KeySizes[] s_legalKeySizes =
-            new KeySizes[]
-            {
-                // All values are in bits.
-                new KeySizes(minSize: 256, maxSize: 384, skipSize: 128),
-                new KeySizes(minSize: 521, maxSize: 521, skipSize: 0),
-            };
+        private void ImportFullKeyBlob(byte[] ecfullKeyBlob, bool includePrivateParameters)
+        {
+            Key = ECCng.ImportFullKeyBlob(ecfullKeyBlob, includePrivateParameters);
+        }
+
+        private void ImportKeyBlob(byte[] ecfullKeyBlob, string curveName, bool includePrivateParameters)
+        {
+            Key = ECCng.ImportKeyBlob(ecfullKeyBlob, curveName, includePrivateParameters);
+        }
+
+        private byte[] ExportKeyBlob(bool includePrivateParameters)
+        {
+            return ECCng.ExportKeyBlob(Key, includePrivateParameters);
+        }
+
+        private byte[] ExportFullKeyBlob(bool includePrivateParameters)
+        {
+            return ECCng.ExportFullKeyBlob(Key, includePrivateParameters);
+        }
+
+        public void FromXmlString(string xml, ECKeyXmlFormat format)
+            => throw new PlatformNotSupportedException();
+
+        public byte[] SignData(byte[] data)
+            => SignData(data, new HashAlgorithmName(HashAlgorithm.Algorithm));
+
+        public byte[] SignData(byte[] data, int offset, int count) =>
+            SignData(data, offset, count, new HashAlgorithmName(HashAlgorithm.Algorithm));
+
+        public byte[] SignData(Stream data)
+            => SignData(data, new HashAlgorithmName(HashAlgorithm.Algorithm));
+
+        public string ToXmlString(ECKeyXmlFormat format)
+            => throw new PlatformNotSupportedException();
+
+        public bool VerifyData(byte[] data, byte[] signature)
+            => VerifyData(data, signature, new HashAlgorithmName(HashAlgorithm.Algorithm));
+
+        public bool VerifyData(byte[] data, int offset, int count, byte[] signature)
+            => VerifyData(data, offset, count, signature, new HashAlgorithmName(HashAlgorithm.Algorithm));
+
+        public bool VerifyData(Stream data, byte[] signature)
+            => VerifyData(data, signature, new HashAlgorithmName(HashAlgorithm.Algorithm));
     }
 }
-

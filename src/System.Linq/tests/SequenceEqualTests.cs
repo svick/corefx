@@ -81,6 +81,15 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void RunOnce()
+        {
+            string[] first = { "Bob", "Tim", "Chris" };
+            string[] second = { "Bbo", "mTi", "rishC" };
+
+            Assert.True(first.RunOnce().SequenceEqual(second.RunOnce(), new AnagramEqualityComparer()));
+        }
+
+        [Fact]
         public void BothSingleNullExplicitComparer()
         {
             string[] first = { null };
@@ -195,7 +204,7 @@ namespace System.Linq.Tests
             int[] first = null;
             int[] second = { };
             
-            Assert.Throws<ArgumentNullException>("first", () => first.SequenceEqual(second));
+            AssertExtensions.Throws<ArgumentNullException>("first", () => first.SequenceEqual(second));
         }
 
         [Fact]
@@ -204,7 +213,7 @@ namespace System.Linq.Tests
             int[] first = { };
             int[] second = null;
             
-            Assert.Throws<ArgumentNullException>("second", () => first.SequenceEqual(second));
+            AssertExtensions.Throws<ArgumentNullException>("second", () => first.SequenceEqual(second));
         }
     }
 }

@@ -34,6 +34,22 @@ namespace System.Runtime.Serialization
         private ISerializationSurrogateProvider _serializationSurrogateProvider;
         private bool _serializeReadOnlyTypes;
 
+        private static SerializationOption _option = SerializationOption.ReflectionAsBackup;
+        private static bool _optionAlreadySet;
+        internal static SerializationOption Option
+        {
+            get { return _option; }
+            set
+            {
+                if (_optionAlreadySet)
+                {
+                    throw new InvalidOperationException("Can only set once");
+                }
+                _optionAlreadySet = true;
+                _option = value;
+            }
+        }
+
         public DataContractSerializer(Type type)
             : this(type, (IEnumerable<Type>)null)
         {
@@ -67,7 +83,7 @@ namespace System.Runtime.Serialization
             Initialize(type, rootName, rootNamespace, knownTypes, int.MaxValue, false, false, null, false);
         }
 
-#if NET_NATIVE
+#if uapaot
         public DataContractSerializer(Type type, IEnumerable<Type> knownTypes, int maxItemsInObjectGraph, bool ignoreExtensionDataObject, bool preserveObjectReferences)
 #else
         internal DataContractSerializer(Type type, IEnumerable<Type> knownTypes, int maxItemsInObjectGraph, bool ignoreExtensionDataObject, bool preserveObjectReferences)
@@ -104,7 +120,7 @@ namespace System.Runtime.Serialization
             DataContractResolver dataContractResolver,
             bool serializeReadOnlyTypes)
         {
-            CheckNull(type, "type");
+            CheckNull(type, nameof(type));
             _rootType = type;
 
             if (knownTypes != null)
@@ -267,6 +283,11 @@ namespace System.Runtime.Serialization
             WriteEndObjectHandleExceptions(new XmlWriterDelegator(writer));
         }
 
+        public void WriteObject(XmlDictionaryWriter writer, object graph, DataContractResolver dataContractResolver)
+        {
+            WriteObjectHandleExceptions(new XmlWriterDelegator(writer), graph, dataContractResolver);
+        }
+
         public override object ReadObject(XmlReader reader)
         {
             return ReadObjectHandleExceptions(new XmlReaderDelegator(reader), true /*verifyObjectName*/);
@@ -290,6 +311,11 @@ namespace System.Runtime.Serialization
         public override bool IsStartObject(XmlDictionaryReader reader)
         {
             return IsStartObjectHandleExceptions(new XmlReaderDelegator(reader));
+        }
+
+        public object ReadObject(XmlDictionaryReader reader, bool verifyObjectName, DataContractResolver dataContractResolver)
+        {
+            return ReadObjectHandleExceptions(new XmlReaderDelegator(reader), verifyObjectName, dataContractResolver);
         }
 
         internal override void InternalWriteStartObject(XmlWriterDelegator writer, object graph)
@@ -364,7 +390,7 @@ namespace System.Runtime.Serialization
 
         internal static DataContract GetDataContract(DataContract declaredTypeContract, Type declaredType, Type objectType)
         {
-            if (declaredType.GetTypeInfo().IsInterface && CollectionDataContract.IsCollectionInterface(declaredType))
+            if (declaredType.IsInterface && CollectionDataContract.IsCollectionInterface(declaredType))
             {
                 return declaredTypeContract;
             }
@@ -399,7 +425,7 @@ namespace System.Runtime.Serialization
             if (dataContractResolver == null)
                 dataContractResolver = this.DataContractResolver;
 
-#if NET_NATIVE
+#if uapaot
             // Give the root contract a chance to initialize or pre-verify the read
             RootContract.PrepareToRead(xmlReader);
 #endif

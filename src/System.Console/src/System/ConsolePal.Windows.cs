@@ -4,7 +4,6 @@
 
 using System.IO;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -20,37 +19,37 @@ namespace System
 
         public static Stream OpenStandardInput()
         {
-            return GetStandardFile(Interop.mincore.HandleTypes.STD_INPUT_HANDLE, FileAccess.Read);
+            return GetStandardFile(Interop.Kernel32.HandleTypes.STD_INPUT_HANDLE, FileAccess.Read);
         }
 
         public static Stream OpenStandardOutput()
         {
-            return GetStandardFile(Interop.mincore.HandleTypes.STD_OUTPUT_HANDLE, FileAccess.Write);
+            return GetStandardFile(Interop.Kernel32.HandleTypes.STD_OUTPUT_HANDLE, FileAccess.Write);
         }
 
         public static Stream OpenStandardError()
         {
-            return GetStandardFile(Interop.mincore.HandleTypes.STD_ERROR_HANDLE, FileAccess.Write);
+            return GetStandardFile(Interop.Kernel32.HandleTypes.STD_ERROR_HANDLE, FileAccess.Write);
         }
 
         private static IntPtr InputHandle
         {
-            get { return Interop.mincore.GetStdHandle(Interop.mincore.HandleTypes.STD_INPUT_HANDLE); }
+            get { return Interop.Kernel32.GetStdHandle(Interop.Kernel32.HandleTypes.STD_INPUT_HANDLE); }
         }
 
         private static IntPtr OutputHandle
         {
-            get { return Interop.mincore.GetStdHandle(Interop.mincore.HandleTypes.STD_OUTPUT_HANDLE); }
+            get { return Interop.Kernel32.GetStdHandle(Interop.Kernel32.HandleTypes.STD_OUTPUT_HANDLE); }
         }
 
         private static IntPtr ErrorHandle
         {
-            get { return Interop.mincore.GetStdHandle(Interop.mincore.HandleTypes.STD_ERROR_HANDLE); }
+            get { return Interop.Kernel32.GetStdHandle(Interop.Kernel32.HandleTypes.STD_ERROR_HANDLE); }
         }
 
         private static Stream GetStandardFile(int handleType, FileAccess access)
         {
-            IntPtr handle = Interop.mincore.GetStdHandle(handleType);
+            IntPtr handle = Interop.Kernel32.GetStdHandle(handleType);
 
             // If someone launches a managed process via CreateProcess, stdout,
             // stderr, & stdin could independently be set to INVALID_HANDLE_VALUE.
@@ -83,35 +82,35 @@ namespace System
             // appropriate modes. This must handle console-less Windows apps.
             int bytesWritten;
             byte junkByte = 0x41;
-            int r = Interop.mincore.WriteFile(outErrHandle, &junkByte, 0, out bytesWritten, IntPtr.Zero);
+            int r = Interop.Kernel32.WriteFile(outErrHandle, &junkByte, 0, out bytesWritten, IntPtr.Zero);
             return r != 0; // In Win32 apps w/ no console, bResult should be 0 for failure.
         }
 
         public static Encoding InputEncoding
         {
-            get { return EncodingHelper.GetSupportedConsoleEncoding((int)Interop.mincore.GetConsoleCP()); }
+            get { return EncodingHelper.GetSupportedConsoleEncoding((int)Interop.Kernel32.GetConsoleCP()); }
         }
 
         public static void SetConsoleInputEncoding(Encoding enc)
         {
             if (enc.CodePage != Encoding.Unicode.CodePage)
             {
-                if (!Interop.mincore.SetConsoleCP(enc.CodePage))
-                    Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
+                if (!Interop.Kernel32.SetConsoleCP(enc.CodePage))
+                    throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
         }
 
         public static Encoding OutputEncoding
         {
-            get { return EncodingHelper.GetSupportedConsoleEncoding((int)Interop.mincore.GetConsoleOutputCP()); }
+            get { return EncodingHelper.GetSupportedConsoleEncoding((int)Interop.Kernel32.GetConsoleOutputCP()); }
         }
 
         public static void SetConsoleOutputEncoding(Encoding enc)
         {
             if (enc.CodePage != Encoding.Unicode.CodePage)
             {
-                if (!Interop.mincore.SetConsoleOutputCP(enc.CodePage))
-                    Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
+                if (!Interop.Kernel32.SetConsoleOutputCP(enc.CodePage))
+                    throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
         }
 
@@ -119,13 +118,13 @@ namespace System
         {
             switch (handleType)
             {
-                case Interop.mincore.HandleTypes.STD_INPUT_HANDLE:
+                case Interop.Kernel32.HandleTypes.STD_INPUT_HANDLE:
                     return Console.InputEncoding.CodePage != Encoding.Unicode.CodePage || Console.IsInputRedirected;
 
-                case Interop.mincore.HandleTypes.STD_OUTPUT_HANDLE:
+                case Interop.Kernel32.HandleTypes.STD_OUTPUT_HANDLE:
                     return Console.OutputEncoding.CodePage != Encoding.Unicode.CodePage || Console.IsOutputRedirected;
 
-                case Interop.mincore.HandleTypes.STD_ERROR_HANDLE:
+                case Interop.Kernel32.HandleTypes.STD_ERROR_HANDLE:
                     return Console.OutputEncoding.CodePage != Encoding.Unicode.CodePage || Console.IsErrorRedirected;
 
                 default:
@@ -156,12 +155,12 @@ namespace System
         private static bool IsHandleRedirected(IntPtr handle)
         {
             // If handle is not to a character device, we must be redirected:
-            uint fileType = Interop.mincore.GetFileType(handle);
-            if ((fileType & Interop.mincore.FileTypes.FILE_TYPE_CHAR) != Interop.mincore.FileTypes.FILE_TYPE_CHAR)
+            uint fileType = Interop.Kernel32.GetFileType(handle);
+            if ((fileType & Interop.Kernel32.FileTypes.FILE_TYPE_CHAR) != Interop.Kernel32.FileTypes.FILE_TYPE_CHAR)
                 return true;
 
             // We are on a char device if GetConsoleMode succeeds and so we are not redirected.
-            return (!Interop.mincore.IsGetConsoleModeCallSuccessful(handle));
+            return (!Interop.Kernel32.IsGetConsoleModeCallSuccessful(handle));
         }
 
         internal static TextReader GetOrCreateReader()
@@ -186,7 +185,6 @@ namespace System
         // we will lose repeated keystrokes when someone switches from
         // calling ReadKey to calling Read or ReadLine.  Those methods should 
         // ideally flush this cache as well.
-        [System.Security.SecurityCritical] // auto-generated
         private static Interop.InputRecord _cachedInputRecord;
 
         // Skip non key events. Generally we want to surface only KeyDown event 
@@ -194,13 +192,11 @@ namespace System
         // where the assumption of KeyDown-KeyUp pairing for a given key press 
         // is invalid. For example in IME Unicode keyboard input, we often see
         // only KeyUp until the key is released.  
-        [System.Security.SecurityCritical]  // auto-generated
         private static bool IsKeyDownEvent(Interop.InputRecord ir)
         {
-            return (ir.eventType == Interop.KEY_EVENT && ir.keyEvent.keyDown);
+            return (ir.eventType == Interop.KEY_EVENT && ir.keyEvent.keyDown != Interop.BOOL.FALSE);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private static bool IsModKey(Interop.InputRecord ir)
         {
             // We should also skip over Shift, Control, and Alt, as well as caps lock.
@@ -230,7 +226,6 @@ namespace System
         // desired effect is to translate the sequence into one Unicode KeyPress. 
         // We need to keep track of the Alt+NumPad sequence and surface the final
         // unicode char alone when the Alt key is released. 
-        [System.Security.SecurityCritical]  // auto-generated
         private static bool IsAltKeyDown(Interop.InputRecord ir)
         {
             return (((ControlKeyState)ir.keyEvent.controlKeyState)
@@ -246,7 +241,7 @@ namespace System
             {
                 try
                 {
-                    short s = Interop.mincore.GetKeyState(NumberLockVKCode);
+                    short s = Interop.User32.GetKeyState(NumberLockVKCode);
                     return (s & 1) == 1;
                 }
                 catch (Exception)
@@ -265,7 +260,7 @@ namespace System
             {
                 try
                 {
-                    short s = Interop.mincore.GetKeyState(CapsLockVKCode);
+                    short s = Interop.User32.GetKeyState(CapsLockVKCode);
                     return (s & 1) == 1;
                 }
                 catch (Exception)
@@ -289,11 +284,11 @@ namespace System
                 int numEventsRead = 0;
                 while (true)
                 {
-                    bool r = Interop.mincore.PeekConsoleInput(InputHandle, out ir, 1, out numEventsRead);
+                    bool r = Interop.Kernel32.PeekConsoleInput(InputHandle, out ir, 1, out numEventsRead);
                     if (!r)
                     {
                         int errorCode = Marshal.GetLastWin32Error();
-                        if (errorCode == Interop.mincore.Errors.ERROR_INVALID_HANDLE)
+                        if (errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                             throw new InvalidOperationException(SR.InvalidOperation_ConsoleKeyAvailableOnFile);
                         throw Win32Marshal.GetExceptionForWin32Error(errorCode, "stdin");
                     }
@@ -304,7 +299,7 @@ namespace System
                     // Skip non key-down && mod key events.
                     if (!IsKeyDownEvent(ir) || IsModKey(ir))
                     {
-                        r = Interop.mincore.ReadConsoleInput(InputHandle, out ir, 1, out numEventsRead);
+                        r = Interop.Kernel32.ReadConsoleInput(InputHandle, out ir, 1, out numEventsRead);
 
                         if (!r)
                             throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
@@ -346,7 +341,7 @@ namespace System
 
                     while (true)
                     {
-                        r = Interop.mincore.ReadConsoleInput(InputHandle, out ir, 1, out numEventsRead);
+                        r = Interop.Kernel32.ReadConsoleInput(InputHandle, out ir, 1, out numEventsRead);
                         if (!r || numEventsRead == 0)
                         {
                             // This will fail when stdin is redirected from a file or pipe. 
@@ -424,10 +419,10 @@ namespace System
                     throw new IOException(SR.IO_NoConsole);
 
                 int mode = 0;
-                if (!Interop.mincore.GetConsoleMode(handle, out mode))
-                    Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
+                if (!Interop.Kernel32.GetConsoleMode(handle, out mode))
+                    throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
 
-                return (mode & Interop.mincore.ENABLE_PROCESSED_INPUT) == 0;
+                return (mode & Interop.Kernel32.ENABLE_PROCESSED_INPUT) == 0;
             }
             set
             {
@@ -436,19 +431,19 @@ namespace System
                     throw new IOException(SR.IO_NoConsole);
 
                 int mode = 0;
-                Interop.mincore.GetConsoleMode(handle, out mode); // failure ignored in full framework
+                Interop.Kernel32.GetConsoleMode(handle, out mode); // failure ignored in full framework
 
                 if (value)
                 {
-                    mode &= ~Interop.mincore.ENABLE_PROCESSED_INPUT;
+                    mode &= ~Interop.Kernel32.ENABLE_PROCESSED_INPUT;
                 }
                 else
                 {
-                    mode |= Interop.mincore.ENABLE_PROCESSED_INPUT;
+                    mode |= Interop.Kernel32.ENABLE_PROCESSED_INPUT;
                 }
 
-                if (!Interop.mincore.SetConsoleMode(handle, mode))
-                    Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
+                if (!Interop.Kernel32.SetConsoleMode(handle, mode))
+                    throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
         }
 
@@ -461,17 +456,17 @@ namespace System
             get
             {
                 bool succeeded;
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
                 return succeeded ?
-                    ColorAttributeToConsoleColor((Interop.mincore.Color)csbi.wAttributes & Interop.mincore.Color.BackgroundMask) :
+                    ColorAttributeToConsoleColor((Interop.Kernel32.Color)csbi.wAttributes & Interop.Kernel32.Color.BackgroundMask) :
                     ConsoleColor.Black; // for code that may be used from Windows app w/ no console
             }
             set
             {
-                Interop.mincore.Color c = ConsoleColorToColorAttribute(value, true);
+                Interop.Kernel32.Color c = ConsoleColorToColorAttribute(value, true);
 
                 bool succeeded;
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
                 // For code that may be used from Windows app w/ no console
                 if (!succeeded)
                     return;
@@ -479,12 +474,12 @@ namespace System
                 Debug.Assert(_haveReadDefaultColors, "Setting the background color before we've read the default foreground color!");
 
                 short attrs = csbi.wAttributes;
-                attrs &= ~((short)Interop.mincore.Color.BackgroundMask);
+                attrs &= ~((short)Interop.Kernel32.Color.BackgroundMask);
                 // C#'s bitwise-or sign-extends to 32 bits.
                 attrs = (short)(((uint)(ushort)attrs) | ((uint)(ushort)c));
                 // Ignore errors here - there are some scenarios for running code that wants
                 // to print in colors to the console in a Windows application.
-                Interop.mincore.SetConsoleTextAttribute(OutputHandle, attrs);
+                Interop.Kernel32.SetConsoleTextAttribute(OutputHandle, attrs);
             }
         }
 
@@ -493,19 +488,19 @@ namespace System
             get
             {
                 bool succeeded;
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
 
                 // For code that may be used from Windows app w/ no console
                 return succeeded ?
-                    ColorAttributeToConsoleColor((Interop.mincore.Color)csbi.wAttributes & Interop.mincore.Color.ForegroundMask) :
+                    ColorAttributeToConsoleColor((Interop.Kernel32.Color)csbi.wAttributes & Interop.Kernel32.Color.ForegroundMask) :
                     ConsoleColor.Gray;
             }
             set
             {
-                Interop.mincore.Color c = ConsoleColorToColorAttribute(value, false);
+                Interop.Kernel32.Color c = ConsoleColorToColorAttribute(value, false);
 
                 bool succeeded;
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
                 // For code that may be used from Windows app w/ no console
                 if (!succeeded)
                     return;
@@ -513,35 +508,38 @@ namespace System
                 Debug.Assert(_haveReadDefaultColors, "Setting the foreground color before we've read the default foreground color!");
 
                 short attrs = csbi.wAttributes;
-                attrs &= ~((short)Interop.mincore.Color.ForegroundMask);
+                attrs &= ~((short)Interop.Kernel32.Color.ForegroundMask);
                 // C#'s bitwise-or sign-extends to 32 bits.
                 attrs = (short)(((uint)(ushort)attrs) | ((uint)(ushort)c));
                 // Ignore errors here - there are some scenarios for running code that wants
                 // to print in colors to the console in a Windows application.
-                Interop.mincore.SetConsoleTextAttribute(OutputHandle, attrs);
+                Interop.Kernel32.SetConsoleTextAttribute(OutputHandle, attrs);
             }
         }
 
         public static void ResetColor()
         {
-            bool succeeded;
-            Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo(false, out succeeded);
-            if (!succeeded)
-                return; // For code that may be used from Windows app w/ no console
+            if (!_haveReadDefaultColors) // avoid the costs of GetBufferInfo if we already know we checked it
+            {
+                bool succeeded;
+                GetBufferInfo(false, out succeeded);
+                if (!succeeded)
+                    return; // For code that may be used from Windows app w/ no console
 
-            Debug.Assert(_haveReadDefaultColors, "Resetting color before we've read the default foreground color!");
+                Debug.Assert(_haveReadDefaultColors, "Resetting color before we've read the default foreground color!");
+            }
 
             // Ignore errors here - there are some scenarios for running code that wants
             // to print in colors to the console in a Windows application.
-            Interop.mincore.SetConsoleTextAttribute(OutputHandle, (short)(ushort)_defaultColors);
+            Interop.Kernel32.SetConsoleTextAttribute(OutputHandle, (short)(ushort)_defaultColors);
         }
 
         public static int CursorSize
         {
             get
             {
-                Interop.mincore.CONSOLE_CURSOR_INFO cci;
-                if (!Interop.mincore.GetConsoleCursorInfo(OutputHandle, out cci))
+                Interop.Kernel32.CONSOLE_CURSOR_INFO cci;
+                if (!Interop.Kernel32.GetConsoleCursorInfo(OutputHandle, out cci))
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
 
                 return cci.dwSize;
@@ -551,14 +549,13 @@ namespace System
                 // Value should be a percentage from [1, 100].
                 if (value < 1 || value > 100)
                     throw new ArgumentOutOfRangeException(nameof(value), value, SR.ArgumentOutOfRange_CursorSize);
-                Contract.EndContractBlock();
 
-                Interop.mincore.CONSOLE_CURSOR_INFO cci;
-                if (!Interop.mincore.GetConsoleCursorInfo(OutputHandle, out cci))
+                Interop.Kernel32.CONSOLE_CURSOR_INFO cci;
+                if (!Interop.Kernel32.GetConsoleCursorInfo(OutputHandle, out cci))
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
 
                 cci.dwSize = value;
-                if (!Interop.mincore.SetConsoleCursorInfo(OutputHandle, ref cci))
+                if (!Interop.Kernel32.SetConsoleCursorInfo(OutputHandle, ref cci))
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
         }
@@ -567,20 +564,20 @@ namespace System
         {
             get
             {
-                Interop.mincore.CONSOLE_CURSOR_INFO cci;
-                if (!Interop.mincore.GetConsoleCursorInfo(OutputHandle, out cci))
+                Interop.Kernel32.CONSOLE_CURSOR_INFO cci;
+                if (!Interop.Kernel32.GetConsoleCursorInfo(OutputHandle, out cci))
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
 
                 return cci.bVisible;
             }
             set
             {
-                Interop.mincore.CONSOLE_CURSOR_INFO cci;
-                if (!Interop.mincore.GetConsoleCursorInfo(OutputHandle, out cci))
+                Interop.Kernel32.CONSOLE_CURSOR_INFO cci;
+                if (!Interop.Kernel32.GetConsoleCursorInfo(OutputHandle, out cci))
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
 
                 cci.bVisible = value;
-                if (!Interop.mincore.SetConsoleCursorInfo(OutputHandle, ref cci))
+                if (!Interop.Kernel32.SetConsoleCursorInfo(OutputHandle, ref cci))
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
         }
@@ -589,7 +586,7 @@ namespace System
         {
             get
             {
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
                 return csbi.dwCursorPosition.X;
             }
         }
@@ -598,7 +595,7 @@ namespace System
         {
             get
             {
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
                 return csbi.dwCursorPosition.Y;
             }
         }
@@ -610,12 +607,11 @@ namespace System
 
         public static string Title
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 string title = null;
                 int titleLength = -1;
-                int r = Interop.mincore.GetConsoleTitle(out title, out titleLength);
+                int r = Interop.Kernel32.GetConsoleTitle(out title, out titleLength);
 
                 if (0 != r)
                 {
@@ -629,16 +625,9 @@ namespace System
                 return title;
             }
 
-            [System.Security.SecuritySafeCritical]  // auto-generated
             set
             {
-                if (value == null)
-                    throw new ArgumentNullException(nameof(value));
-                if (value.Length > MaxConsoleTitleLength)
-                    throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_ConsoleTitleTooLong);
-                Contract.EndContractBlock();
-
-                if (!Interop.mincore.SetConsoleTitle(value))
+                if (!Interop.Kernel32.SetConsoleTitle(value))
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
         }
@@ -648,7 +637,7 @@ namespace System
 
         public static void Beep()
         {
-            Interop.mincore.Beep(BeepFrequencyInHz, BeepDurationInMs);
+            Interop.Kernel32.Beep(BeepFrequencyInHz, BeepDurationInMs);
         }
 
         private const int MinBeepFrequency = 37;
@@ -661,11 +650,10 @@ namespace System
             if (duration <= 0)
                 throw new ArgumentOutOfRangeException(nameof(duration), duration, SR.ArgumentOutOfRange_NeedPosNum);
 
-            Contract.EndContractBlock();
-            Interop.mincore.Beep(frequency, duration);
+            Interop.Kernel32.Beep(frequency, duration);
         }
 
-        public unsafe static void MoveBufferArea(int sourceLeft, int sourceTop,
+        public static unsafe void MoveBufferArea(int sourceLeft, int sourceTop,
             int sourceWidth, int sourceHeight, int targetLeft, int targetTop,
             char sourceChar, ConsoleColor sourceForeColor,
             ConsoleColor sourceBackColor)
@@ -674,10 +662,9 @@ namespace System
                 throw new ArgumentException(SR.Arg_InvalidConsoleColor, nameof(sourceForeColor));
             if (sourceBackColor < ConsoleColor.Black || sourceBackColor > ConsoleColor.White)
                 throw new ArgumentException(SR.Arg_InvalidConsoleColor, nameof(sourceBackColor));
-            Contract.EndContractBlock();
 
-            Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
-            Interop.mincore.COORD bufferSize = csbi.dwSize;
+            Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+            Interop.Kernel32.COORD bufferSize = csbi.dwSize;
             if (sourceLeft < 0 || sourceLeft > bufferSize.X)
                 throw new ArgumentOutOfRangeException(nameof(sourceLeft), sourceLeft, SR.ArgumentOutOfRange_ConsoleBufferBoundaries);
             if (sourceTop < 0 || sourceTop > bufferSize.Y)
@@ -704,57 +691,57 @@ namespace System
             // destination regions correctly.
 
             // Read the old data
-            Interop.mincore.CHAR_INFO[] data = new Interop.mincore.CHAR_INFO[sourceWidth * sourceHeight];
+            Interop.Kernel32.CHAR_INFO[] data = new Interop.Kernel32.CHAR_INFO[sourceWidth * sourceHeight];
             bufferSize.X = (short)sourceWidth;
             bufferSize.Y = (short)sourceHeight;
-            Interop.mincore.COORD bufferCoord = new Interop.mincore.COORD();
-            Interop.mincore.SMALL_RECT readRegion = new Interop.mincore.SMALL_RECT();
+            Interop.Kernel32.COORD bufferCoord = new Interop.Kernel32.COORD();
+            Interop.Kernel32.SMALL_RECT readRegion = new Interop.Kernel32.SMALL_RECT();
             readRegion.Left = (short)sourceLeft;
             readRegion.Right = (short)(sourceLeft + sourceWidth - 1);
             readRegion.Top = (short)sourceTop;
             readRegion.Bottom = (short)(sourceTop + sourceHeight - 1);
 
             bool r;
-            fixed (Interop.mincore.CHAR_INFO* pCharInfo = data)
-                r = Interop.mincore.ReadConsoleOutput(OutputHandle, pCharInfo, bufferSize, bufferCoord, ref readRegion);
+            fixed (Interop.Kernel32.CHAR_INFO* pCharInfo = data)
+                r = Interop.Kernel32.ReadConsoleOutput(OutputHandle, pCharInfo, bufferSize, bufferCoord, ref readRegion);
             if (!r)
                 throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
 
             // Overwrite old section
-            Interop.mincore.COORD writeCoord = new Interop.mincore.COORD();
+            Interop.Kernel32.COORD writeCoord = new Interop.Kernel32.COORD();
             writeCoord.X = (short)sourceLeft;
-            Interop.mincore.Color c = ConsoleColorToColorAttribute(sourceBackColor, true);
+            Interop.Kernel32.Color c = ConsoleColorToColorAttribute(sourceBackColor, true);
             c |= ConsoleColorToColorAttribute(sourceForeColor, false);
             short attr = (short)c;
             int numWritten;
             for (int i = sourceTop; i < sourceTop + sourceHeight; i++)
             {
                 writeCoord.Y = (short)i;
-                r = Interop.mincore.FillConsoleOutputCharacter(OutputHandle, sourceChar, sourceWidth, writeCoord, out numWritten);
+                r = Interop.Kernel32.FillConsoleOutputCharacter(OutputHandle, sourceChar, sourceWidth, writeCoord, out numWritten);
                 Debug.Assert(numWritten == sourceWidth, "FillConsoleOutputCharacter wrote the wrong number of chars!");
                 if (!r)
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
 
-                r = Interop.mincore.FillConsoleOutputAttribute(OutputHandle, attr, sourceWidth, writeCoord, out numWritten);
+                r = Interop.Kernel32.FillConsoleOutputAttribute(OutputHandle, attr, sourceWidth, writeCoord, out numWritten);
                 if (!r)
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
 
             // Write text to new location
-            Interop.mincore.SMALL_RECT writeRegion = new Interop.mincore.SMALL_RECT();
+            Interop.Kernel32.SMALL_RECT writeRegion = new Interop.Kernel32.SMALL_RECT();
             writeRegion.Left = (short)targetLeft;
             writeRegion.Right = (short)(targetLeft + sourceWidth);
             writeRegion.Top = (short)targetTop;
             writeRegion.Bottom = (short)(targetTop + sourceHeight);
 
-            fixed (Interop.mincore.CHAR_INFO* pCharInfo = data)
-                Interop.mincore.WriteConsoleOutput(OutputHandle, pCharInfo, bufferSize, bufferCoord, ref writeRegion);
+            fixed (Interop.Kernel32.CHAR_INFO* pCharInfo = data)
+                Interop.Kernel32.WriteConsoleOutput(OutputHandle, pCharInfo, bufferSize, bufferCoord, ref writeRegion);
         }
 
         public static void Clear()
         {
-            Interop.mincore.COORD coordScreen = new Interop.mincore.COORD();
-            Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi;
+            Interop.Kernel32.COORD coordScreen = new Interop.Kernel32.COORD();
+            Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi;
             bool success;
             int conSize;
 
@@ -771,7 +758,7 @@ namespace System
             // fill the entire screen with blanks
 
             int numCellsWritten = 0;
-            success = Interop.mincore.FillConsoleOutputCharacter(hConsole, ' ',
+            success = Interop.Kernel32.FillConsoleOutputCharacter(hConsole, ' ',
                 conSize, coordScreen, out numCellsWritten);
             if (!success)
                 throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
@@ -779,41 +766,32 @@ namespace System
             // now set the buffer's attributes accordingly
 
             numCellsWritten = 0;
-            success = Interop.mincore.FillConsoleOutputAttribute(hConsole, csbi.wAttributes,
+            success = Interop.Kernel32.FillConsoleOutputAttribute(hConsole, csbi.wAttributes,
                 conSize, coordScreen, out numCellsWritten);
             if (!success)
                 throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
 
             // put the cursor at (0, 0)
 
-            success = Interop.mincore.SetConsoleCursorPosition(hConsole, coordScreen);
+            success = Interop.Kernel32.SetConsoleCursorPosition(hConsole, coordScreen);
             if (!success)
                 throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
         }
 
         public static void SetCursorPosition(int left, int top)
         {
-            // Note on argument checking - the upper bounds are NOT correct 
-            // here!  But it looks slightly expensive to compute them.  Let
-            // Windows calculate them, then we'll give a nice error message.
-            if (left < 0 || left >= short.MaxValue)
-                throw new ArgumentOutOfRangeException(nameof(left), left, SR.ArgumentOutOfRange_ConsoleBufferBoundaries);
-            if (top < 0 || top >= short.MaxValue)
-                throw new ArgumentOutOfRangeException(nameof(top), top, SR.ArgumentOutOfRange_ConsoleBufferBoundaries);
-            Contract.EndContractBlock();
-
             IntPtr hConsole = OutputHandle;
-            Interop.mincore.COORD coords = new Interop.mincore.COORD();
+            Interop.Kernel32.COORD coords = new Interop.Kernel32.COORD();
             coords.X = (short)left;
             coords.Y = (short)top;
-            if (!Interop.mincore.SetConsoleCursorPosition(hConsole, coords))
+            if (!Interop.Kernel32.SetConsoleCursorPosition(hConsole, coords))
             {
                 // Give a nice error message for out of range sizes
                 int errorCode = Marshal.GetLastWin32Error();
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
-                if (left < 0 || left >= csbi.dwSize.X)
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                if (left >= csbi.dwSize.X)
                     throw new ArgumentOutOfRangeException(nameof(left), left, SR.ArgumentOutOfRange_ConsoleBufferBoundaries);
-                if (top < 0 || top >= csbi.dwSize.Y)
+                if (top >= csbi.dwSize.Y)
                     throw new ArgumentOutOfRangeException(nameof(top), top, SR.ArgumentOutOfRange_ConsoleBufferBoundaries);
 
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode);
@@ -822,10 +800,9 @@ namespace System
 
         public static int BufferWidth
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
                 return csbi.dwSize.X;
             }
             set
@@ -836,10 +813,9 @@ namespace System
 
         public static int BufferHeight
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
                 return csbi.dwSize.Y;
             }
             set
@@ -848,21 +824,20 @@ namespace System
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static void SetBufferSize(int width, int height)
         {
             // Ensure the new size is not smaller than the console window
-            Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
-            Interop.mincore.SMALL_RECT srWindow = csbi.srWindow;
+            Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+            Interop.Kernel32.SMALL_RECT srWindow = csbi.srWindow;
             if (width < srWindow.Right + 1 || width >= short.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(width), width, SR.ArgumentOutOfRange_ConsoleBufferLessThanWindowSize);
             if (height < srWindow.Bottom + 1 || height >= short.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(height), height, SR.ArgumentOutOfRange_ConsoleBufferLessThanWindowSize);
 
-            Interop.mincore.COORD size = new Interop.mincore.COORD();
+            Interop.Kernel32.COORD size = new Interop.Kernel32.COORD();
             size.X = (short)width;
             size.Y = (short)height;
-            if (!Interop.mincore.SetConsoleScreenBufferSize(OutputHandle, size))
+            if (!Interop.Kernel32.SetConsoleScreenBufferSize(OutputHandle, size))
             {
                 throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
@@ -870,24 +845,22 @@ namespace System
 
         public static int LargestWindowWidth
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 // Note this varies based on current screen resolution and 
                 // current console font.  Do not cache this value.
-                Interop.mincore.COORD bounds = Interop.mincore.GetLargestConsoleWindowSize(OutputHandle);
+                Interop.Kernel32.COORD bounds = Interop.Kernel32.GetLargestConsoleWindowSize(OutputHandle);
                 return bounds.X;
             }
         }
 
         public static int LargestWindowHeight
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 // Note this varies based on current screen resolution and 
                 // current console font.  Do not cache this value.
-                Interop.mincore.COORD bounds = Interop.mincore.GetLargestConsoleWindowSize(OutputHandle);
+                Interop.Kernel32.COORD bounds = Interop.Kernel32.GetLargestConsoleWindowSize(OutputHandle);
                 return bounds.Y;
             }
         }
@@ -897,7 +870,7 @@ namespace System
         {
             get
             {
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
                 return csbi.srWindow.Left;
             }
             set
@@ -910,8 +883,8 @@ namespace System
         {
             get
             {
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
-                return csbi.srWindow.Left;
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                return csbi.srWindow.Top;
             }
             set
             {
@@ -923,7 +896,7 @@ namespace System
         {
             get
             {
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
                 return csbi.srWindow.Right - csbi.srWindow.Left + 1;
             }
             set
@@ -936,7 +909,7 @@ namespace System
         {
             get
             {
-                Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+                Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
                 return csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
             }
             set
@@ -948,9 +921,9 @@ namespace System
         public static unsafe void SetWindowPosition(int left, int top)
         {
             // Get the size of the current console window
-            Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+            Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
 
-            Interop.mincore.SMALL_RECT srWindow = csbi.srWindow;
+            Interop.Kernel32.SMALL_RECT srWindow = csbi.srWindow;
 
             // Check for arithmetic underflows & overflows.
             int newRight = left + srWindow.Right - srWindow.Left + 1;
@@ -966,7 +939,7 @@ namespace System
             srWindow.Left = (short)left;
             srWindow.Top = (short)top;
 
-            bool r = Interop.mincore.SetConsoleWindowInfo(OutputHandle, true, &srWindow);
+            bool r = Interop.Kernel32.SetConsoleWindowInfo(OutputHandle, true, &srWindow);
             if (!r)
                 throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
         }
@@ -979,51 +952,51 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(height), height, SR.ArgumentOutOfRange_NeedPosNum);
 
             // Get the position of the current console window
-            Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
+            Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi = GetBufferInfo();
 
             // If the buffer is smaller than this new window size, resize the
             // buffer to be large enough.  Include window position.
             bool resizeBuffer = false;
-            Interop.mincore.COORD size = new Interop.mincore.COORD();
+            Interop.Kernel32.COORD size = new Interop.Kernel32.COORD();
             size.X = csbi.dwSize.X;
             size.Y = csbi.dwSize.Y;
             if (csbi.dwSize.X < csbi.srWindow.Left + width)
             {
                 if (csbi.srWindow.Left >= short.MaxValue - width)
-                    throw new ArgumentOutOfRangeException(nameof(width), SR.ArgumentOutOfRange_ConsoleWindowBufferSize);
+                    throw new ArgumentOutOfRangeException(nameof(width), SR.Format(SR.ArgumentOutOfRange_ConsoleWindowBufferSize, short.MaxValue - width));
                 size.X = (short)(csbi.srWindow.Left + width);
                 resizeBuffer = true;
             }
             if (csbi.dwSize.Y < csbi.srWindow.Top + height)
             {
                 if (csbi.srWindow.Top >= short.MaxValue - height)
-                    throw new ArgumentOutOfRangeException(nameof(height), SR.ArgumentOutOfRange_ConsoleWindowBufferSize);
+                    throw new ArgumentOutOfRangeException(nameof(height), SR.Format(SR.ArgumentOutOfRange_ConsoleWindowBufferSize, short.MaxValue - height));
                 size.Y = (short)(csbi.srWindow.Top + height);
                 resizeBuffer = true;
             }
             if (resizeBuffer)
             {
-                if (!Interop.mincore.SetConsoleScreenBufferSize(OutputHandle, size))
+                if (!Interop.Kernel32.SetConsoleScreenBufferSize(OutputHandle, size))
                     throw Win32Marshal.GetExceptionForWin32Error(Marshal.GetLastWin32Error());
             }
 
-            Interop.mincore.SMALL_RECT srWindow = csbi.srWindow;
+            Interop.Kernel32.SMALL_RECT srWindow = csbi.srWindow;
             // Preserve the position, but change the size.
             srWindow.Bottom = (short)(srWindow.Top + height - 1);
             srWindow.Right = (short)(srWindow.Left + width - 1);
 
-            if (!Interop.mincore.SetConsoleWindowInfo(OutputHandle, true, &srWindow))
+            if (!Interop.Kernel32.SetConsoleWindowInfo(OutputHandle, true, &srWindow))
             {
                 int errorCode = Marshal.GetLastWin32Error();
 
                 // If we resized the buffer, un-resize it.
                 if (resizeBuffer)
                 {
-                    Interop.mincore.SetConsoleScreenBufferSize(OutputHandle, csbi.dwSize);
+                    Interop.Kernel32.SetConsoleScreenBufferSize(OutputHandle, csbi.dwSize);
                 }
 
                 // Try to give a better error message here
-               Interop.mincore.COORD bounds = Interop.mincore.GetLargestConsoleWindowSize(OutputHandle);
+               Interop.Kernel32.COORD bounds = Interop.Kernel32.GetLargestConsoleWindowSize(OutputHandle);
                 if (width > bounds.X)
                     throw new ArgumentOutOfRangeException(nameof(width), width, SR.Format(SR.ArgumentOutOfRange_ConsoleWindowSize_Size, bounds.X));
                 if (height > bounds.Y)
@@ -1034,31 +1007,30 @@ namespace System
         }
 
 
-        private static Interop.mincore.Color ConsoleColorToColorAttribute(ConsoleColor color, bool isBackground)
+        private static Interop.Kernel32.Color ConsoleColorToColorAttribute(ConsoleColor color, bool isBackground)
         {
             if ((((int)color) & ~0xf) != 0)
                 throw new ArgumentException(SR.Arg_InvalidConsoleColor);
-            Contract.EndContractBlock();
 
-            Interop.mincore.Color c = (Interop.mincore.Color)color;
+            Interop.Kernel32.Color c = (Interop.Kernel32.Color)color;
 
             // Make these background colors instead of foreground
             if (isBackground)
-                c = (Interop.mincore.Color)((int)c << 4);
+                c = (Interop.Kernel32.Color)((int)c << 4);
             return c;
         }
 
-        private static ConsoleColor ColorAttributeToConsoleColor(Interop.mincore.Color c)
+        private static ConsoleColor ColorAttributeToConsoleColor(Interop.Kernel32.Color c)
         {
             // Turn background colors into foreground colors.
-            if ((c & Interop.mincore.Color.BackgroundMask) != 0)
+            if ((c & Interop.Kernel32.Color.BackgroundMask) != 0)
             {
-                c = (Interop.mincore.Color)(((int)c) >> 4);
+                c = (Interop.Kernel32.Color)(((int)c) >> 4);
             }
             return (ConsoleColor)c;
         }
 
-        private static Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO GetBufferInfo()
+        private static Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO GetBufferInfo()
         {
             bool unused;
             return GetBufferInfo(true, out unused);
@@ -1067,7 +1039,7 @@ namespace System
         // For apps that don't have a console (like Windows apps), they might
         // run other code that includes color console output.  Allow a mechanism
         // where that code won't throw an exception for simple errors.
-        private static Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO GetBufferInfo(bool throwOnNoConsole, out bool succeeded)
+        private static Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO GetBufferInfo(bool throwOnNoConsole, out bool succeeded)
         {
             succeeded = false;
 
@@ -1078,28 +1050,28 @@ namespace System
                 {
                     throw new IOException(SR.IO_NoConsole);
                 }
-                return new Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO();
+                return new Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO();
             }
 
             // Note that if stdout is redirected to a file, the console handle may be a file.  
             // First try stdout; if this fails, try stderr and then stdin.
-            Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO csbi;
-            if (!Interop.mincore.GetConsoleScreenBufferInfo(outputHandle, out csbi) &&
-                !Interop.mincore.GetConsoleScreenBufferInfo(ErrorHandle, out csbi) &&
-                !Interop.mincore.GetConsoleScreenBufferInfo(InputHandle, out csbi))
+            Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO csbi;
+            if (!Interop.Kernel32.GetConsoleScreenBufferInfo(outputHandle, out csbi) &&
+                !Interop.Kernel32.GetConsoleScreenBufferInfo(ErrorHandle, out csbi) &&
+                !Interop.Kernel32.GetConsoleScreenBufferInfo(InputHandle, out csbi))
             {
                 int errorCode = Marshal.GetLastWin32Error();
-                if (errorCode == Interop.mincore.Errors.ERROR_INVALID_HANDLE && !throwOnNoConsole)
-                    return new Interop.mincore.CONSOLE_SCREEN_BUFFER_INFO();
+                if (errorCode == Interop.Errors.ERROR_INVALID_HANDLE && !throwOnNoConsole)
+                    return new Interop.Kernel32.CONSOLE_SCREEN_BUFFER_INFO();
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode);
             }
 
             if (!_haveReadDefaultColors)
             {
                 // Fetch the default foreground and background color for the ResetColor method.
-                Debug.Assert((int)Interop.mincore.Color.ColorMask == 0xff, "Make sure one byte is large enough to store a Console color value!");
-                _defaultColors = (byte)(csbi.wAttributes & (short)Interop.mincore.Color.ColorMask);
-                _haveReadDefaultColors = true;
+                Debug.Assert((int)Interop.Kernel32.Color.ColorMask == 0xff, "Make sure one byte is large enough to store a Console color value!");
+                _defaultColors = (byte)(csbi.wAttributes & (short)Interop.Kernel32.Color.ColorMask);
+                _haveReadDefaultColors = true; // also used by ResetColor to know when GetBufferInfo has been called successfully
             }
 
             succeeded = true;
@@ -1121,7 +1093,7 @@ namespace System
             {
                 Debug.Assert(handle != IntPtr.Zero && handle != s_InvalidHandleValue, "ConsoleStream expects a valid handle!");
                 _handle = handle;
-                _isPipe = Interop.mincore.GetFileType(handle) == Interop.mincore.FileTypes.FILE_TYPE_PIPE;
+                _isPipe = Interop.Kernel32.GetFileType(handle) == Interop.Kernel32.FileTypes.FILE_TYPE_PIPE;
                 _useFileAPIs = useFileAPIs;
             }
 
@@ -1136,13 +1108,13 @@ namespace System
                 base.Dispose(disposing);
             }
 
-            public override int Read([In, Out] byte[] buffer, int offset, int count)
+            public override int Read(byte[] buffer, int offset, int count)
             {
                 ValidateRead(buffer, offset, count);
 
                 int bytesRead;
                 int errCode = ReadFileNative(_handle, buffer, offset, count, _isPipe, out bytesRead, _useFileAPIs);
-                if (Interop.mincore.Errors.ERROR_SUCCESS != errCode)
+                if (Interop.Errors.ERROR_SUCCESS != errCode)
                     throw Win32Marshal.GetExceptionForWin32Error(errCode);
                 return bytesRead;
             }
@@ -1152,7 +1124,7 @@ namespace System
                 ValidateWrite(buffer, offset, count);
 
                 int errCode = WriteFileNative(_handle, buffer, offset, count, _useFileAPIs);
-                if (Interop.mincore.Errors.ERROR_SUCCESS != errCode)
+                if (Interop.Errors.ERROR_SUCCESS != errCode)
                     throw Win32Marshal.GetExceptionForWin32Error(errCode);
             }
 
@@ -1167,70 +1139,70 @@ namespace System
             // world working set and to avoid requiring a reference to the
             // System.IO.FileSystem contract.
 
-            private unsafe static int ReadFileNative(IntPtr hFile, byte[] bytes, int offset, int count, bool isPipe, out int bytesRead, bool useFileAPIs)
+            private static unsafe int ReadFileNative(IntPtr hFile, byte[] bytes, int offset, int count, bool isPipe, out int bytesRead, bool useFileAPIs)
             {
-                Contract.Requires(offset >= 0, "offset >= 0");
-                Contract.Requires(count >= 0, "count >= 0");
-                Contract.Requires(bytes != null, "bytes != null");
+                Debug.Assert(offset >= 0, "offset >= 0");
+                Debug.Assert(count >= 0, "count >= 0");
+                Debug.Assert(bytes != null, "bytes != null");
                 // Don't corrupt memory when multiple threads are erroneously writing
                 // to this stream simultaneously.
                 if (bytes.Length - offset < count)
                     throw new IndexOutOfRangeException(SR.IndexOutOfRange_IORaceCondition);
-                Contract.EndContractBlock();
 
                 // You can't use the fixed statement on an array of length 0.
                 if (bytes.Length == 0)
                 {
                     bytesRead = 0;
-                    return Interop.mincore.Errors.ERROR_SUCCESS;
+                    return Interop.Errors.ERROR_SUCCESS;
                 }
 
                 bool readSuccess;
-                fixed (byte* p = bytes)
+                fixed (byte* p = &bytes[0])
                 {
                     if (useFileAPIs)
                     {
-                        readSuccess = (0 != Interop.mincore.ReadFile(hFile, p + offset, count, out bytesRead, IntPtr.Zero));
+                        readSuccess = (0 != Interop.Kernel32.ReadFile(hFile, p + offset, count, out bytesRead, IntPtr.Zero));
                     }
                     else
                     {
                         // If the code page could be Unicode, we should use ReadConsole instead, e.g.
                         int charsRead;
-                        readSuccess = Interop.mincore.ReadConsole(hFile, p + offset, count / BytesPerWChar, out charsRead, IntPtr.Zero);
+                        readSuccess = Interop.Kernel32.ReadConsole(hFile, p + offset, count / BytesPerWChar, out charsRead, IntPtr.Zero);
                         bytesRead = charsRead * BytesPerWChar;
                     }
                 }
                 if (readSuccess)
-                    return Interop.mincore.Errors.ERROR_SUCCESS;
+                    return Interop.Errors.ERROR_SUCCESS;
 
                 // For pipes that are closing or broken, just stop.
                 // (E.g. ERROR_NO_DATA ("pipe is being closed") is returned when we write to a console that is closing;
                 // ERROR_BROKEN_PIPE ("pipe was closed") is returned when stdin was closed, which is mot an error, but EOF.)
                 int errorCode = Marshal.GetLastWin32Error();
-                if (errorCode == Interop.mincore.Errors.ERROR_NO_DATA || errorCode == Interop.mincore.Errors.ERROR_BROKEN_PIPE)
-                    return Interop.mincore.Errors.ERROR_SUCCESS;
+                if (errorCode == Interop.Errors.ERROR_NO_DATA || errorCode == Interop.Errors.ERROR_BROKEN_PIPE)
+                    return Interop.Errors.ERROR_SUCCESS;
                 return errorCode;
             }
 
             private static unsafe int WriteFileNative(IntPtr hFile, byte[] bytes, int offset, int count, bool useFileAPIs)
             {
-                Contract.Requires(offset >= 0, "offset >= 0");
-                Contract.Requires(count >= 0, "count >= 0");
-                Contract.Requires(bytes != null, "bytes != null");
-                Contract.Requires(bytes.Length >= offset + count, "bytes.Length >= offset + count");
+                Debug.Assert(offset >= 0, "offset >= 0");
+                Debug.Assert(count >= 0, "count >= 0");
+                Debug.Assert(bytes != null, "bytes != null");
+                Debug.Assert(bytes.Length >= offset + count, "bytes.Length >= offset + count");
 
                 // You can't use the fixed statement on an array of length 0.
                 if (bytes.Length == 0)
-                    return Interop.mincore.Errors.ERROR_SUCCESS;
+                    return Interop.Errors.ERROR_SUCCESS;
 
                 bool writeSuccess;
-                fixed (byte* p = bytes)
+                fixed (byte* p = &bytes[0])
                 {
                     if (useFileAPIs)
                     {
                         int numBytesWritten;
-                        writeSuccess = (0 != Interop.mincore.WriteFile(hFile, p + offset, count, out numBytesWritten, IntPtr.Zero));
-                        Debug.Assert(!writeSuccess || count == numBytesWritten);
+                        writeSuccess = (0 != Interop.Kernel32.WriteFile(hFile, p + offset, count, out numBytesWritten, IntPtr.Zero));
+                        // In some cases we have seen numBytesWritten returned that is twice count;
+                        // so we aren't asserting the value of it. See corefx #24508
                     }
                     else
                     {
@@ -1241,19 +1213,19 @@ namespace System
                         // However, we do not need to worry about that because the StreamWriter in Console has
                         // a much shorter buffer size anyway.
                         int charsWritten;
-                        writeSuccess = Interop.mincore.WriteConsole(hFile, p + offset, count / BytesPerWChar, out charsWritten, IntPtr.Zero);
+                        writeSuccess = Interop.Kernel32.WriteConsole(hFile, p + offset, count / BytesPerWChar, out charsWritten, IntPtr.Zero);
                         Debug.Assert(!writeSuccess || count / BytesPerWChar == charsWritten);
                     }
                 }
                 if (writeSuccess)
-                    return Interop.mincore.Errors.ERROR_SUCCESS;
+                    return Interop.Errors.ERROR_SUCCESS;
 
                 // For pipes that are closing or broken, just stop.
                 // (E.g. ERROR_NO_DATA ("pipe is being closed") is returned when we write to a console that is closing;
-                // ERROR_BROKEN_PIPE ("pipe was closed") is returned when stdin was closed, which is mot an error, but EOF.)
+                // ERROR_BROKEN_PIPE ("pipe was closed") is returned when stdin was closed, which is not an error, but EOF.)
                 int errorCode = Marshal.GetLastWin32Error();
-                if (errorCode == Interop.mincore.Errors.ERROR_NO_DATA || errorCode == Interop.mincore.Errors.ERROR_BROKEN_PIPE)
-                    return Interop.mincore.Errors.ERROR_SUCCESS;
+                if (errorCode == Interop.Errors.ERROR_NO_DATA || errorCode == Interop.Errors.ERROR_BROKEN_PIPE)
+                    return Interop.Errors.ERROR_SUCCESS;
                 return errorCode;
             }
         }
@@ -1261,18 +1233,18 @@ namespace System
         internal sealed class ControlCHandlerRegistrar
         {
             private bool _handlerRegistered;
-            private Interop.mincore.ConsoleCtrlHandlerRoutine _handler;
+            private Interop.Kernel32.ConsoleCtrlHandlerRoutine _handler;
 
             internal ControlCHandlerRegistrar()
             {
-                _handler = new Interop.mincore.ConsoleCtrlHandlerRoutine(BreakEvent);
+                _handler = new Interop.Kernel32.ConsoleCtrlHandlerRoutine(BreakEvent);
             }
 
             internal void Register()
             {
                 Debug.Assert(!_handlerRegistered);
 
-                bool r = Interop.mincore.SetConsoleCtrlHandler(_handler, true);
+                bool r = Interop.Kernel32.SetConsoleCtrlHandler(_handler, true);
                 if (!r)
                 {
                     throw Win32Marshal.GetExceptionForLastWin32Error();
@@ -1285,7 +1257,7 @@ namespace System
             {
                 Debug.Assert(_handlerRegistered);
 
-                bool r = Interop.mincore.SetConsoleCtrlHandler(_handler, false);
+                bool r = Interop.Kernel32.SetConsoleCtrlHandler(_handler, false);
                 if (!r)
                 {
                     throw Win32Marshal.GetExceptionForLastWin32Error();
@@ -1295,13 +1267,13 @@ namespace System
 
             private static bool BreakEvent(int controlType)
             {
-                if (controlType != Interop.mincore.CTRL_C_EVENT &&
-                    controlType != Interop.mincore.CTRL_BREAK_EVENT)
+                if (controlType != Interop.Kernel32.CTRL_C_EVENT &&
+                    controlType != Interop.Kernel32.CTRL_BREAK_EVENT)
                 {
                     return false;
                 }
 
-                return Console.HandleBreakEvent(controlType == Interop.mincore.CTRL_C_EVENT ? ConsoleSpecialKey.ControlC : ConsoleSpecialKey.ControlBreak);
+                return Console.HandleBreakEvent(controlType == Interop.Kernel32.CTRL_C_EVENT ? ConsoleSpecialKey.ControlC : ConsoleSpecialKey.ControlBreak);
             }
         }
     }

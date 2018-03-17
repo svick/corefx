@@ -67,6 +67,11 @@ namespace System.Linq.Tests
                 });
         }
 
+        [Fact]
+        public void RunOnce()
+        {
+            Assert.Equal(Enumerable.Range(3, 9), Enumerable.Range(3, 9).RunOnce().ToList());
+        }
 
         [Fact]
         public void ToList_TouchCountWithICollection()
@@ -83,7 +88,7 @@ namespace System.Linq.Tests
         public void ToList_ThrowArgumentNullExceptionWhenSourceIsNull()
         {
             int[] source = null;
-            Assert.Throws<ArgumentNullException>("source", () => source.ToList());
+            AssertExtensions.Throws<ArgumentNullException>("source", () => source.ToList());
         }
 
         // Generally the optimal approach. Anything that breaks this should be confirmed as not harming performance.

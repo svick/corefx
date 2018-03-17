@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Text;
 using Xunit;
 
@@ -69,7 +70,7 @@ namespace DispatchProxyTests
             Assert.NotNull(proxy1);
             Assert.NotNull(proxy2);
             Assert.False(object.ReferenceEquals(proxy1, proxy2),
-                        String.Format("First and second instance of proxy type {0} were the same instance", proxy1.GetType().Name));
+                        String.Format("First and second instance of proxy type {0} were the same instance", proxy1.GetType().ToString()));
         }
 
 
@@ -98,27 +99,31 @@ namespace DispatchProxyTests
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/corert/issues/3637 - wrong exception thrown from DispatchProxy.Create()", TargetFrameworkMonikers.UapAot)]
         public static void Create_Using_Concrete_Proxy_Type_Throws_ArgumentException()
         {
-            Assert.Throws<ArgumentException>("T", () => DispatchProxy.Create<TestType_ConcreteClass, TestDispatchProxy>());
+            AssertExtensions.Throws<ArgumentException>("T", () => DispatchProxy.Create<TestType_ConcreteClass, TestDispatchProxy>());
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/corert/issues/3637 - wrong exception thrown from DispatchProxy.Create()", TargetFrameworkMonikers.UapAot)]
         public static void Create_Using_Sealed_BaseType_Throws_ArgumentException()
         {
-            Assert.Throws<ArgumentException>("TProxy", () => DispatchProxy.Create<TestType_IHelloService, Sealed_TestDispatchProxy>());
+            AssertExtensions.Throws<ArgumentException>("TProxy", () => DispatchProxy.Create<TestType_IHelloService, Sealed_TestDispatchProxy>());
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/corert/issues/3637 - wrong exception thrown from DispatchProxy.Create()", TargetFrameworkMonikers.UapAot)]
         public static void Create_Using_Abstract_BaseType_Throws_ArgumentException()
         {
-            Assert.Throws<ArgumentException>("TProxy", () => DispatchProxy.Create<TestType_IHelloService, Abstract_TestDispatchProxy>());
+            AssertExtensions.Throws<ArgumentException>("TProxy", () => DispatchProxy.Create<TestType_IHelloService, Abstract_TestDispatchProxy>());
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/corert/issues/3637 - wrong exception thrown from DispatchProxy.Create()", TargetFrameworkMonikers.UapAot)]
         public static void Create_Using_BaseType_Without_Default_Ctor_Throws_ArgumentException()
         {
-            Assert.Throws<ArgumentException>("TProxy", () => DispatchProxy.Create<TestType_IHelloService, NoDefaultCtor_TestDispatchProxy>());
+            AssertExtensions.Throws<ArgumentException>("TProxy", () => DispatchProxy.Create<TestType_IHelloService, NoDefaultCtor_TestDispatchProxy>());
         }
 
         [Fact]
@@ -381,10 +386,149 @@ namespace DispatchProxyTests
                             expectedMethod.Name, invokedMethods[0]));
 
             expectedMethod = propertyInfo.GetMethod;
-            Assert.True(invokedMethods[1] != null && expectedMethod == invokedMethods[1], String.Format("First invoke should have been {0} but actual was {1}",
+            Assert.True(invokedMethods[1] != null && expectedMethod == invokedMethods[1], String.Format("Second invoke should have been {0} but actual was {1}",
                             expectedMethod.Name, invokedMethods[1]));
 
             Assert.Null(actualValue);
+        }
+
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Reflection on generated dispatch proxy types not allowed.")]
+        public static void Proxy_Declares_Interface_Properties()
+        {
+            TestType_IPropertyService proxy = DispatchProxy.Create<TestType_IPropertyService, TestDispatchProxy>();
+            PropertyInfo propertyInfo = proxy.GetType().GetTypeInfo().GetDeclaredProperty("ReadWrite");
+            Assert.NotNull(propertyInfo);
+        }
+
+#if netcoreapp
+        [Fact]
+        public static void Invoke_Event_Add_And_Remove_And_Raise_Invokes_Correct_Methods()
+        {
+            // C# cannot emit raise_Xxx method for the event, so we must use System.Reflection.Emit to generate such event.
+            AssemblyBuilder ab = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("EventBuilder"), AssemblyBuilderAccess.Run);
+            ModuleBuilder modb = ab.DefineDynamicModule("mod");
+            TypeBuilder tb = modb.DefineType("TestType_IEventService", TypeAttributes.Public | TypeAttributes.Interface | TypeAttributes.Abstract);
+            EventBuilder eb = tb.DefineEvent("AddRemoveRaise", EventAttributes.None, typeof(EventHandler));
+            eb.SetAddOnMethod(tb.DefineMethod("add_AddRemoveRaise", MethodAttributes.Public | MethodAttributes.Abstract | MethodAttributes.Virtual, typeof(void), new Type[] { typeof(EventHandler) }));
+            eb.SetRemoveOnMethod( tb.DefineMethod("remove_AddRemoveRaise", MethodAttributes.Public | MethodAttributes.Abstract | MethodAttributes.Virtual, typeof(void), new Type[] { typeof(EventHandler) }));
+            eb.SetRaiseMethod(tb.DefineMethod("raise_AddRemoveRaise", MethodAttributes.Public | MethodAttributes.Abstract | MethodAttributes.Virtual, typeof(void), new Type[] { typeof(EventArgs) }));
+            TypeInfo ieventServiceTypeInfo = tb.CreateTypeInfo();
+
+            List<MethodInfo> invokedMethods = new List<MethodInfo>();
+            object proxy = 
+                typeof(DispatchProxy)
+                .GetRuntimeMethod("Create", Array.Empty<Type>()).MakeGenericMethod(ieventServiceTypeInfo.AsType(), typeof(TestDispatchProxy))
+                .Invoke(null, null);
+            ((TestDispatchProxy)proxy).CallOnInvoke = (method, args) =>
+            {
+                invokedMethods.Add(method);
+                return null;
+            };
+
+            EventHandler handler = new EventHandler((sender, e) => {});
+
+            proxy.GetType().GetRuntimeMethods().Single(m => m.Name == "add_AddRemoveRaise").Invoke(proxy, new object[] { handler });
+            proxy.GetType().GetRuntimeMethods().Single(m => m.Name == "raise_AddRemoveRaise").Invoke(proxy, new object[] { EventArgs.Empty });
+            proxy.GetType().GetRuntimeMethods().Single(m => m.Name == "remove_AddRemoveRaise").Invoke(proxy, new object[] { handler });
+
+            Assert.True(invokedMethods.Count == 3, String.Format("Expected 3 method invocations but received {0}", invokedMethods.Count));
+
+            EventInfo eventInfo = ieventServiceTypeInfo.GetDeclaredEvent("AddRemoveRaise");
+            Assert.NotNull(eventInfo);
+
+            MethodInfo expectedMethod = eventInfo.AddMethod;
+            Assert.True(invokedMethods[0] != null && expectedMethod == invokedMethods[0], String.Format("First invoke should have been {0} but actual was {1}",
+                            expectedMethod.Name, invokedMethods[0]));
+
+            expectedMethod = eventInfo.RaiseMethod;
+            Assert.True(invokedMethods[1] != null && expectedMethod == invokedMethods[1], String.Format("Second invoke should have been {0} but actual was {1}",
+                            expectedMethod.Name, invokedMethods[1]));
+
+            expectedMethod = eventInfo.RemoveMethod;
+            Assert.True(invokedMethods[2] != null && expectedMethod == invokedMethods[2], String.Format("Third invoke should have been {0} but actual was {1}",
+                            expectedMethod.Name, invokedMethods[1]));
+        }
+#endif // netcoreapp
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Reflection on generated dispatch proxy types not allowed.")]
+        public static void Proxy_Declares_Interface_Events()
+        {
+            TestType_IEventService proxy = DispatchProxy.Create<TestType_IEventService, TestDispatchProxy>();
+            EventInfo eventInfo = proxy.GetType().GetTypeInfo().GetDeclaredEvent("AddRemove");
+            Assert.NotNull(eventInfo);
+        }
+
+
+        [Fact]
+        public static void Invoke_Indexer_Setter_And_Getter_Invokes_Correct_Methods()
+        {
+            List<MethodInfo> invokedMethods = new List<MethodInfo>();
+
+            TestType_IIndexerService proxy = DispatchProxy.Create<TestType_IIndexerService, TestDispatchProxy>();
+            ((TestDispatchProxy)proxy).CallOnInvoke = (method, args) =>
+            {
+                invokedMethods.Add(method);
+                return null;
+            };
+
+
+            proxy["key"] = "testValue";
+            string actualValue = proxy["key"];
+
+            Assert.True(invokedMethods.Count == 2, String.Format("Expected 2 method invocations but received {0}", invokedMethods.Count));
+
+            PropertyInfo propertyInfo = typeof(TestType_IIndexerService).GetTypeInfo().GetDeclaredProperty("Item");
+            Assert.NotNull(propertyInfo);
+
+            MethodInfo expectedMethod = propertyInfo.SetMethod;
+            Assert.True(invokedMethods[0] != null && expectedMethod == invokedMethods[0], String.Format("First invoke should have been {0} but actual was {1}",
+                            expectedMethod.Name, invokedMethods[0]));
+
+            expectedMethod = propertyInfo.GetMethod;
+            Assert.True(invokedMethods[1] != null && expectedMethod == invokedMethods[1], String.Format("Second invoke should have been {0} but actual was {1}",
+                            expectedMethod.Name, invokedMethods[1]));
+
+            Assert.Null(actualValue);
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Reflection on generated dispatch proxy types not allowed.")]
+        public static void Proxy_Declares_Interface_Indexers()
+        {
+            TestType_IIndexerService proxy = DispatchProxy.Create<TestType_IIndexerService, TestDispatchProxy>();
+            PropertyInfo propertyInfo = proxy.GetType().GetTypeInfo().GetDeclaredProperty("Item");
+            Assert.NotNull(propertyInfo);
+        }
+
+        static void testGenericMethodRoundTrip<T>(T testValue)
+        {
+            var proxy = DispatchProxy.Create<TypeType_GenericMethod, TestDispatchProxy>();
+            ((TestDispatchProxy)proxy).CallOnInvoke = (mi, a) =>
+            {
+                Assert.True(mi.IsGenericMethod);
+                Assert.False(mi.IsGenericMethodDefinition);
+                Assert.Equal(1, mi.GetParameters().Length);
+                Assert.Equal(typeof(T), mi.GetParameters()[0].ParameterType);
+                Assert.Equal(typeof(T), mi.ReturnType);
+                return a[0];
+            };
+            Assert.Equal(proxy.Echo(testValue), testValue);
+        }
+
+        [Fact]
+        public static void Invoke_Generic_Method()
+        {
+            //string
+            testGenericMethodRoundTrip("asdf");
+            //reference type
+            testGenericMethodRoundTrip(new Version(1, 0, 0, 0));
+            //value type
+            testGenericMethodRoundTrip(42);
+            //enum type
+            testGenericMethodRoundTrip(DayOfWeek.Monday);
         }
     }
 }

@@ -40,7 +40,7 @@ namespace System.Net.Http
         internal const int MaxInt32Digits = 10;
 
         // iso-8859-1, Western European (ISO)
-#if PHONE || NETNative
+#if uap
         internal static readonly Encoding DefaultHttpEncoding = Encoding.GetEncoding("iso-8859-1");
 #else
         internal static readonly Encoding DefaultHttpEncoding = Encoding.GetEncoding(28591);
@@ -94,7 +94,7 @@ namespace System.Net.Http
         [Pure]
         internal static int GetTokenLength(string input, int startIndex)
         {
-            Contract.Requires(input != null);
+            Debug.Assert(input != null);
             Contract.Ensures((Contract.Result<int>() >= 0) && (Contract.Result<int>() <= (input.Length - startIndex)));
 
             if (startIndex >= input.Length)
@@ -115,9 +115,44 @@ namespace System.Net.Http
             return input.Length - startIndex;
         }
 
+        [Pure]
+        internal static bool IsToken(string input)
+        {
+            for (int i = 0; i < input.Length; i++)
+            {
+                if (!IsTokenChar(input[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        [Pure]
+        internal static bool IsToken(ReadOnlySpan<byte> input)
+        {
+            for (int i = 0; i < input.Length; i++)
+            {
+                if (!IsTokenChar((char) input[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        internal static string GetTokenString(ReadOnlySpan<byte> input)
+        {
+            Debug.Assert(IsToken(input));
+
+            return Encoding.ASCII.GetString(input);
+        }
+
         internal static int GetWhitespaceLength(string input, int startIndex)
         {
-            Contract.Requires(input != null);
+            Debug.Assert(input != null);
             Contract.Ensures((Contract.Result<int>() >= 0) && (Contract.Result<int>() <= (input.Length - startIndex)));
 
             if (startIndex >= input.Length)
@@ -168,7 +203,7 @@ namespace System.Net.Http
         {
             // Search for newlines followed by non-whitespace: This is not allowed in any header (be it a known or 
             // custom header). E.g. "value\r\nbadformat: header" is invalid. However "value\r\n goodformat: header"
-            // is valid: newlines followed by whitespaces are allowed in header values.
+            // is valid: newlines followed by whitespace are allowed in header values.
             int current = startIndex;
             while (current < value.Length)
             {
@@ -199,8 +234,8 @@ namespace System.Net.Http
 
         internal static int GetNumberLength(string input, int startIndex, bool allowDecimal)
         {
-            Contract.Requires(input != null);
-            Contract.Requires((startIndex >= 0) && (startIndex < input.Length));
+            Debug.Assert(input != null);
+            Debug.Assert((startIndex >= 0) && (startIndex < input.Length));
             Contract.Ensures((Contract.Result<int>() >= 0) && (Contract.Result<int>() <= (input.Length - startIndex)));
 
             int current = startIndex;
@@ -244,8 +279,8 @@ namespace System.Net.Http
 
         internal static int GetHostLength(string input, int startIndex, bool allowToken, out string host)
         {
-            Contract.Requires(input != null);
-            Contract.Requires(startIndex >= 0);
+            Debug.Assert(input != null);
+            Debug.Assert(startIndex >= 0);
             Contract.Ensures((Contract.Result<int>() >= 0) && (Contract.Result<int>() <= (input.Length - startIndex)));
 
             host = null;
@@ -255,7 +290,7 @@ namespace System.Net.Http
             }
 
             // A 'host' is either a token (if 'allowToken' == true) or a valid host name as defined by the URI RFC. 
-            // So we first iterate through the string and search for path delimiters and whitespaces. When found, stop 
+            // So we first iterate through the string and search for path delimiters and whitespace. When found, stop 
             // and try to use the substring as token or URI host name. If it works, we have a host name, otherwise not.
             int current = startIndex;
             bool isToken = true;
@@ -309,8 +344,8 @@ namespace System.Net.Http
         // CHAR = <any US-ASCII character (octets 0 - 127)>
         internal static HttpParseResult GetQuotedPairLength(string input, int startIndex, out int length)
         {
-            Contract.Requires(input != null);
-            Contract.Requires((startIndex >= 0) && (startIndex < input.Length));
+            Debug.Assert(input != null);
+            Debug.Assert((startIndex >= 0) && (startIndex < input.Length));
             Contract.Ensures((Contract.ValueAtReturn(out length) >= 0) &&
                 (Contract.ValueAtReturn(out length) <= (input.Length - startIndex)));
 
@@ -321,7 +356,7 @@ namespace System.Net.Http
                 return HttpParseResult.NotParsed;
             }
 
-            // Quoted-char has 2 characters. Check wheter there are 2 chars left ('\' + char)
+            // Quoted-char has 2 characters. Check whether there are 2 chars left ('\' + char)
             // If so, check whether the character is in the range 0-127. If not, it's an invalid value.
             if ((startIndex + 2 > input.Length) || (input[startIndex + 1] > 127))
             {
@@ -342,7 +377,7 @@ namespace System.Net.Http
         internal static bool TryStringToDate(string input, out DateTimeOffset result)
         {
             // Try the various date formats in the order listed above. 
-            // We should accept a wide veriety of common formats, but only output RFC 1123 style dates.
+            // We should accept a wide variety of common formats, but only output RFC 1123 style dates.
             if (DateTimeOffset.TryParseExact(input, s_dateFormats, DateTimeFormatInfo.InvariantInfo,
                 DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal, out result))
             {
@@ -366,8 +401,8 @@ namespace System.Net.Http
         private static HttpParseResult GetExpressionLength(string input, int startIndex, char openChar,
             char closeChar, bool supportsNesting, ref int nestedCount, out int length)
         {
-            Contract.Requires(input != null);
-            Contract.Requires((startIndex >= 0) && (startIndex < input.Length));
+            Debug.Assert(input != null);
+            Debug.Assert((startIndex >= 0) && (startIndex < input.Length));
             Contract.Ensures((Contract.Result<HttpParseResult>() != HttpParseResult.Parsed) ||
                 (Contract.ValueAtReturn<int>(out length) > 0));
 

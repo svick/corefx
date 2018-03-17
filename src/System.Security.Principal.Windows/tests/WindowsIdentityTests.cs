@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Microsoft.Win32.SafeHandles;
 using System;
+using System.Runtime.Serialization.Formatters.Tests;
 using System.Security.Principal;
 using Xunit;
 
@@ -22,42 +24,73 @@ public class WindowsIdentityTests
     public static void ConstructorsAndProperties()
     {
         // Retrieve the Windows account token for the current user.
-        IntPtr logonToken = WindowsIdentity.GetCurrent().AccessToken.DangerousGetHandle();
+        SafeAccessTokenHandle token = WindowsIdentity.GetCurrent().AccessToken;
+        bool gotRef = false;
+        try
+        {
+            token.DangerousAddRef(ref gotRef);
+            IntPtr logonToken = token.DangerousGetHandle();
 
-        // Construct a WindowsIdentity object using the input account token.
-        WindowsIdentity windowsIdentity = new WindowsIdentity(logonToken);
-        Assert.NotNull(windowsIdentity);
-        CheckDispose(windowsIdentity);
+            // Construct a WindowsIdentity object using the input account token.
+            WindowsIdentity windowsIdentity = new WindowsIdentity(logonToken);
+            Assert.NotNull(windowsIdentity);
+            CheckDispose(windowsIdentity);
 
-        string authenticationType = "WindowsAuthentication";
-        WindowsIdentity windowsIdentity2 = new WindowsIdentity(logonToken, authenticationType);
-        Assert.NotNull(windowsIdentity2);
-        Assert.True(windowsIdentity2.IsAuthenticated);
-        Assert.Equal(authenticationType, windowsIdentity2.AuthenticationType);
-        CheckDispose(windowsIdentity2);
+            string authenticationType = "WindowsAuthentication";
+            WindowsIdentity windowsIdentity2 = new WindowsIdentity(logonToken, authenticationType);
+            Assert.NotNull(windowsIdentity2);
+            Assert.True(windowsIdentity2.IsAuthenticated);
+
+            Assert.Equal(authenticationType, windowsIdentity2.AuthenticationType);
+            CheckDispose(windowsIdentity2);
+        }
+        finally
+        {
+            if (gotRef)
+                token.DangerousRelease();
+        }
+    }
+
+    [Theory]
+    public static void CloneAndProperties()
+    {
+        SafeAccessTokenHandle token = WindowsIdentity.GetCurrent().AccessToken;
+        bool gotRef = false;
+        try
+        {
+            token.DangerousAddRef(ref gotRef);
+            IntPtr logonToken = token.DangerousGetHandle();
+            WindowsIdentity winId = new WindowsIdentity(logonToken);
+
+            WindowsIdentity cloneWinId = winId.Clone() as WindowsIdentity;
+            Assert.NotNull(cloneWinId);
+
+            Assert.Equal(winId.IsSystem, cloneWinId.IsSystem);
+            Assert.Equal(winId.IsGuest, cloneWinId.IsGuest);
+            Assert.Equal(winId.ImpersonationLevel, cloneWinId.ImpersonationLevel);
+
+            Assert.Equal(winId.Name, cloneWinId.Name);
+            Assert.Equal(winId.Owner, cloneWinId.Owner);
+
+            IdentityReferenceCollection irc1 = winId.Groups;
+            IdentityReferenceCollection irc2 = cloneWinId.Groups;
+            Assert.Equal(irc1.Count, irc2.Count);
+
+            CheckDispose(winId);
+            CheckDispose(cloneWinId);
+        }
+        finally
+        {
+            if (gotRef)
+                token.DangerousRelease();
+        }
     }
 
     [Fact]
-    public static void CloneAndProperties()
+    public static void GetTokenHandle()
     {
-        IntPtr logonToken = WindowsIdentity.GetCurrent().AccessToken.DangerousGetHandle();
-        WindowsIdentity winId = new WindowsIdentity(logonToken);
-        WindowsIdentity cloneWinId = winId.Clone() as WindowsIdentity;
-        Assert.NotNull(cloneWinId);
-
-        Assert.Equal(winId.IsSystem, cloneWinId.IsSystem);
-        Assert.Equal(winId.IsGuest, cloneWinId.IsGuest);
-        Assert.Equal(winId.ImpersonationLevel, cloneWinId.ImpersonationLevel);
-
-        Assert.Equal(winId.Name, cloneWinId.Name);
-        Assert.Equal(winId.Owner, cloneWinId.Owner);
-
-        IdentityReferenceCollection irc1 = winId.Groups;
-        IdentityReferenceCollection irc2 = cloneWinId.Groups;
-        Assert.Equal(irc1.Count, irc2.Count);
-
-        CheckDispose(winId);
-        CheckDispose(cloneWinId);        
+        WindowsIdentity id = WindowsIdentity.GetCurrent();
+        Assert.Equal(id.AccessToken.DangerousGetHandle(), id.Token);
     }
 
     private static void CheckDispose(WindowsIdentity identity, bool anonymous = false)

@@ -58,7 +58,6 @@ namespace System.Collections.Concurrent
         }
 
         private volatile Node _head; // The stack is a singly linked list, and only remembers the head.
-
         private const int BACKOFF_MAX_YIELDS = 8; // Arbitrary number to cap backoff.
 
         /// <summary>
@@ -392,12 +391,10 @@ namespace System.Collections.Concurrent
             while (Interlocked.CompareExchange(
                 ref _head, head, tail._next) != tail._next);
 
-#if FEATURE_TRACING
             if (CDSCollectionETWBCLProvider.Log.IsEnabled())
             {
                 CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPushFailed(spin.Count);
             }
-#endif
         }
 
         /// <summary>
@@ -610,19 +607,18 @@ namespace System.Collections.Concurrent
             Node head;
             Node next;
             int backoff = 1;
-            Random r = new Random(Environment.TickCount & Int32.MaxValue); // avoid the case where TickCount could return Int32.MinValue
+            Random r = null;
             while (true)
             {
                 head = _head;
                 // Is the stack empty?
                 if (head == null)
                 {
-#if FEATURE_TRACING
                     if (count == 1 && CDSCollectionETWBCLProvider.Log.IsEnabled())
                     {
                         CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPopFailed(spin.Count);
                     }
-#endif
+
                     poppedHead = null;
                     return 0;
                 }
@@ -636,12 +632,11 @@ namespace System.Collections.Concurrent
                 // Try to swap the new head.  If we succeed, break out of the loop.
                 if (Interlocked.CompareExchange(ref _head, next._next, head) == head)
                 {
-#if FEATURE_TRACING
                     if (count == 1 && CDSCollectionETWBCLProvider.Log.IsEnabled())
                     {
                         CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPopFailed(spin.Count);
                     }
-#endif
+
                     // Return the popped Node.
                     poppedHead = head;
                     return nodesCount;
@@ -653,13 +648,24 @@ namespace System.Collections.Concurrent
                     spin.SpinOnce();
                 }
 
-                backoff = spin.NextSpinWillYield ? r.Next(1, BACKOFF_MAX_YIELDS) : backoff * 2;
+                if (spin.NextSpinWillYield)
+                {
+                    if (r == null)
+                    {
+                        r = new Random();
+                    }
+                    backoff = r.Next(1, BACKOFF_MAX_YIELDS);
+                }
+                else
+                {
+                    backoff *= 2;
+                }
             }
         }
 #pragma warning restore 0420
 
         /// <summary>
-        /// Local helper function to copy the poped elements into a given collection
+        /// Local helper function to copy the popped elements into a given collection
         /// </summary>
         /// <param name="head">The head of the list to be copied</param>
         /// <param name="collection">The collection to place the popped items in</param>

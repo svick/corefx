@@ -9,7 +9,10 @@
  *
  */
 
+#pragma warning disable 618 // obsolete types, namely IHashCodeProvider
+
 using System.Globalization;
+using System.Runtime.Serialization;
 
 namespace System.Collections.Specialized
 {
@@ -18,7 +21,7 @@ namespace System.Collections.Specialized
     ///    and <see cref='System.Object' qualify='true'/> values that can be accessed either with the hash code of
     ///    the key or with the index.</para>
     /// </devdoc>
-    public abstract class NameObjectCollectionBase : ICollection
+    public abstract class NameObjectCollectionBase : ICollection, ISerializable, IDeserializationCallback
     {
         private bool _readOnly = false;
         private ArrayList _entriesArray;
@@ -50,6 +53,18 @@ namespace System.Collections.Specialized
             Reset(capacity);
         }
 
+        [Obsolete("Please use NameObjectCollectionBase(IEqualityComparer) instead.")]
+        protected NameObjectCollectionBase(IHashCodeProvider hashProvider, IComparer comparer) {
+            _keyComparer = new CompatibleComparer(hashProvider, comparer); 
+            Reset();
+        }
+
+        [Obsolete("Please use NameObjectCollectionBase(Int32, IEqualityComparer) instead.")]
+        protected NameObjectCollectionBase(int capacity, IHashCodeProvider hashProvider, IComparer comparer) {
+            _keyComparer = new CompatibleComparer(hashProvider, comparer); 
+            Reset(capacity);
+        }
+
         /// <devdoc>
         /// <para>Creates an empty <see cref='System.Collections.Specialized.NameObjectCollectionBase'/> instance with the specified
         ///    initial capacity and using the default case-insensitive hash code provider
@@ -59,6 +74,21 @@ namespace System.Collections.Specialized
         {
             _keyComparer = s_defaultComparer;
             Reset(capacity);
+        }
+
+        protected NameObjectCollectionBase(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        public virtual void OnDeserialization(object sender)
+        {
+            throw new PlatformNotSupportedException();
         }
 
         //

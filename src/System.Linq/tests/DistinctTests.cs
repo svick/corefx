@@ -39,6 +39,13 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void EmptySourceRunOnce()
+        {
+            int[] source = { };
+            Assert.Empty(source.RunOnce().Distinct());
+        }
+
+        [Fact]
         public void SingleNullElementExplicitlyUseDefaultComparer()
         {
             string[] source = { null };
@@ -92,6 +99,15 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void SomeDuplicatesIncludingNullsRunOnce()
+        {
+            int?[] source = { 1, 1, 1, 2, 2, 2, null, null };
+            int?[] expected = { 1, 2, null };
+
+            Assert.Equal(expected, source.RunOnce().Distinct());
+        }
+
+        [Fact]
         public void LastSameAsFirst()
         {
             int[] source = { 1, 2, 3, 4, 5, 1 };
@@ -111,6 +127,15 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void RepeatsNonConsecutiveRunOnce()
+        {
+            int[] source = { 1, 1, 2, 2, 4, 3, 1, 3, 2 };
+            int[] expected = { 1, 2, 4, 3 };
+
+            Assert.Equal(expected, source.RunOnce().Distinct());
+        }
+
+        [Fact]
         public void NullComparer()
         {
             string[] source = { "Bob", "Tim", "bBo", "miT", "Robert", "iTm" };
@@ -124,7 +149,7 @@ namespace System.Linq.Tests
         {
             string[] source = null;
 
-            Assert.Throws<ArgumentNullException>("source", () => source.Distinct());
+            AssertExtensions.Throws<ArgumentNullException>("source", () => source.Distinct());
         }
 
         [Fact]
@@ -132,7 +157,7 @@ namespace System.Linq.Tests
         {
             string[] source = null;
 
-            Assert.Throws<ArgumentNullException>("source", () => source.Distinct(StringComparer.Ordinal));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => source.Distinct(StringComparer.Ordinal));
         }
 
         [Fact]
@@ -142,6 +167,15 @@ namespace System.Linq.Tests
             string[] expected = { "Bob", "Tim", "Robert" };
 
             Assert.Equal(expected, source.Distinct(new AnagramEqualityComparer()), new AnagramEqualityComparer());
+        }
+
+        [Fact]
+        public void CustomEqualityComparerRunOnce()
+        {
+            string[] source = { "Bob", "Tim", "bBo", "miT", "Robert", "iTm" };
+            string[] expected = { "Bob", "Tim", "Robert" };
+
+            Assert.Equal(expected, source.RunOnce().Distinct(new AnagramEqualityComparer()), new AnagramEqualityComparer());
         }
 
         [Theory, MemberData(nameof(SequencesWithDuplicates))]

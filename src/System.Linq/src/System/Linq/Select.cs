@@ -4,12 +4,14 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using static System.Linq.Utilities;
 
 namespace System.Linq
 {
     public static partial class Enumerable
     {
-        public static IEnumerable<TResult> Select<TSource, TResult>(this IEnumerable<TSource> source, Func<TSource, TResult> selector)
+        public static IEnumerable<TResult> Select<TSource, TResult>(
+            this IEnumerable<TSource> source, Func<TSource, TResult> selector)
         {
             if (source == null)
             {
@@ -21,23 +23,21 @@ namespace System.Linq
                 throw Error.ArgumentNull(nameof(selector));
             }
 
-            Iterator<TSource> iterator = source as Iterator<TSource>;
-            if (iterator != null)
+            if (source is Iterator<TSource> iterator)
             {
                 return iterator.Select(selector);
             }
 
-            IList<TSource> ilist = source as IList<TSource>;
-            if (ilist != null)
+            if (source is IList<TSource> ilist)
             {
-                TSource[] array = source as TSource[];
-                if (array != null)
+                if (source is TSource[] array)
                 {
-                    return new SelectArrayIterator<TSource, TResult>(array, selector);
+                    return array.Length == 0 ?
+                        EmptyPartition<TResult>.Instance :
+                        new SelectArrayIterator<TSource, TResult>(array, selector);
                 }
 
-                List<TSource> list = source as List<TSource>;
-                if (list != null)
+                if (source is List<TSource> list)
                 {
                     return new SelectListIterator<TSource, TResult>(list, selector);
                 }
@@ -45,10 +45,11 @@ namespace System.Linq
                 return new SelectIListIterator<TSource, TResult>(ilist, selector);
             }
 
-            IPartition<TSource> partition = source as IPartition<TSource>;
-            if (partition != null)
+            if (source is IPartition<TSource> partition)
             {
-                return new SelectIPartitionIterator<TSource, TResult>(partition, selector);
+                return partition is EmptyPartition<TSource>
+                    ? EmptyPartition<TResult>.Instance
+                    : new SelectIPartitionIterator<TSource, TResult>(partition, selector);
             }
 
             return new SelectEnumerableIterator<TSource, TResult>(source, selector);
@@ -83,12 +84,12 @@ namespace System.Linq
             }
         }
 
-        private static Func<TSource, TResult> CombineSelectors<TSource, TMiddle, TResult>(Func<TSource, TMiddle> selector1, Func<TMiddle, TResult> selector2)
-        {
-            return x => selector2(selector1(x));
-        }
-
-        internal sealed class SelectEnumerableIterator<TSource, TResult> : Iterator<TResult>
+        /// <summary>
+        /// An iterator that maps each item of an <see cref="IEnumerable{TSource}"/>.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the source enumerable.</typeparam>
+        /// <typeparam name="TResult">The type of the mapped items.</typeparam>
+        private sealed class SelectEnumerableIterator<TSource, TResult> : Iterator<TResult>, IIListProvider<TResult>
         {
             private readonly IEnumerable<TSource> _source;
             private readonly Func<TSource, TResult> _selector;
@@ -102,10 +103,8 @@ namespace System.Linq
                 _selector = selector;
             }
 
-            public override Iterator<TResult> Clone()
-            {
-                return new SelectEnumerableIterator<TSource, TResult>(_source, _selector);
-            }
+            public override Iterator<TResult> Clone() =>
+                new SelectEnumerableIterator<TSource, TResult>(_source, _selector);
 
             public override void Dispose()
             {
@@ -140,54 +139,100 @@ namespace System.Linq
                 return false;
             }
 
-            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector)
+            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector) =>
+                new SelectEnumerableIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
+
+            public TResult[] ToArray()
             {
-                return new SelectEnumerableIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
+                var builder = new LargeArrayBuilder<TResult>(initialize: true);
+                
+                foreach (TSource item in _source)
+                {
+                    builder.Add(_selector(item));
+                }
+
+                return builder.ToArray();
+            }
+
+            public List<TResult> ToList()
+            {
+                var list = new List<TResult>();
+
+                foreach (TSource item in _source)
+                {
+                    list.Add(_selector(item));
+                }
+
+                return list;
+            }
+
+            public int GetCount(bool onlyIfCheap)
+            {
+                // In case someone uses Count() to force evaluation of
+                // the selector, run it provided `onlyIfCheap` is false.
+
+                if (onlyIfCheap)
+                {
+                    return -1;
+                }
+
+                int count = 0;
+
+                foreach (TSource item in _source)
+                {
+                    _selector(item);
+                    checked
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
             }
         }
 
-        internal sealed class SelectArrayIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
+        /// <summary>
+        /// An iterator that maps each item of a <see cref="T:TSource[]"/>.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the source array.</typeparam>
+        /// <typeparam name="TResult">The type of the mapped items.</typeparam>
+        private sealed class SelectArrayIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
         {
             private readonly TSource[] _source;
             private readonly Func<TSource, TResult> _selector;
-            private int _index;
 
             public SelectArrayIterator(TSource[] source, Func<TSource, TResult> selector)
             {
                 Debug.Assert(source != null);
                 Debug.Assert(selector != null);
+                Debug.Assert(source.Length > 0); // Caller should check this beforehand and return a cached result
                 _source = source;
                 _selector = selector;
             }
 
-            public override Iterator<TResult> Clone()
-            {
-                return new SelectArrayIterator<TSource, TResult>(_source, _selector);
-            }
+            public override Iterator<TResult> Clone() => new SelectArrayIterator<TSource, TResult>(_source, _selector);
 
             public override bool MoveNext()
             {
-                if (_state == 1 && _index < _source.Length)
+                if (_state < 1 | _state == _source.Length + 1)
                 {
-                    _current = _selector(_source[_index++]);
-                    return true;
+                    Dispose();
+                    return false;
                 }
 
-                Dispose();
-                return false;
+                int index = _state++ - 1;
+                _current = _selector(_source[index]);
+                return true;
             }
 
-            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector)
-            {
-                return new SelectArrayIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
-            }
+            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector) =>
+                new SelectArrayIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
 
             public TResult[] ToArray()
             {
-                if (_source.Length == 0)
-                {
-                    return Array.Empty<TResult>();
-                }
+                // See assert in constructor.
+                // Since _source should never be empty, we don't check for 0/return Array.Empty.
+                Debug.Assert(_source.Length > 0);
 
                 var results = new TResult[_source.Length];
                 for (int i = 0; i < results.Length; i++)
@@ -212,6 +257,17 @@ namespace System.Linq
 
             public int GetCount(bool onlyIfCheap)
             {
+                // In case someone uses Count() to force evaluation of
+                // the selector, run it provided `onlyIfCheap` is false.
+
+                if (!onlyIfCheap)
+                {
+                    foreach (TSource item in _source)
+                    {
+                        _selector(item);
+                    }
+                }
+
                 return _source.Length;
             }
 
@@ -226,14 +282,12 @@ namespace System.Linq
                 return new SelectListPartitionIterator<TSource, TResult>(_source, _selector, count, int.MaxValue);
             }
 
-            public IPartition<TResult> Take(int count)
-            {
-                return count >= _source.Length ? (IPartition<TResult>)this : new SelectListPartitionIterator<TSource, TResult>(_source, _selector, 0, count - 1);
-            }
+            public IPartition<TResult> Take(int count) =>
+                count >= _source.Length ? (IPartition<TResult>)this : new SelectListPartitionIterator<TSource, TResult>(_source, _selector, 0, count - 1);
 
             public TResult TryGetElementAt(int index, out bool found)
             {
-                if ((uint)index < (uint)_source.Length)
+                if (unchecked((uint)index < (uint)_source.Length))
                 {
                     found = true;
                     return _selector(_source[index]);
@@ -245,31 +299,27 @@ namespace System.Linq
 
             public TResult TryGetFirst(out bool found)
             {
-                if (_source.Length != 0)
-                {
-                    found = true;
-                    return _selector(_source[0]);
-                }
+                Debug.Assert(_source.Length > 0); // See assert in constructor
 
-                found = false;
-                return default(TResult);
+                found = true;
+                return _selector(_source[0]);
             }
 
             public TResult TryGetLast(out bool found)
             {
-                int len = _source.Length;
-                if (len != 0)
-                {
-                    found = true;
-                    return _selector(_source[len - 1]);
-                }
+                Debug.Assert(_source.Length > 0); // See assert in constructor
 
-                found = false;
-                return default(TResult);
+                found = true;
+                return _selector(_source[_source.Length - 1]);
             }
         }
 
-        internal sealed class SelectListIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
+        /// <summary>
+        /// An iterator that maps each item of a <see cref="List{TSource}"/>.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the source list.</typeparam>
+        /// <typeparam name="TResult">The type of the mapped items.</typeparam>
+        private sealed class SelectListIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
         {
             private readonly List<TSource> _source;
             private readonly Func<TSource, TResult> _selector;
@@ -283,10 +333,7 @@ namespace System.Linq
                 _selector = selector;
             }
 
-            public override Iterator<TResult> Clone()
-            {
-                return new SelectListIterator<TSource, TResult>(_source, _selector);
-            }
+            public override Iterator<TResult> Clone() => new SelectListIterator<TSource, TResult>(_source, _selector);
 
             public override bool MoveNext()
             {
@@ -310,10 +357,8 @@ namespace System.Linq
                 return false;
             }
 
-            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector)
-            {
-                return new SelectListIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
-            }
+            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector) =>
+                new SelectListIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
 
             public TResult[] ToArray()
             {
@@ -346,7 +391,20 @@ namespace System.Linq
 
             public int GetCount(bool onlyIfCheap)
             {
-                return _source.Count;
+                // In case someone uses Count() to force evaluation of
+                // the selector, run it provided `onlyIfCheap` is false.
+
+                int count = _source.Count;
+
+                if (!onlyIfCheap)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        _selector(_source[i]);
+                    }
+                }
+
+                return count;
             }
 
             public IPartition<TResult> Skip(int count)
@@ -355,14 +413,12 @@ namespace System.Linq
                 return new SelectListPartitionIterator<TSource, TResult>(_source, _selector, count, int.MaxValue);
             }
 
-            public IPartition<TResult> Take(int count)
-            {
-                return new SelectListPartitionIterator<TSource, TResult>(_source, _selector, 0, count - 1);
-            }
+            public IPartition<TResult> Take(int count) =>
+                new SelectListPartitionIterator<TSource, TResult>(_source, _selector, 0, count - 1);
 
             public TResult TryGetElementAt(int index, out bool found)
             {
-                if ((uint)index < (uint)_source.Count)
+                if (unchecked((uint)index < (uint)_source.Count))
                 {
                     found = true;
                     return _selector(_source[index]);
@@ -398,7 +454,12 @@ namespace System.Linq
             }
         }
 
-        internal sealed class SelectIListIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
+        /// <summary>
+        /// An iterator that maps each item of an <see cref="IList{TSource}"/>.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the source list.</typeparam>
+        /// <typeparam name="TResult">The type of the mapped items.</typeparam>
+        private sealed class SelectIListIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
         {
             private readonly IList<TSource> _source;
             private readonly Func<TSource, TResult> _selector;
@@ -412,10 +473,7 @@ namespace System.Linq
                 _selector = selector;
             }
 
-            public override Iterator<TResult> Clone()
-            {
-                return new SelectIListIterator<TSource, TResult>(_source, _selector);
-            }
+            public override Iterator<TResult> Clone() => new SelectIListIterator<TSource, TResult>(_source, _selector);
 
             public override bool MoveNext()
             {
@@ -450,10 +508,8 @@ namespace System.Linq
                 base.Dispose();
             }
 
-            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector)
-            {
-                return new SelectIListIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
-            }
+            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector) =>
+                new SelectIListIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
 
             public TResult[] ToArray()
             {
@@ -486,7 +542,20 @@ namespace System.Linq
 
             public int GetCount(bool onlyIfCheap)
             {
-                return _source.Count;
+                // In case someone uses Count() to force evaluation of
+                // the selector, run it provided `onlyIfCheap` is false.
+
+                int count = _source.Count;
+
+                if (!onlyIfCheap)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        _selector(_source[i]);
+                    }
+                }
+
+                return count;
             }
 
             public IPartition<TResult> Skip(int count)
@@ -495,14 +564,12 @@ namespace System.Linq
                 return new SelectListPartitionIterator<TSource, TResult>(_source, _selector, count, int.MaxValue);
             }
 
-            public IPartition<TResult> Take(int count)
-            {
-                return new SelectListPartitionIterator<TSource, TResult>(_source, _selector, 0, count - 1);
-            }
+            public IPartition<TResult> Take(int count) =>
+                new SelectListPartitionIterator<TSource, TResult>(_source, _selector, 0, count - 1);
 
             public TResult TryGetElementAt(int index, out bool found)
             {
-                if ((uint)index < (uint)_source.Count)
+                if (unchecked((uint)index < (uint)_source.Count))
                 {
                     found = true;
                     return _selector(_source[index]);
@@ -538,7 +605,12 @@ namespace System.Linq
             }
         }
 
-        internal sealed class SelectIPartitionIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
+        /// <summary>
+        /// An iterator that maps each item of an <see cref="IPartition{TSource}"/>.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the source partition.</typeparam>
+        /// <typeparam name="TResult">The type of the mapped items.</typeparam>
+        private sealed class SelectIPartitionIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
         {
             private readonly IPartition<TSource> _source;
             private readonly Func<TSource, TResult> _selector;
@@ -552,10 +624,8 @@ namespace System.Linq
                 _selector = selector;
             }
 
-            public override Iterator<TResult> Clone()
-            {
-                return new SelectIPartitionIterator<TSource, TResult>(_source, _selector);
-            }
+            public override Iterator<TResult> Clone() =>
+                new SelectIPartitionIterator<TSource, TResult>(_source, _selector);
 
             public override bool MoveNext()
             {
@@ -590,10 +660,8 @@ namespace System.Linq
                 base.Dispose();
             }
 
-            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector)
-            {
-                return new SelectIPartitionIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
-            }
+            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector) =>
+                new SelectIPartitionIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector));
 
             public IPartition<TResult> Skip(int count)
             {
@@ -601,10 +669,8 @@ namespace System.Linq
                 return new SelectIPartitionIterator<TSource, TResult>(_source.Skip(count), _selector);
             }
 
-            public IPartition<TResult> Take(int count)
-            {
-                return new SelectIPartitionIterator<TSource, TResult>(_source.Take(count), _selector);
-            }
+            public IPartition<TResult> Take(int count) =>
+                new SelectIPartitionIterator<TSource, TResult>(_source.Take(count), _selector);
 
             public TResult TryGetElementAt(int index, out bool found)
             {
@@ -630,25 +696,45 @@ namespace System.Linq
                 return sourceFound ? _selector(input) : default(TResult);
             }
 
+            private TResult[] LazyToArray()
+            {
+                Debug.Assert(_source.GetCount(onlyIfCheap: true) == -1);
+
+                var builder = new LargeArrayBuilder<TResult>(initialize: true);
+                foreach (TSource input in _source)
+                {
+                    builder.Add(_selector(input));
+                }
+                return builder.ToArray();
+            }
+
+            private TResult[] PreallocatingToArray(int count)
+            {
+                Debug.Assert(count > 0);
+                Debug.Assert(count == _source.GetCount(onlyIfCheap: true));
+
+                TResult[] array = new TResult[count];
+                int index = 0;
+                foreach (TSource input in _source)
+                {
+                    array[index] = _selector(input);
+                    ++index;
+                }
+
+                return array;
+            }
+
             public TResult[] ToArray()
             {
                 int count = _source.GetCount(onlyIfCheap: true);
                 switch (count)
                 {
                     case -1:
-                        return EnumerableHelpers.ToArray(this);
+                        return LazyToArray();
                     case 0:
                         return Array.Empty<TResult>();
                     default:
-                        TResult[] array = new TResult[count];
-                        int index = 0;
-                        foreach (TSource input in _source)
-                        {
-                            array[index] = _selector(input);
-                            ++index;
-                        }
-
-                        return array;
+                        return PreallocatingToArray(count);
                 }
             }
 
@@ -678,17 +764,32 @@ namespace System.Linq
 
             public int GetCount(bool onlyIfCheap)
             {
+                // In case someone uses Count() to force evaluation of
+                // the selector, run it provided `onlyIfCheap` is false.
+
+                if (!onlyIfCheap)
+                {
+                    foreach (TSource item in _source)
+                    {
+                        _selector(item);
+                    }
+                }
+
                 return _source.GetCount(onlyIfCheap);
             }
         }
 
+        /// <summary>
+        /// An iterator that maps each item of part of an <see cref="IList{TSource}"/>.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the source list.</typeparam>
+        /// <typeparam name="TResult">The type of the mapped items.</typeparam>
         private sealed class SelectListPartitionIterator<TSource, TResult> : Iterator<TResult>, IPartition<TResult>
         {
             private readonly IList<TSource> _source;
             private readonly Func<TSource, TResult> _selector;
             private readonly int _minIndexInclusive;
             private readonly int _maxIndexInclusive;
-            private int _index;
 
             public SelectListPartitionIterator(IList<TSource> source, Func<TSource, TResult> selector, int minIndexInclusive, int maxIndexInclusive)
             {
@@ -700,20 +801,21 @@ namespace System.Linq
                 _selector = selector;
                 _minIndexInclusive = minIndexInclusive;
                 _maxIndexInclusive = maxIndexInclusive;
-                _index = minIndexInclusive;
             }
 
-            public override Iterator<TResult> Clone()
-            {
-                return new SelectListPartitionIterator<TSource, TResult>(_source, _selector, _minIndexInclusive, _maxIndexInclusive);
-            }
+            public override Iterator<TResult> Clone() =>
+                new SelectListPartitionIterator<TSource, TResult>(_source, _selector, _minIndexInclusive, _maxIndexInclusive);
 
             public override bool MoveNext()
             {
-                if ((_state == 1 & _index <= _maxIndexInclusive) && _index < _source.Count)
+                // _state - 1 represents the zero-based index into the list.
+                // Having a separate field for the index would be more readable. However, we save it
+                // into _state with a bias to minimize field size of the iterator.
+                int index = _state - 1;
+                if (unchecked((uint)index <= (uint)(_maxIndexInclusive - _minIndexInclusive) && index < _source.Count - _minIndexInclusive))
                 {
-                    _current = _selector(_source[_index]);
-                    ++_index;
+                    _current = _selector(_source[_minIndexInclusive + index]);
+                    ++_state;
                     return true;
                 }
 
@@ -721,10 +823,8 @@ namespace System.Linq
                 return false;
             }
 
-            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector)
-            {
-                return new SelectListPartitionIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector), _minIndexInclusive, _maxIndexInclusive);
-            }
+            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector) =>
+                new SelectListPartitionIterator<TSource, TResult2>(_source, CombineSelectors(_selector, selector), _minIndexInclusive, _maxIndexInclusive);
 
             public IPartition<TResult> Skip(int count)
             {
@@ -827,7 +927,21 @@ namespace System.Linq
 
             public int GetCount(bool onlyIfCheap)
             {
-                return Count;
+                // In case someone uses Count() to force evaluation of
+                // the selector, run it provided `onlyIfCheap` is false.
+
+                int count = Count;
+
+                if (!onlyIfCheap)
+                {
+                    int end = _minIndexInclusive + count;
+                    for (int i = _minIndexInclusive; i != end; ++i)
+                    {
+                        _selector(_source[i]);
+                    }
+                }
+
+                return count;
             }
         }
     }

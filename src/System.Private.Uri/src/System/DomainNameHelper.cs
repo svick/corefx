@@ -63,11 +63,11 @@ namespace System
         // Returns:
         //  bool
         //
-        //  Remarks: Optimized for speed as a most comon case,
-        //           MUST NOT be used unless all input indexes are are verified and trusted.
+        //  Remarks: Optimized for speed as a most common case,
+        //           MUST NOT be used unless all input indexes are verified and trusted.
         //
 
-        internal unsafe static bool IsValid(char* name, ushort pos, ref int returnedEnd, ref bool notCanonical, bool notImplicitFile)
+        internal static unsafe bool IsValid(char* name, ushort pos, ref int returnedEnd, ref bool notCanonical, bool notImplicitFile)
         {
             char* curPos = name + pos;
             char* newPos = curPos;
@@ -130,7 +130,7 @@ namespace System
         // There are pretty much no restrictions and we effectively return the end of the
         // domain name.
         //
-        internal unsafe static bool IsValidByIri(char* name, ushort pos, ref int returnedEnd, ref bool notCanonical, bool notImplicitFile)
+        internal static unsafe bool IsValidByIri(char* name, ushort pos, ref int returnedEnd, ref bool notCanonical, bool notImplicitFile)
         {
             char* curPos = name + pos;
             char* newPos = curPos;
@@ -217,7 +217,7 @@ namespace System
         //
         // Will convert a host name into its idn equivalent + tell you if it had a valid idn label
         //
-        internal unsafe static string IdnEquivalent(char* hostname, int start, int end, ref bool allAscii, ref bool atLeastOneValidIdn)
+        internal static unsafe string IdnEquivalent(char* hostname, int start, int end, ref bool allAscii, ref bool atLeastOneValidIdn)
         {
             string bidiStrippedHost = null;
             string idnEquivalent = IdnEquivalent(hostname, start, end, ref allAscii, ref bidiStrippedHost);
@@ -297,7 +297,7 @@ namespace System
         //
         // Will convert a host name into its idn equivalent
         //
-        internal unsafe static string IdnEquivalent(char* hostname, int start, int end, ref bool allAscii, ref string bidiStrippedHost)
+        internal static unsafe string IdnEquivalent(char* hostname, int start, int end, ref bool allAscii, ref string bidiStrippedHost)
         {
             string idn = null;
             if (end <= start)
@@ -324,13 +324,13 @@ namespace System
             {
                 // just lowercase for ascii
                 string unescapedHostname = new string(hostname, start, end - start);
-                return ((unescapedHostname != null) ? unescapedHostname.ToLowerInvariant() : null);
+                return unescapedHostname.ToLowerInvariant();
             }
             else
             {
                 IdnMapping map = new IdnMapping();
                 string asciiForm;
-                bidiStrippedHost = Uri.StripBidiControlCharacter(hostname, start, end - start);
+                bidiStrippedHost = UriHelper.StripBidiControlCharacter(hostname, start, end - start);
                 try
                 {
                     asciiForm = map.GetAscii(bidiStrippedHost);
@@ -343,7 +343,7 @@ namespace System
             }
         }
 
-        private unsafe static bool IsIdnAce(string input, int index)
+        private static unsafe bool IsIdnAce(string input, int index)
         {
             if ((input[index] == 'x') &&
                 (input[index + 1] == 'n') &&
@@ -354,7 +354,7 @@ namespace System
                 return false;
         }
 
-        private unsafe static bool IsIdnAce(char* input, int index)
+        private static unsafe bool IsIdnAce(char* input, int index)
         {
             if ((input[index] == 'x') &&
                 (input[index + 1] == 'n') &&
@@ -368,11 +368,11 @@ namespace System
         //
         // Will convert a host name into its unicode equivalent expanding any existing idn names present
         //
-        internal unsafe static string UnicodeEquivalent(string idnHost, char* hostname, int start, int end)
+        internal static unsafe string UnicodeEquivalent(string idnHost, char* hostname, int start, int end)
         {
             IdnMapping map = new IdnMapping();
 
-            // Test comon scenario first for perf
+            // Test common scenario first for perf
             // try to get unicode equivalent 
             try
             {
@@ -388,7 +388,7 @@ namespace System
             return UnicodeEquivalent(hostname, start, end, ref dummy, ref dummy);
         }
 
-        internal unsafe static string UnicodeEquivalent(char* hostname, int start, int end, ref bool allAscii, ref bool atLeastOneValidIdn)
+        internal static unsafe string UnicodeEquivalent(char* hostname, int start, int end, ref bool allAscii, ref bool atLeastOneValidIdn)
         {
             IdnMapping map = new IdnMapping();
 
@@ -399,7 +399,7 @@ namespace System
             if (end <= start)
                 return idn;
 
-            string unescapedHostname = Uri.StripBidiControlCharacter(hostname, start, (end - start));
+            string unescapedHostname = UriHelper.StripBidiControlCharacter(hostname, start, (end - start));
 
             string unicodeEqvlHost = null;
             int curPos = 0;

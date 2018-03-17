@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Xunit;
 
@@ -13,7 +12,7 @@ namespace System.Collections.Tests
     /// Contains tests that ensure the correctness of any class that implements the generic
     /// IDictionary interface
     /// </summary>
-    public abstract class IDictionary_Generic_Tests<TKey, TValue> : ICollection_Generic_Tests<KeyValuePair<TKey, TValue>>
+    public abstract partial class IDictionary_Generic_Tests<TKey, TValue> : ICollection_Generic_Tests<KeyValuePair<TKey, TValue>>
     {
         #region IDictionary<TKey, TValue> Helper Methods
 
@@ -124,9 +123,9 @@ namespace System.Collections.Tests
             return GenericIDictionaryFactory(count);
         }
 
-        protected override bool DefaultValueAllowed { get { return false; } }
+        protected override bool DefaultValueAllowed => false;
 
-        protected override bool DuplicateValuesAllowed { get { return false; } }
+        protected override bool DuplicateValuesAllowed => false;
 
         protected override void AddToCollection(ICollection<KeyValuePair<TKey, TValue>> collection, int numberOfItemsToAdd)
         {
@@ -160,17 +159,20 @@ namespace System.Collections.Tests
         {
             get
             {
-                yield return (IEnumerable<KeyValuePair<TKey, TValue>> enumerable) => {
+                yield return (IEnumerable<KeyValuePair<TKey, TValue>> enumerable) =>
+                {
                     IDictionary<TKey, TValue> casted = ((IDictionary<TKey, TValue>)enumerable);
                     casted.Add(CreateTKey(12), CreateTValue(5123));
                     return true;
                 };
-                yield return (IEnumerable<KeyValuePair<TKey, TValue>> enumerable) => {
+                yield return (IEnumerable<KeyValuePair<TKey, TValue>> enumerable) =>
+                {
                     IDictionary<TKey, TValue> casted = ((IDictionary<TKey, TValue>)enumerable);
                     casted[CreateTKey(541)] = CreateTValue(12);
                     return true;
                 };
-                yield return (IEnumerable<KeyValuePair<TKey, TValue>> enumerable) => {
+                yield return (IEnumerable<KeyValuePair<TKey, TValue>> enumerable) =>
+                {
                     IDictionary<TKey, TValue> casted = ((IDictionary<TKey, TValue>)enumerable);
                     if (casted.Count() > 0)
                     {
@@ -181,7 +183,8 @@ namespace System.Collections.Tests
                     }
                     return false;
                 };
-                yield return (IEnumerable<KeyValuePair<TKey, TValue>> enumerable) => {
+                yield return (IEnumerable<KeyValuePair<TKey, TValue>> enumerable) =>
+                {
                     IDictionary<TKey, TValue> casted = ((IDictionary<TKey, TValue>)enumerable);
                     if (casted.Count() > 0)
                     {
@@ -193,12 +196,35 @@ namespace System.Collections.Tests
             }
         }
 
+        /// <summary>
+        /// Used in IDictionary_Generic_Values_Enumeration_ParentDictionaryModifiedInvalidates and 
+        /// IDictionary_Generic_Keys_Enumeration_ParentDictionaryModifiedInvalidates.
+        /// Some collections (e.g. ConcurrentDictionary) do not throw an InvalidOperationException
+        /// when enumerating the Keys or Values property and the parent is modified.
+        /// </summary>
+        protected virtual bool IDictionary_Generic_Keys_Values_Enumeration_ThrowsInvalidOperation_WhenParentModified => true;
+
+        /// <summary>
+        /// Used in IDictionary_Generic_Values_ModifyingTheDictionaryUpdatesTheCollection and 
+        /// IDictionary_Generic_Keys_ModifyingTheDictionaryUpdatesTheCollection.
+        /// Some collections (e.g ConcurrentDictionary) use iterators in the Keys and Values properties,
+        /// and do not respond to updates in the base collection.
+        /// </summary>
+        protected virtual bool IDictionary_Generic_Keys_Values_ModifyingTheDictionaryUpdatesTheCollection => true;
+
+        /// <summary>
+        /// Used in IDictionary_Generic_Keys_Enumeration_Reset and IDictionary_Generic_Values_Enumeration_Reset.
+        /// Typically, the support for Reset in enumerators for the Keys and Values depend on the support for it
+        /// in the parent dictionary. However, some collections (e.g. ConcurrentDictionary) don't.
+        /// </summary>
+        protected virtual bool IDictionary_Generic_Keys_Values_Enumeration_ResetImplemented => ResetImplemented;
+
         #endregion
 
         #region Item Getter
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ItemGet_DefaultKey(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -215,7 +241,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ItemGet_MissingNonDefaultKey_ThrowsKeyNotFoundException(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -224,7 +250,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ItemGet_MissingDefaultKey_ThrowsKeyNotFoundException(int count)
         {
             if (DefaultValueAllowed)
@@ -238,7 +264,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ItemGet_PresentKeyReturnsCorrectValue(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -253,7 +279,7 @@ namespace System.Collections.Tests
         #region Item Setter
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ItemSet_DefaultKey(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -270,7 +296,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ItemSet_OnReadOnlyDictionary_ThrowsNotSupportedException(int count)
         {
             if (IsReadOnly)
@@ -282,7 +308,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ItemSet_AddsNewValueWhenNotPresent(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -292,7 +318,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ItemSet_ReplacesExistingValueWhenPresent(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -309,7 +335,7 @@ namespace System.Collections.Tests
         #region Keys
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Keys_ContainsAllCorrectKeys(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -318,50 +344,66 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Keys_ModifyingTheDictionaryUpdatesTheCollection(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
             ICollection<TKey> keys = dictionary.Keys;
+            int previousCount = keys.Count;
             if (count > 0)
                 Assert.NotEmpty(keys);
             dictionary.Clear();
-            Assert.Empty(keys);
+            if (IDictionary_Generic_Keys_Values_ModifyingTheDictionaryUpdatesTheCollection)
+            {
+                Assert.Empty(keys);
+            }
+            else
+            {
+                Assert.Equal(previousCount, keys.Count);
+            }
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Keys_Enumeration_ParentDictionaryModifiedInvalidates(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
             ICollection<TKey> keys = dictionary.Keys;
             IEnumerator<TKey> keysEnum = keys.GetEnumerator();
             dictionary.Add(GetNewKey(dictionary), CreateTValue(3432));
-            Assert.Throws<InvalidOperationException>(() => keysEnum.MoveNext());
-            Assert.Throws<InvalidOperationException>(() => keysEnum.Reset());
+            if (IDictionary_Generic_Keys_Values_Enumeration_ThrowsInvalidOperation_WhenParentModified)
+            {
+                Assert.Throws<InvalidOperationException>(() => keysEnum.MoveNext());
+                Assert.Throws<InvalidOperationException>(() => keysEnum.Reset());
+            }
+            else
+            {
+                keysEnum.MoveNext();
+                keysEnum.Reset();
+            }
             var cur = keysEnum.Current;
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Keys_IsReadOnly(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
             ICollection<TKey> keys = dictionary.Keys;
             Assert.True(keys.IsReadOnly);
             Assert.Throws<NotSupportedException>(() => keys.Add(CreateTKey(11)));
-            Assert.Throws<NotSupportedException>(() => keys.Clear()); 
+            Assert.Throws<NotSupportedException>(() => keys.Clear());
             Assert.Throws<NotSupportedException>(() => keys.Remove(CreateTKey(11)));
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Keys_Enumeration_Reset(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
             ICollection<TKey> keys = dictionary.Keys;
             var enumerator = keys.GetEnumerator();
-            if (ResetImplemented)
+            if (IDictionary_Generic_Keys_Values_Enumeration_ResetImplemented)
                 enumerator.Reset();
             else
                 Assert.Throws<NotSupportedException>(() => enumerator.Reset());
@@ -372,7 +414,7 @@ namespace System.Collections.Tests
         #region Values
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Values_ContainsAllCorrectValues(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -381,7 +423,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Values_IncludeDuplicatesMultipleTimes(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -397,32 +439,48 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Values_ModifyingTheDictionaryUpdatesTheCollection(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
             ICollection<TValue> values = dictionary.Values;
+            int previousCount = values.Count;
             if (count > 0)
                 Assert.NotEmpty(values);
             dictionary.Clear();
-            Assert.Empty(values);
+            if (IDictionary_Generic_Keys_Values_ModifyingTheDictionaryUpdatesTheCollection)
+            {
+                Assert.Empty(values);
+            }
+            else
+            {
+                Assert.Equal(previousCount, values.Count);
+            }
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Values_Enumeration_ParentDictionaryModifiedInvalidates(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
             ICollection<TValue> values = dictionary.Values;
             IEnumerator<TValue> valuesEnum = values.GetEnumerator();
             dictionary.Add(GetNewKey(dictionary), CreateTValue(3432));
-            Assert.Throws<InvalidOperationException>(() => valuesEnum.MoveNext());
-            Assert.Throws<InvalidOperationException>(() => valuesEnum.Reset());
+            if (IDictionary_Generic_Keys_Values_Enumeration_ThrowsInvalidOperation_WhenParentModified)
+            {
+                Assert.Throws<InvalidOperationException>(() => valuesEnum.MoveNext());
+                Assert.Throws<InvalidOperationException>(() => valuesEnum.Reset());
+            }
+            else
+            {
+                valuesEnum.MoveNext();
+                valuesEnum.Reset();
+            }
             var cur = valuesEnum.Current;
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Values_IsReadOnly(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -434,13 +492,13 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Values_Enumeration_Reset(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
             ICollection<TValue> values = dictionary.Values;
             var enumerator = values.GetEnumerator();
-            if (ResetImplemented)
+            if (IDictionary_Generic_Keys_Values_Enumeration_ResetImplemented)
                 enumerator.Reset();
             else
                 Assert.Throws<NotSupportedException>(() => enumerator.Reset());
@@ -451,7 +509,7 @@ namespace System.Collections.Tests
         #region Add(TKey, TValue)
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Add_OnReadOnlyDictionary_ThrowsNotSupportedException(int count)
         {
             if (IsReadOnly)
@@ -462,7 +520,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Add_DefaultKey_DefaultValue(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -481,7 +539,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Add_DefaultKey_NonDefaultValue(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -500,7 +558,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Add_NonDefaultKey_DefaultValue(int count)
         {
             if (!IsReadOnly)
@@ -515,7 +573,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Add_NonDefaultKey_NonDefaultValue(int count)
         {
             if (!IsReadOnly)
@@ -530,7 +588,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Add_DuplicateValue(int count)
         {
             if (!IsReadOnly)
@@ -547,7 +605,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_Add_DuplicateKey(int count)
         {
             if (!IsReadOnly)
@@ -564,7 +622,7 @@ namespace System.Collections.Tests
         #region ContainsKey
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ContainsKey_ValidKeyNotContainedInDictionary(int count)
         {
             if (!IsReadOnly)
@@ -576,7 +634,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ContainsKey_ValidKeyContainedInDictionary(int count)
         {
             if (!IsReadOnly)
@@ -589,7 +647,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ContainsKey_DefaultKeyNotContainedInDictionary(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -609,7 +667,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_ContainsKey_DefaultKeyContainedInDictionary(int count)
         {
             if (DefaultValueAllowed && !IsReadOnly)
@@ -627,7 +685,7 @@ namespace System.Collections.Tests
         #region Remove(TKey)
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_RemoveKey_OnReadOnlyDictionary_ThrowsNotSupportedException(int count)
         {
             if (IsReadOnly)
@@ -638,7 +696,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_RemoveKey_EveryKey(int count)
         {
             if (!IsReadOnly)
@@ -653,7 +711,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_RemoveKey_ValidKeyNotContainedInDictionary(int count)
         {
             if (!IsReadOnly)
@@ -666,7 +724,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_RemoveKey_ValidKeyContainedInDictionary(int count)
         {
             if (!IsReadOnly)
@@ -680,7 +738,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_RemoveKey_DefaultKeyNotContainedInDictionary(int count)
         {
             if (!IsReadOnly)
@@ -701,15 +759,14 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_RemoveKey_DefaultKeyContainedInDictionary(int count)
         {
             if (DefaultValueAllowed && !IsReadOnly)
             {
                 IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
                 TKey missingKey = default(TKey);
-                if (!dictionary.ContainsKey(missingKey))
-                    dictionary.Add(missingKey, CreateTValue(5341));
+                dictionary.TryAdd(missingKey, CreateTValue(5341));
                 Assert.True(dictionary.Remove(missingKey));
             }
         }
@@ -719,7 +776,7 @@ namespace System.Collections.Tests
         #region TryGetValue
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_TryGetValue_ValidKeyNotContainedInDictionary(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -730,7 +787,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_TryGetValue_ValidKeyContainedInDictionary(int count)
         {
             if (!IsReadOnly)
@@ -739,15 +796,14 @@ namespace System.Collections.Tests
                 TKey missingKey = GetNewKey(dictionary);
                 TValue value = CreateTValue(5123);
                 TValue outValue;
-                if (!dictionary.ContainsKey(missingKey))
-                    dictionary.Add(missingKey, value);
+                dictionary.TryAdd(missingKey, value);
                 Assert.True(dictionary.TryGetValue(missingKey, out outValue));
                 Assert.Equal(value, outValue);
             }
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_TryGetValue_DefaultKeyNotContainedInDictionary(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -766,7 +822,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_Generic_TryGetValue_DefaultKeyContainedInDictionary(int count)
         {
             if (DefaultValueAllowed && !IsReadOnly)
@@ -775,8 +831,7 @@ namespace System.Collections.Tests
                 TKey missingKey = default(TKey);
                 TValue value = CreateTValue(5123);
                 TValue outValue;
-                if (!dictionary.ContainsKey(missingKey))
-                    dictionary.Add(missingKey, value);
+                dictionary.TryAdd(missingKey, value);
                 Assert.True(dictionary.TryGetValue(missingKey, out outValue));
                 Assert.Equal(value, outValue);
             }
@@ -787,7 +842,7 @@ namespace System.Collections.Tests
         #region ICollection<KeyValuePair<TKey, TValue>>
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void ICollection_Generic_Contains_ValidPresentKeyWithDefaultValue(int count)
         {
             if (!IsReadOnly)
@@ -800,7 +855,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void ICollection_Generic_Remove_ValidPresentKeyWithDifferentValue(int count)
         {
             if (!IsReadOnly)
@@ -817,7 +872,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void ICollection_Generic_Contains_ValidPresentKeyWithDifferentValue(int count)
         {
             if (!IsReadOnly)
@@ -838,7 +893,7 @@ namespace System.Collections.Tests
         #region ICollection
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void ICollection_NonGeneric_CopyTo(int count)
         {
             IDictionary<TKey, TValue> dictionary = GenericIDictionaryFactory(count);
@@ -851,14 +906,14 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public override void ICollection_Generic_Contains_DefaultValueWhenNotAllowed(int count)
         {
             ICollection<KeyValuePair<TKey, TValue>> collection = GenericIDictionaryFactory(count);
             if (!DefaultValueAllowed && !IsReadOnly)
             {
                 if (DefaultValueWhenNotAllowed_Throws)
-                    Assert.ThrowsAny<ArgumentNullException>(() => collection.Contains(default(KeyValuePair<TKey, TValue>)));
+                    Assert.Throws<ArgumentNullException>(() => collection.Contains(default(KeyValuePair<TKey, TValue>)));
                 else
                     Assert.False(collection.Remove(default(KeyValuePair<TKey, TValue>)));
             }

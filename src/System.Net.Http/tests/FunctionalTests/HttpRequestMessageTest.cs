@@ -14,7 +14,7 @@ namespace System.Net.Http.Functional.Tests
 {
     public class HttpRequestMessageTest
     {
-        Version _expectedRequestMessageVersion = new Version(1, 1);
+        Version _expectedRequestMessageVersion = !PlatformDetection.IsFullFramework ? new Version(2,0) : new Version(1, 1);
 
         [Fact]
         public void Ctor_Default_CorrectDefaults()
@@ -104,7 +104,7 @@ namespace System.Net.Http.Functional.Tests
         [Fact]
         public void Ctor_NonHttpUri_ThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => new HttpRequestMessage(HttpMethod.Put, "ftp://example.com"));
+            AssertExtensions.Throws<ArgumentException>("requestUri", () => new HttpRequestMessage(HttpMethod.Put, "ftp://example.com"));
         }
 
         [Fact]
@@ -159,7 +159,7 @@ namespace System.Net.Http.Functional.Tests
         public void RequestUri_SetNonHttpUri_ThrowsArgumentException()
         {
             var rm = new HttpRequestMessage();
-            Assert.Throws<ArgumentException>(() => { rm.RequestUri = new Uri("ftp://example.com"); });
+            AssertExtensions.Throws<ArgumentException>("value", () => { rm.RequestUri = new Uri("ftp://example.com"); });
         }
 
         [Fact]
@@ -192,7 +192,7 @@ namespace System.Net.Http.Functional.Tests
             rm.Content = new StringContent("content");
 
             // Note that there is no Content-Length header: The reason is that the value for Content-Length header
-            // doesn't get set by StringContent..ctor, but ony if someone actually accesses the ContentLength property.
+            // doesn't get set by StringContent..ctor, but only if someone actually accesses the ContentLength property.
             Assert.Equal(
                 "Method: PUT, RequestUri: 'http://a.com/', Version: 1.0, Content: " + typeof(StringContent).ToString() + ", Headers:\r\n" +
                 "{\r\n" +

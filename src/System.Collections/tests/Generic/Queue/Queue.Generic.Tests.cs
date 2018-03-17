@@ -1,9 +1,8 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Xunit;
 
@@ -12,7 +11,7 @@ namespace System.Collections.Tests
     /// <summary>
     /// Contains tests that ensure the correctness of the Queue class.
     /// </summary>
-    public abstract class Queue_Generic_Tests<T> : IGenericSharedAPI_Tests<T>
+    public abstract partial class Queue_Generic_Tests<T> : IGenericSharedAPI_Tests<T>
     {
         #region Queue<T> Helper Methods
 
@@ -44,20 +43,22 @@ namespace System.Collections.Tests
             return GenericQueueFactory(count);
         }
 
-        protected override int Count(IEnumerable<T> enumerable) { return ((Queue<T>)enumerable).Count; }
-        protected override void Add(IEnumerable<T> enumerable, T value) { ((Queue<T>)enumerable).Enqueue(value); }
-        protected override void Clear(IEnumerable<T> enumerable) { ((Queue<T>)enumerable).Clear(); }
-        protected override bool Contains(IEnumerable<T> enumerable, T value) { return ((Queue<T>)enumerable).Contains(value); }
-        protected override void CopyTo(IEnumerable<T> enumerable, T[] array, int index) { ((Queue<T>)enumerable).CopyTo(array, index); }
+        protected override int Count(IEnumerable<T> enumerable) => ((Queue<T>)enumerable).Count;
+        protected override void Add(IEnumerable<T> enumerable, T value) => ((Queue<T>)enumerable).Enqueue(value);
+        protected override void Clear(IEnumerable<T> enumerable) => ((Queue<T>)enumerable).Clear();
+        protected override bool Contains(IEnumerable<T> enumerable, T value) => ((Queue<T>)enumerable).Contains(value);
+        protected override void CopyTo(IEnumerable<T> enumerable, T[] array, int index) => ((Queue<T>)enumerable).CopyTo(array, index);
         protected override bool Remove(IEnumerable<T> enumerable) { ((Queue<T>)enumerable).Dequeue(); return true; }
-        protected override bool Enumerator_Current_UndefinedOperation_Throws { get { return true; } }
+        protected override bool Enumerator_Current_UndefinedOperation_Throws => true;
+
+        protected override Type IGenericSharedAPI_CopyTo_IndexLargerThanArrayCount_ThrowType => typeof(ArgumentOutOfRangeException);
 
         #endregion
 
         #region Constructor_IEnumerable
 
         [Theory]
-        [MemberData("EnumerableTestData")]
+        [MemberData(nameof(EnumerableTestData))]
         public void Queue_Generic_Constructor_IEnumerable(EnumerableType enumerableType, int setLength, int enumerableLength, int numberOfMatchingElements, int numberOfDuplicateElements)
         {
             IEnumerable<T> enumerable = CreateEnumerable(enumerableType, null, enumerableLength, 0, numberOfDuplicateElements);
@@ -68,7 +69,7 @@ namespace System.Collections.Tests
         [Fact]
         public void Queue_Generic_Constructor_IEnumerable_Null_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>("collection", () => new Queue<T>(null));
+            AssertExtensions.Throws<ArgumentNullException>("collection", () => new Queue<T>(null));
         }
 
         #endregion
@@ -76,7 +77,7 @@ namespace System.Collections.Tests
         #region Constructor_Capacity
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_Constructor_int(int count)
         {
             Queue<T> queue = new Queue<T>(count);
@@ -88,8 +89,8 @@ namespace System.Collections.Tests
         [Fact]
         public void Queue_Generic_Constructor_int_Negative_ThrowsArgumentOutOfRangeException()
         {
-            Assert.Throws<ArgumentOutOfRangeException>("capacity", () => new Queue<T>(-1));
-            Assert.Throws<ArgumentOutOfRangeException>("capacity", () => new Queue<T>(int.MinValue));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("capacity", () => new Queue<T>(-1));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("capacity", () => new Queue<T>(int.MinValue));
         }
 
         #endregion
@@ -97,7 +98,7 @@ namespace System.Collections.Tests
         #region Dequeue
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_Dequeue_AllElements(int count)
         {
             Queue<T> queue = GenericQueueFactory(count);
@@ -153,7 +154,7 @@ namespace System.Collections.Tests
         #region ToArray
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_ToArray(int count)
         {
             Queue<T> queue = GenericQueueFactory(count);
@@ -161,7 +162,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_ToArray_NonWrappedQueue(int count)
         {
             Queue<T> collection = new Queue<T>(count + 1);
@@ -176,7 +177,7 @@ namespace System.Collections.Tests
         #region Peek
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_Peek_AllElements(int count)
         {
             Queue<T> queue = GenericQueueFactory(count);
@@ -199,7 +200,7 @@ namespace System.Collections.Tests
         #region TrimExcess
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_TrimExcess_OnValidQueueThatHasntBeenRemovedFrom(int count)
         {
             Queue<T> queue = GenericQueueFactory(count);
@@ -207,7 +208,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_TrimExcess_Repeatedly(int count)
         {
             Queue<T> queue = GenericQueueFactory(count); ;
@@ -219,7 +220,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_TrimExcess_AfterRemovingOneElement(int count)
         {
             if (count > 0)
@@ -236,7 +237,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_TrimExcess_AfterClearingAndAddingSomeElementsBack(int count)
         {
             if (count > 0)
@@ -254,7 +255,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void Queue_Generic_TrimExcess_AfterClearingAndAddingAllElementsBack(int count)
         {
             if (count > 0)

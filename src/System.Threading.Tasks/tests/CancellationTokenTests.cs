@@ -11,7 +11,7 @@ using Xunit;
 
 namespace System.Threading.Tasks.Tests
 {
-    public static class CancellationTokenTests
+    public static partial class CancellationTokenTests
     {
         [Fact]
         public static void CancellationTokenRegister_Exceptions()
@@ -178,6 +178,31 @@ namespace System.Threading.Tasks.Tests
 
             bool cr = tokenSource.IsCancellationRequested; //this is ok after dispose.
             tokenSource.Dispose(); //Repeat calls to Dispose should be ok.
+        }
+
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "Relies on quirked behavior to not throw in token.Register when already disposed")]
+        [Fact]
+        public static void TokenSourceDispose_Negative()
+        {
+            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            CancellationToken token = tokenSource.Token;
+
+            CancellationTokenRegistration preDisposeRegistration = token.Register(() => { });
+
+            //WaitHandle and Dispose
+            tokenSource.Dispose();
+            Assert.Throws<ObjectDisposedException>(() =>  token.WaitHandle);
+
+            Assert.Throws<ObjectDisposedException>(() =>tokenSource.Token);
+
+            //shouldn't throw
+            token.Register(() => { });
+
+            // Allow ctr.Dispose() to succeed when the backing cts has already been disposed.
+            preDisposeRegistration.Dispose();
+
+            //shouldn't throw
+            CancellationTokenSource.CreateLinkedTokenSource(new[] { token, token });
         }
 
         /// <summary>
@@ -793,6 +818,12 @@ namespace System.Threading.Tasks.Tests
             }
         }
 
+        [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        static void FinalizeHelper(DisposeTracker disposeTracker)
+        {
+            new DerivedCTS(disposeTracker);
+        }
+
         // Several tests for deriving custom user types from CancellationTokenSource
         [Fact]
         public static void DerivedCancellationTokenSource()
@@ -849,9 +880,7 @@ namespace System.Threading.Tasks.Tests
             {
                 var disposeTracker = new DisposeTracker();
 
-                // Since the object is not assigned into a variable, it can be GC'd before the current method terminates.
-                // (This is only an issue in the Debug build)
-                new DerivedCTS(disposeTracker);
+                FinalizeHelper(disposeTracker);
 
                 // Wait until the DerivedCTS object is finalized
                 SpinWait.SpinUntil(() =>

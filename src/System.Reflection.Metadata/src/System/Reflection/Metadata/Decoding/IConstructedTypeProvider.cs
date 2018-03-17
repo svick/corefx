@@ -4,21 +4,14 @@
 
 using System.Collections.Immutable;
 
-#if SRM
-namespace System.Reflection.Metadata.Decoding
-#else
-namespace Roslyn.Reflection.Metadata.Decoding
-#endif
+namespace System.Reflection.Metadata
 {
-#if SRM && FUTURE
-    public
-#endif
-    interface IConstructedTypeProvider<TType> : ISZArrayTypeProvider<TType>
+    public interface IConstructedTypeProvider<TType> : ISZArrayTypeProvider<TType>
     {
         /// <summary>
         /// Gets the type symbol for a generic instantiation of the given generic type with the given type arguments.
         /// </summary>
-        TType GetGenericInstance(TType genericType, ImmutableArray<TType> typeArguments);
+        TType GetGenericInstantiation(TType genericType, ImmutableArray<TType> typeArguments);
 
         /// <summary>
         /// Gets the type symbol for a generalized array of the given element type and shape. 

@@ -217,7 +217,7 @@ namespace System.Collections.Concurrent
             long from, to;
             bool shouldQuit = false;
 
-            for (long i = fromInclusive; (i < toExclusive) && !shouldQuit; i += rangeSize)
+            for (long i = fromInclusive; (i < toExclusive) && !shouldQuit; i = unchecked(i + rangeSize))
             {
                 from = i;
                 try { checked { to = i + rangeSize; } }
@@ -274,7 +274,7 @@ namespace System.Collections.Concurrent
             int from, to;
             bool shouldQuit = false;
 
-            for (int i = fromInclusive; (i < toExclusive) && !shouldQuit; i += rangeSize)
+            for (int i = fromInclusive; (i < toExclusive) && !shouldQuit; i = unchecked(i + rangeSize))
             {
                 from = i;
                 try { checked { to = i + rangeSize; } }
@@ -381,7 +381,7 @@ namespace System.Collections.Concurrent
 
             /// <summary>
             /// Dispose is abstract, and depends on the type of the source data:
-            /// - For source data type IList and Array, the type of the shared reader is just the dataitself.
+            /// - For source data type IList and Array, the type of the shared reader is just the data itself.
             ///   We don't do anything in Dispose method for IList and Array. 
             /// - For source data type IEnumerable, the type of the shared reader is an enumerator we created.
             ///   Thus we need to dispose this shared reader enumerator, when there is no more active partitions
@@ -982,7 +982,7 @@ namespace System.Collections.Concurrent
 
                 override public void Dispose()
                 {
-                    // If this is static partitioning, ie. _activePartitionCount != null, since the current partition 
+                    // If this is static partitioning, i.e. _activePartitionCount != null, since the current partition 
                     // is disposed, we decrement the number of active partitions for the shared reader. 
                     if (_activePartitionCount != null && Interlocked.Decrement(ref _activePartitionCount.Value) == 0)
                     {
@@ -990,7 +990,7 @@ namespace System.Collections.Concurrent
                         // reader we created in the _enumerable object.
                         _enumerable.Dispose();
                     }
-                    // If this is dynamic partitioning, ie. _activePartitionCount != null, then _enumerable needs to
+                    // If this is dynamic partitioning, i.e. _activePartitionCount != null, then _enumerable needs to
                     // be disposed explicitly by the user, and we do not need to anything here
                 }
             }

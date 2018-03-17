@@ -5,7 +5,7 @@
 /// This class is primarily used to test buffer boundary integrity of readers.
 ///	This class constructs a memory stream from the given buffer boundary length such that
 ///	the required tag completely lies exactly on the start and end of buffer boundary.
-/// The class makes up the additional bytes by filling in white spaces if so.
+/// The class makes up the additional bytes by filling in whitespace if so.
 ///	The first buffer length consists of the XML Decl and the Root Start (done by PrepareStream() )
 /// The next buffer length consists of the actual start and end text with the variable content stretched
 /// out to end at the buffer boundary.
@@ -131,7 +131,7 @@ namespace XmlCoreTest.Common
             return CreateReader(readerParams);
         }
 
-        //This API doesnt attach a default validation event handler.
+        //This API doesn't attach a default validation event handler.
         public static XmlReader CreateReader(ReaderType readerType, Stream stream, string baseUri, bool enableNormalization)
         {
             return CreateReader(readerType.ToString(), stream, baseUri, enableNormalization, null, null, false);

@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.InteropServices;
-using System.Runtime.WindowsRuntime.Internal;
 using System.Threading.Tasks;
 using System.Threading;
 using Windows.Foundation;
@@ -60,12 +59,12 @@ namespace System.IO
 
         private WinRtToNetFxStreamAdapter(Object winRtStream, bool canRead, bool canWrite, bool canSeek)
         {
-            Contract.Requires(winRtStream != null);
-            Contract.Requires(winRtStream is IInputStream || winRtStream is IOutputStream || winRtStream is IRandomAccessStream);
+            Debug.Assert(winRtStream != null);
+            Debug.Assert(winRtStream is IInputStream || winRtStream is IOutputStream || winRtStream is IRandomAccessStream);
 
-            Contract.Requires((canSeek && (winRtStream is IRandomAccessStream)) || (!canSeek && !(winRtStream is IRandomAccessStream)));
+            Debug.Assert((canSeek && (winRtStream is IRandomAccessStream)) || (!canSeek && !(winRtStream is IRandomAccessStream)));
 
-            Contract.Requires((canRead && (winRtStream is IInputStream))
+            Debug.Assert((canRead && (winRtStream is IInputStream))
                                  ||
                                (!canRead && (
                                     !(winRtStream is IInputStream)
@@ -74,7 +73,7 @@ namespace System.IO
                                ))
                              );
 
-            Contract.Requires((canWrite && (winRtStream is IOutputStream))
+            Debug.Assert((canWrite && (winRtStream is IOutputStream))
                                  ||
                                (!canWrite && (
                                     !(winRtStream is IOutputStream)
@@ -474,16 +473,12 @@ namespace System.IO
             // This will cause a CCW to be created for the delegate and the delegate has a reference to its target, i.e. to
             // asyncResult, so asyncResult will not be collected. If we loose the entire AppDomain, then asyncResult and its CCW
             // will be collected but the stub will remain and the callback will fail gracefully. The underlying buffer is the only
-            // item to whcih we expose a direct pointer and this is properly pinned using a mechanism similar to Overlapped.
+            // item to which we expose a direct pointer and this is properly pinned using a mechanism similar to Overlapped.
 
             return asyncResult;
         }
 
-#if netstandard
         public override Int32 EndRead(IAsyncResult asyncResult)
-#else
-        public Int32 EndRead(IAsyncResult asyncResult)
-#endif
         {
             if (asyncResult == null)
                 throw new ArgumentNullException(nameof(asyncResult));
@@ -556,7 +551,7 @@ namespace System.IO
         }
 
 
-        public override Int32 Read([In, Out] Byte[] buffer, Int32 offset, Int32 count)
+        public override Int32 Read(Byte[] buffer, Int32 offset, Int32 count)
         {
             // Arguments validation and not-disposed validation are done in BeginRead.
 
@@ -589,11 +584,7 @@ namespace System.IO
         #region Writing
 
 
-#if netstandard
         public override IAsyncResult BeginWrite(Byte[] buffer, Int32 offset, Int32 count, AsyncCallback callback, Object state)
-#else
-        public IAsyncResult BeginWrite(Byte[] buffer, Int32 offset, Int32 count, AsyncCallback callback, Object state)
-#endif
         {
             return BeginWrite(buffer, offset, count, callback, state, usedByBlockingWrapper: false);
         }
@@ -640,11 +631,7 @@ namespace System.IO
             return asyncResult;
         }
 
-#if netstandard
         public override void EndWrite(IAsyncResult asyncResult)
-#else
-        public void EndWrite(IAsyncResult asyncResult)
-#endif
         {
             if (asyncResult == null)
                 throw new ArgumentNullException(nameof(asyncResult));
@@ -792,7 +779,7 @@ namespace System.IO
 
             // Calling Flush in a non-writable stream is a no-op, not an error:
             if (!_canWrite)
-                return Helpers.CompletedTask;
+                return Task.CompletedTask;
 
 #if DEBUG
             AssertValidStream(wrtStr);
@@ -814,11 +801,11 @@ namespace System.IO
 
         private async Task<Int32> ReadAsyncInternal(Byte[] buffer, Int32 offset, Int32 count, CancellationToken cancellationToken)
         {
-            Contract.Requires(buffer != null);
-            Contract.Requires(offset >= 0);
-            Contract.Requires(count >= 0);
-            Contract.Requires(buffer.Length - offset >= count);
-            Contract.Requires(_canRead);
+            Debug.Assert(buffer != null);
+            Debug.Assert(offset >= 0);
+            Debug.Assert(count >= 0);
+            Debug.Assert(buffer.Length - offset >= count);
+            Debug.Assert(_canRead);
 
             IInputStream wrtStr = EnsureNotDisposed<IInputStream>();
 

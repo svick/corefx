@@ -93,7 +93,7 @@ namespace System.IO.Tests
 
                 Assert.Throws<IOException>(() => stream.Seek(unchecked(Int32.MaxValue + 1), SeekOrigin.Begin));
                 Assert.Throws<IOException>(() => stream.Seek(Int64.MinValue, SeekOrigin.End));
-                Assert.Throws<ArgumentException>(() => stream.Seek(0, (SeekOrigin)7)); // Invalid seek origin
+                AssertExtensions.Throws<ArgumentException>(null, () => stream.Seek(0, (SeekOrigin)7)); // Invalid seek origin
 
                 stream.Seek(10, SeekOrigin.Begin);
                 Assert.Equal(10, stream.Position);
@@ -234,7 +234,7 @@ namespace System.IO.Tests
                 Assert.Throws<ObjectDisposedException>(() => ums.CopyTo(destination));
             }
 
-            // copying to non-writeable stream should throw
+            // copying to non-writable stream should throw
             using (var manager = new UmsManager(FileAccess.Read, testData))
             {
                 UnmanagedMemoryStream ums = manager.Stream;
@@ -307,7 +307,7 @@ namespace System.IO.Tests
                 await Assert.ThrowsAsync<ObjectDisposedException>(() => ums.CopyToAsync(destination));
             }
 
-            // cpoying to non-writeable stream should throw
+            // copying to non-writable stream should throw
             using (var manager = new UmsManager(FileAccess.Read, testData))
             {
                 UnmanagedMemoryStream ums = manager.Stream;

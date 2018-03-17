@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using Xunit;
 
-namespace System.Linq.Tests.LegacyTests
+namespace System.Linq.Tests
 {
     public class LastOrDefaultTests : EnumerableTests
     {
@@ -37,7 +37,7 @@ namespace System.Linq.Tests.LegacyTests
             
             Assert.IsAssignableFrom<IList<T>>(source);
             
-            Assert.Equal(expected, source.LastOrDefault());
+            Assert.Equal(expected, source.RunOnce().LastOrDefault());
         }
 
         [Fact]
@@ -95,7 +95,7 @@ namespace System.Linq.Tests.LegacyTests
             
             Assert.Null(source as IList<T>);
             
-            Assert.Equal(expected, source.LastOrDefault());
+            Assert.Equal(expected, source.RunOnce().LastOrDefault());
         }
 
         [Fact]
@@ -179,6 +179,16 @@ namespace System.Linq.Tests.LegacyTests
         }
 
         [Fact]
+        public void IListPredicateTrueForSomeRunOnce()
+        {
+            int[] source = { 3, 7, 10, 7, 9, 2, 11, 18, 13, 9 };
+            Func<int, bool> predicate = IsEven;
+            int expected = 18;
+
+            Assert.Equal(expected, source.RunOnce().LastOrDefault(predicate));
+        }
+
+        [Fact]
         public void EmptyNotIListSource()
         {
             IEnumerable<int?> source = Enumerable.Repeat((int?)4, 0);
@@ -228,22 +238,32 @@ namespace System.Linq.Tests.LegacyTests
         }
 
         [Fact]
+        public void NotIListPredicateTrueForSomeRunOnce()
+        {
+            IEnumerable<int> source = ForceNotCollection(new int[] { 3, 7, 10, 7, 9, 2, 11, 18, 13, 9 });
+            Func<int, bool> predicate = IsEven;
+            int expected = 18;
+
+            Assert.Equal(expected, source.RunOnce().LastOrDefault(predicate));
+        }
+
+        [Fact]
         public void NullSource()
         {
-            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).LastOrDefault());
+            AssertExtensions.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).LastOrDefault());
         }
 
         [Fact]
         public void NullSourcePredicateUsed()
         {
-            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).LastOrDefault(i => i != 2));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).LastOrDefault(i => i != 2));
         }
 
         [Fact]
         public void NullPredicate()
         {
             Func<int, bool> predicate = null;
-            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 3).LastOrDefault(predicate));
+            AssertExtensions.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 3).LastOrDefault(predicate));
         }
     }
 }

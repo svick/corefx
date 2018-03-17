@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -13,7 +13,8 @@ namespace System.Numerics.Tests
     public partial class ComplexTests
     {
         private static Random s_random = new Random(-55);
-        
+        private static bool Is64Bit => IntPtr.Size == 8;
+
         public static readonly double[] s_validDoubleValues = new double[]
         {
             double.MinValue,
@@ -63,6 +64,13 @@ namespace System.Numerics.Tests
             VerifyMagnitudePhaseProperties(Complex.ImaginaryOne, 1, Math.PI / 2);
         }
 
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public static void SqrtMinusOne()
+        {
+            Assert.Equal(Complex.Sqrt(-1.0), Complex.ImaginaryOne);
+        }
+
         public static IEnumerable<object[]> Valid_2_TestData()
         {
             foreach (double real in s_validDoubleValues)
@@ -105,7 +113,7 @@ namespace System.Numerics.Tests
             yield return new object[] { RandomNegativeDouble(), RandomPositiveDouble(), RandomNegativeDouble(), RandomPositiveDouble() };
             // Second quadrant, third quadrant
             yield return new object[] { RandomNegativeDouble(), RandomPositiveDouble(), RandomNegativeDouble(), RandomNegativeDouble() };
-            // Second quadrant, fouth quadrant
+            // Second quadrant, fourth quadrant
             yield return new object[] { RandomNegativeDouble(), RandomPositiveDouble(), RandomPositiveDouble(), RandomNegativeDouble() };
             // Third quadrant, third quadrant
             yield return new object[] { RandomNegativeDouble(), RandomNegativeDouble(), RandomPositiveDouble(), RandomNegativeDouble() };
@@ -137,7 +145,7 @@ namespace System.Numerics.Tests
             yield return new object[] { SmallRandomNegativeDouble(), SmallRandomPositiveDouble(), SmallRandomNegativeDouble(), SmallRandomPositiveDouble() };
             // Second quadrant, third quadrant
             yield return new object[] { SmallRandomNegativeDouble(), SmallRandomPositiveDouble(), SmallRandomNegativeDouble(), SmallRandomNegativeDouble() };
-            // Second quadrant, fouth quadrant
+            // Second quadrant, fourth quadrant
             yield return new object[] { SmallRandomNegativeDouble(), SmallRandomPositiveDouble(), SmallRandomPositiveDouble(), SmallRandomNegativeDouble() };
             // Third quadrant, third quadrant
             yield return new object[] { SmallRandomNegativeDouble(), SmallRandomNegativeDouble(), SmallRandomPositiveDouble(), SmallRandomNegativeDouble() };
@@ -190,19 +198,19 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Valid_2_TestData")]
-        [MemberData("Random_2_TestData")]
-        [MemberData("Invalid_2_TestData")]
+        [MemberData(nameof(Valid_2_TestData))]
+        [MemberData(nameof(Random_2_TestData))]
+        [MemberData(nameof(Invalid_2_TestData))]
         public static void Ctor_Double_Double(double real, double imaginary)
         {
             var complex = new Complex(real, imaginary);
             VerifyRealImaginaryProperties(complex, real, imaginary);
         }
-        
+
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("Random_2_TestData")]
-        [MemberData("Boundaries_2_TestData")]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(Random_2_TestData))]
+        [MemberData(nameof(Boundaries_2_TestData))]
         public static void Abs(double real, double imaginary)
         {
             double expected = Math.Sqrt(real * real + imaginary * imaginary);
@@ -218,15 +226,37 @@ namespace System.Numerics.Tests
                 foreach (double invalidImaginary in s_invalidDoubleValues)
                 {
                     yield return new object[] { RandomPositiveDouble(), invalidImaginary, Math.Abs(invalidImaginary) }; // Invalid imaginary
-                    yield return new object[] { invalidReal, invalidImaginary, (double.IsInfinity(invalidReal) || double.IsInfinity(invalidImaginary)) ? double.PositiveInfinity : double.NaN }; // Invalid real, invalid imaginary
+                    yield return new object[] { invalidReal, invalidImaginary, (double.IsNaN(invalidReal) || double.IsNaN(invalidImaginary)) ? double.NaN : double.PositiveInfinity }; // Invalid real, invalid imaginary
                 }
             }
 
+            // Simple known values.
+            yield return new object[] { 0.0, 0.0, 0.0 };
+            yield return new object[] { 1.0, -1.0, Math.Sqrt(2.0) };
+
+            // Values close to overflow or underflow don't, even though they would if explicit squares were taken.
+            // This test uses a 3-4-5 right triangle.
+            double max = double.MaxValue / 8.0;
+            double min = 1.0 / max;
+            yield return new object[] { 3.0 * max, 4.0 * max, 5.0 * max };
+            yield return new object[] { 3.0 * min, 4.0 * min, 5.0 * min };
+
+            // Infinities in any slot return +inf paired with any other argument except NaN.
+            yield return new object[] { double.NegativeInfinity, 0.0, double.PositiveInfinity };
+            yield return new object[] { double.MaxValue, double.NegativeInfinity, double.PositiveInfinity };
+            yield return new object[] { double.PositiveInfinity, double.NegativeInfinity, double.PositiveInfinity };
+
+            // NaN in any slot returns NaN.
             yield return new object[] { double.NaN, 0, double.NaN };  // Regression test: Complex.Abs() is inconsistent on NaN / Complex
+            yield return new object[] { 0.0, double.NaN, double.NaN };
+            yield return new object[] { double.MaxValue, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, double.NegativeInfinity, double.NaN };
+            yield return new object[] { double.NaN, double.NaN, double.NaN };
         }
 
         [Theory]
-        [MemberData("Abs_Advanced_TestData")]
+        [MemberData(nameof(Abs_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void Abs_Advanced(double real, double imaginary, double expected)
         {
             var complex = new Complex(real, imaginary);
@@ -250,9 +280,9 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("ACos_Basic_TestData")]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(ACos_Basic_TestData))]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void ACos_Basic(double real, double imaginary)
         {
             // Formula used in the feature: arccos(z) = -iln(z + iSqrt(value*value-1))
@@ -271,8 +301,41 @@ namespace System.Numerics.Tests
 
         public static IEnumerable<object[]> ACos_Advanced_TestData()
         {
+            // Simple values
+            yield return new object[] { 0.0, 0.0, Math.PI / 2.0, 0.0 };
+            yield return new object[] { 1.0, 0.0, 0.0, 0.0 };
+            yield return new object[] { -1.0, 0.0, Math.PI, 0.0 };
+            yield return new object[] { 0.0, 1.0, Math.PI / 2.0, -Math.Log(1.0 + Math.Sqrt(2.0)) };
+            yield return new object[] { 0.0, -1.0, Math.PI / 2.0, Math.Log(1.0 + Math.Sqrt(2.0)) };
+
             yield return new object[] { 1234000000, 0, 0, 21.62667394298955 }; // Real part is positive, imaginary part is 0
             yield return new object[] { 0, -1234000000, 1.5707963267948966, 21.62667394298955 }; // Imaginary part is negative
+
+            // Extreme values
+            yield return new object[] { double.MaxValue, 0.0, 0.0, Math.Log(2.0) + Math.Log(double.MaxValue) };
+            yield return new object[] { 0.0, double.MaxValue, Math.PI / 2.0, -(Math.Log(2.0) + Math.Log(double.MaxValue)) };
+            yield return new object[] { -double.MaxValue, -double.MaxValue, 3.0 / 4.0 * Math.PI, Math.Log(2.0 * Math.Sqrt(2.0)) + Math.Log(double.MaxValue) };
+
+            // NaN values
+            yield return new object[] { double.NaN, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { -1.0, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.NegativeInfinity, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, 0.0, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, double.PositiveInfinity, double.NaN, double.NaN };
+        }
+
+        [Theory, MemberData(nameof(ACos_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public static void ACos_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
+        {
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Acos(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
+        public static IEnumerable<object[]> ACos_Legacy_TestData()
+        {
+            // These tests validate legacy .NET Framework behavior.
 
             // Boundary values
             yield return new object[] { double.MaxValue, 0, double.NaN, double.NaN };
@@ -290,8 +353,9 @@ namespace System.Numerics.Tests
             }
         }
 
-        [Theory, MemberData("ACos_Advanced_TestData")]
-        public static void ACos_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
+        [Theory, MemberData(nameof(ACos_Legacy_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void ACos_Legacy(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
             Complex result = Complex.Acos(complex);
@@ -312,9 +376,9 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Add_TestData")]
-        [MemberData("Random_4_TestData")]
-        [MemberData("Invalid_4_TestData")]
+        [MemberData(nameof(Add_TestData))]
+        [MemberData(nameof(Random_4_TestData))]
+        [MemberData(nameof(Invalid_4_TestData))]
         public static void Add(double realLeft, double imaginaryLeft, double realRight, double imaginaryRight)
         {
             var left = new Complex(realLeft, imaginaryLeft);
@@ -334,8 +398,8 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void ASin_Basic(double real, double imaginary)
         {
             // Formula used in the feature: arcsin(z) = -iln(iz + Sqrt(1-z*z))
@@ -348,16 +412,51 @@ namespace System.Numerics.Tests
 
         public static IEnumerable<object[]> ASin_Advanced_TestData()
         {
+            // Simple values
+            yield return new object[] { 0.0, 0.0, 0.0, 0.0 };
+            yield return new object[] { 1.0, 0.0, Math.PI / 2.0, 0.0 };
+            yield return new object[] { -1.0, 0.0, -Math.PI / 2.0, 0.0 };
+            yield return new object[] { 0.0, 1.0, 0.0, Math.Log(1.0 + Math.Sqrt(2.0)) };
+            yield return new object[] { 0.0, -1.0, 0.0, -Math.Log(1.0 + Math.Sqrt(2.0)) };
+
             yield return new object[] { -1234000000, 0, -1.5707963267948966, 21.62667394298955 }; // Real part is negative, imaginary part is 0
             yield return new object[] { 0, 1234000000, 0, 21.62667394298955 }; // Imaginary part is positive
+
+            // Extremely tiny values
+            yield return new object[] { 1.0 / double.MaxValue, 0.0, 1.0 / double.MaxValue, 0.0 };
+            yield return new object[] { 0.0, -1.0 / double.MaxValue, 0.0, -1.0 / double.MaxValue };
+            yield return new object[] { -1.0 / double.MaxValue, 1.0 / double.MaxValue, -1.0 / double.MaxValue, 1.0 / double.MaxValue };
+
+            // Extremely large values
+            yield return new object[] { double.MaxValue, 0.0, Math.PI / 2.0, Math.Log(2.0) + Math.Log(double.MaxValue) };
+            yield return new object[] { 0.0, double.MaxValue, 0.0, Math.Log(2.0) + Math.Log(double.MaxValue) };
+            yield return new object[] { double.MaxValue, double.MaxValue, Math.PI / 4.0, Math.Log(2.0 * Math.Sqrt(2.0)) + Math.Log(double.MaxValue) };
+
+            // NaN values
+            yield return new object[] { double.NaN, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { 0.0, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.PositiveInfinity, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, 1.0, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, double.NegativeInfinity, double.NaN, double.NaN };
+        }
+
+        [ActiveIssue(15455)]
+        [Theory, MemberData(nameof(ASin_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public static void ASin_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
+        {
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Asin(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
+        public static IEnumerable<object[]> ASin_Legacy_TestData()
+        {
+            // These tests validate legacy .NET Framework behavior.
 
             // Boundary values
             yield return new object[] { double.MaxValue, 0, double.NaN, double.NaN };
             yield return new object[] { double.MinValue, 0, double.NaN, double.NaN };
-            yield return new object[] { 0, double.MaxValue, double.NaN, double.NaN };
-            yield return new object[] { 0, double.MinValue, double.NaN, double.NaN };
-            yield return new object[] { double.MaxValue, double.MaxValue, double.NaN, double.NaN };
-            yield return new object[] { double.MinValue, double.MinValue, double.NaN, double.NaN };
 
             // Invalid values
             foreach (double invalidReal in s_invalidDoubleValues)
@@ -371,8 +470,9 @@ namespace System.Numerics.Tests
             }
         }
 
-        [Theory, MemberData("ASin_Advanced_TestData")]
-        public static void ASin_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
+        [Theory, MemberData(nameof(ASin_Legacy_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void ASin_Legacy(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
             Complex result = Complex.Asin(complex);
@@ -380,8 +480,8 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void ATan_Basic(double real, double imaginary)
         {
             // Formula used in the feature: Atan(z) = (i/2) * (log(1-iz) - log(1+iz))
@@ -414,20 +514,20 @@ namespace System.Numerics.Tests
             }
         }
 
-        [Theory, MemberData("ATan_Advanced_TestData")]
+        [Theory, MemberData(nameof(ATan_Advanced_TestData))]
         public static void ATan_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
             Complex result = Complex.Atan(complex);
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
-        
+
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("Boundaries_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
-        [MemberData("Random_2_TestData")]
-        [MemberData("Invalid_2_TestData")]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(Boundaries_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
+        [MemberData(nameof(Random_2_TestData))]
+        [MemberData(nameof(Invalid_2_TestData))]
         public static void Conjugate(double real, double imaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -438,8 +538,8 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void Cos_Basic(double real, double imaginary)
         {
             // The product formula: cos (x+iy) = cos(x)*cosh(y) - isin(x)sinh(y)
@@ -451,7 +551,7 @@ namespace System.Numerics.Tests
             Cos_Advanced(real, imaginary, expected.Real, expected.Imaginary);
         }
 
-        public static IEnumerable<object[]> Cos_Advanced_TestData()
+        public static IEnumerable<object[]> Cos_Advanced_TestData_Shared()
         {
             // Boundary values
             yield return new object[] { double.MaxValue, 0, Math.Cos(double.MaxValue), 0 };
@@ -459,9 +559,6 @@ namespace System.Numerics.Tests
 
             yield return new object[] { 0, double.MaxValue, double.PositiveInfinity, double.NaN };
             yield return new object[] { 0, double.MinValue, double.PositiveInfinity, double.NaN };
-
-            yield return new object[] { double.MaxValue, double.MaxValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, double.NegativeInfinity };
-            yield return new object[] { double.MinValue, double.MinValue, double.NegativeInfinity, double.NegativeInfinity };
 
             // Invalid values
             foreach (double invalidReal in s_invalidDoubleValues)
@@ -486,7 +583,16 @@ namespace System.Numerics.Tests
             }
         }
 
-        [Theory, MemberData("Cos_Advanced_TestData")]
+        public static IEnumerable<object[]> Cos_Advanced_TestData()
+        {
+            yield return new object[] { double.MaxValue, double.MaxValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, Math.Cos(double.MaxValue) * double.PositiveInfinity };
+            yield return new object[] { double.MinValue, double.MinValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, Math.Cos(double.MaxValue) * double.PositiveInfinity };
+        }
+
+        [Theory]
+        [MemberData(nameof(Cos_Advanced_TestData_Shared))]
+        [MemberData(nameof(Cos_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void Cos_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -494,9 +600,29 @@ namespace System.Numerics.Tests
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
 
+        public static IEnumerable<object[]> Cos_Legacy_TestData()
+        {
+            // These tests validate legacy .NET Framework behavior.
+
+            yield return new object[] { double.MaxValue, double.MaxValue, double.PositiveInfinity, double.NegativeInfinity };
+            yield return new object[] { double.MinValue, double.MinValue, double.NegativeInfinity, double.NegativeInfinity };
+        }
+
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Cos_Advanced_TestData_Shared))]
+        [MemberData(nameof(Cos_Legacy_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void Cos_Legacy(double real, double imaginary, double expectedReal, double expectedImaginary)
+        {
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Cos(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
+
+        [Theory]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void Cosh_Basic(double real, double imaginary)
         {
             // The product formula: cosh (x+iy) = cosh(x)*cos(y) + isinh(x)*sin(y) 
@@ -507,7 +633,7 @@ namespace System.Numerics.Tests
             Cosh_Advanced(real, imaginary, expected.Real, expected.Imaginary);
         }
 
-        public static IEnumerable<object[]> Cosh_Advanced_TestData()
+        public static IEnumerable<object[]> Cosh_Advanced_TestData_Shared()
         {
             // Boundary values
             yield return new object[] { double.MaxValue, 0, double.PositiveInfinity, double.NaN };
@@ -515,9 +641,6 @@ namespace System.Numerics.Tests
 
             yield return new object[] { 0, double.MaxValue, Math.Cos(double.MaxValue), 0 };
             yield return new object[] { 0, double.MinValue, Math.Cos(double.MinValue), 0 };
-
-            yield return new object[] { double.MaxValue, double.MaxValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, double.PositiveInfinity };
-            yield return new object[] { double.MinValue, double.MinValue, double.NegativeInfinity, double.PositiveInfinity };
 
             // Invalid values
             foreach (double invalidReal in s_invalidDoubleValues)
@@ -538,8 +661,36 @@ namespace System.Numerics.Tests
             }
         }
 
-        [Theory, MemberData("Cosh_Advanced_TestData")]
+        public static IEnumerable<object[]> Cosh_Advanced_TestData()
+        {
+            yield return new object[] { double.MaxValue, double.MaxValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, Math.Cos(double.MaxValue) * double.NegativeInfinity };
+            yield return new object[] { double.MinValue, double.MinValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, Math.Cos(double.MaxValue) * double.NegativeInfinity };
+        }
+
+        [Theory]
+        [MemberData(nameof(Cosh_Advanced_TestData_Shared))]
+        [MemberData(nameof(Cosh_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void Cosh_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
+        {
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Cosh(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
+        public static IEnumerable<object[]> Cosh_Legacy_TestData()
+        {
+            // These tests validate legacy .NET Framework behavior.
+
+            yield return new object[] { double.MaxValue, double.MaxValue, double.PositiveInfinity, double.PositiveInfinity };
+            yield return new object[] { double.MinValue, double.MinValue, double.NegativeInfinity, double.PositiveInfinity };
+        }
+
+        [Theory]
+        [MemberData(nameof(Cosh_Advanced_TestData_Shared))]
+        [MemberData(nameof(Cosh_Legacy_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void Cosh_Legacy(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
             Complex result = Complex.Cosh(complex);
@@ -565,9 +716,9 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Divide_TestData")]
-        [MemberData("SmallRandom_4_TestData")]
-        [MemberData("Invalid_4_TestData")]
+        [MemberData(nameof(Divide_TestData))]
+        [MemberData(nameof(SmallRandom_4_TestData))]
+        [MemberData(nameof(Invalid_4_TestData))]
         public static void Divide(double realLeft, double imaginaryLeft, double realRight, double imaginaryRight)
         {
             var dividend = new Complex(realLeft, imaginaryLeft);
@@ -593,6 +744,31 @@ namespace System.Numerics.Tests
             // Static method
             result = Complex.Divide(dividend, divisor);
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public static void Equals_netcore()
+        {
+            // Invalid values
+            Complex invalidComplex;
+            var complex = new Complex(2, 3);
+            foreach (double invalidReal in s_invalidDoubleValues)
+            {
+                invalidComplex = new Complex(invalidReal, 1);
+                Equals(invalidComplex, complex, false, false);
+                Equals(invalidComplex, invalidComplex, !double.IsNaN(invalidReal), true); // Handle double.NaN != double.NaN
+                foreach (double invalidImaginary in s_invalidDoubleValues)
+                {
+                    invalidComplex = new Complex(1, invalidImaginary);
+                    Equals(invalidComplex, complex, false, false);
+                    Equals(invalidComplex, invalidComplex, !double.IsNaN(invalidImaginary), true); // Handle double.NaN != double.NaN
+
+                    invalidComplex = new Complex(invalidReal, invalidImaginary);
+                    Equals(invalidComplex, complex, false, false);
+                    Equals(invalidComplex, invalidComplex, !double.IsNaN(invalidReal) && !double.IsNaN(invalidImaginary), true); // Handle double.NaN != double.NaN
+                }
+            }
         }
 
         [Fact]
@@ -675,26 +851,6 @@ namespace System.Numerics.Tests
             Equals(new Complex(0, 100.5), 0, false, false);
             Equals(new Complex(0, 100.5), "0", false, false);
             Equals(new Complex(0, 100.5), null, false, false);
-
-            // Invalid values
-            Complex invalidComplex;
-            var complex = new Complex(2, 3);
-            foreach (double invalidReal in s_invalidDoubleValues)
-            {
-                invalidComplex = new Complex(invalidReal, 1);
-                Equals(invalidComplex, complex, false, false);
-                Equals(invalidComplex, invalidComplex, !double.IsNaN(invalidReal), true); // Handle double.NaN != double.NaN
-                foreach (double invalidImaginary in s_invalidDoubleValues)
-                {
-                    invalidComplex = new Complex(1, invalidImaginary);
-                    Equals(invalidComplex, complex, false, false);
-                    Equals(invalidComplex, invalidComplex, !double.IsNaN(invalidImaginary), true); // Handle double.NaN != double.NaN
-
-                    invalidComplex = new Complex(invalidReal, invalidImaginary);
-                    Equals(invalidComplex, complex, false, false);
-                    Equals(invalidComplex, invalidComplex, !double.IsNaN(invalidReal) && !double.IsNaN(invalidImaginary), true); // Handle double.NaN != double.NaN
-                }
-            }
         }
 
         private static void Equals(Complex complex1, object obj, bool expected, bool expectedEquals)
@@ -730,11 +886,51 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Exp_TestData")]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Exp_TestData))]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void Exp(double real, double imaginary)
         {
+            Complex expected;
+            // Special case the complex {double.MaxValue, double.MaxValue)
+            if (real == double.MaxValue && imaginary == double.MaxValue)
+            {
+                expected = new Complex(Math.Cos(double.MaxValue) * double.PositiveInfinity, Math.Cos(double.MaxValue) * double.NegativeInfinity);
+            }
+            else
+            {
+                // Verify with e(x+y) = e(x)*e(y) if xy == yx
+                var realComplex = new Complex(real, 0);
+                var imaginaryComplex = new Complex(0, imaginary);
+
+                Complex ri = realComplex * imaginaryComplex;
+                Complex ir = imaginaryComplex * realComplex;
+                if (!ri.Equals(ir))
+                {
+                    return;
+                }
+
+                Complex realExponential = Complex.Exp(realComplex);
+                Complex imaginaryExpontential = Complex.Exp(imaginaryComplex);
+                expected = realExponential * imaginaryExpontential;
+            }
+
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Exp(complex);
+            VerifyRealImaginaryProperties(result, expected.Real, expected.Imaginary);
+        }
+
+        [Theory]
+        [MemberData(nameof(Exp_TestData))]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void Exp_Legacy(double real, double imaginary)
+        {
+            // This test validates legacy .NET Framework behavior.
+            // The behavior of Math.Cos(double.MaxValue) is different and thus affects the expected results here.
+
             Complex expected;
             // Special case the complex {double.MaxValue, double.MaxValue)
             if (real == double.MaxValue && imaginary == double.MaxValue)
@@ -764,11 +960,10 @@ namespace System.Numerics.Tests
             VerifyRealImaginaryProperties(result, expected.Real, expected.Imaginary);
         }
 
-        [ActiveIssue(6022, PlatformID.AnyUnix)]
         [Fact]
         public static void Exp_MaxReal()
         {
-            // On Windows, the result is {double.PostiveInfinity, double.NaN}
+            // On Windows, the result is {double.PositiveInfinity, double.NaN}
             // On Unix, the result is {double.NegativeInfinity, double.NaN}
             // Which one is incorrect should be determined.
             var complex = new Complex(double.MaxValue, 0);
@@ -785,7 +980,7 @@ namespace System.Numerics.Tests
                     yield return new object[] { magnitude, phase };
                 }
             }
-            
+
             yield return new object[] { RandomPositiveDouble(), RandomPositivePhase() }; // First quadrant
             yield return new object[] { RandomNegativeDouble(), RandomPositivePhase() }; // Second quadrant
             yield return new object[] { RandomNegativeDouble(), RandomNegativePhase() }; // Third quadrant
@@ -793,9 +988,60 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("FromPolarCoordinates_TestData")]
-        [MemberData("Invalid_2_TestData")]
+        [MemberData(nameof(FromPolarCoordinates_TestData))]
+        [MemberData(nameof(Invalid_2_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void FromPolarCoordinates(double magnitude, double phase)
+        {
+            Complex complex = Complex.FromPolarCoordinates(magnitude, phase);
+
+            // double.IsNaN(magnitude) is checked in the verification method.
+            if (double.IsNaN(phase) || double.IsInfinity(phase))
+            {
+                magnitude = double.NaN;
+                phase = double.NaN;
+            }
+            // Special check in Complex.Abs method
+            else if (double.IsInfinity(magnitude))
+            {
+                magnitude = double.PositiveInfinity;
+                phase = double.NaN;
+            }
+
+            if (double.IsInfinity(complex.Imaginary) && double.IsInfinity(complex.Real))
+            {
+                if (double.IsNegativeInfinity(complex.Imaginary))
+                {
+                    if (double.IsNegativeInfinity(complex.Real))
+                    {
+                        phase = -3 * Math.PI / 4;
+                    }
+                    else
+                    {
+                        phase = -Math.PI / 4;
+                    }
+                }
+                else if (double.IsNegativeInfinity(complex.Real))
+                {
+                    phase = 3 * Math.PI / 4;
+                }
+                else
+                {
+                    phase = Math.PI / 4;
+                }
+            }
+
+            VerifyMagnitudePhaseProperties(complex, magnitude, phase);
+
+            complex = new Complex(complex.Real, complex.Imaginary);
+            VerifyMagnitudePhaseProperties(complex, magnitude, phase);
+        }
+
+        [Theory]
+        [MemberData(nameof(FromPolarCoordinates_TestData))]
+        [MemberData(nameof(Invalid_2_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void FromPolarCoordinates_Legacy(double magnitude, double phase)
         {
             Complex complex = Complex.FromPolarCoordinates(magnitude, phase);
 
@@ -832,8 +1078,8 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Log_TestData")]
-        [MemberData("SmallRandom_4_TestData")]
+        [MemberData(nameof(Log_TestData))]
+        [MemberData(nameof(SmallRandom_4_TestData))]
         public static void Log(double real1, double imaginary1, double real2, double imaginary2)
         {
             var complex1 = new Complex(real1, imaginary1);
@@ -953,9 +1199,9 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Multiply_TestData")]
-        [MemberData("SmallRandom_4_TestData")]
-        [MemberData("Invalid_4_TestData")]
+        [MemberData(nameof(Multiply_TestData))]
+        [MemberData(nameof(SmallRandom_4_TestData))]
+        [MemberData(nameof(Invalid_4_TestData))]
         public static void Multiply(double realLeft, double imaginaryLeft, double realRight, double imaginaryRight)
         {
             var left = new Complex(realLeft, imaginaryLeft);
@@ -972,11 +1218,11 @@ namespace System.Numerics.Tests
             result = Complex.Multiply(left, right);
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
-        
+
         [Theory]
-        [MemberData("Valid_2_TestData")]
-        [MemberData("Random_2_TestData")]
-        [MemberData("Invalid_2_TestData")]
+        [MemberData(nameof(Valid_2_TestData))]
+        [MemberData(nameof(Random_2_TestData))]
+        [MemberData(nameof(Invalid_2_TestData))]
         public static void Negate(double real, double imaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -987,11 +1233,11 @@ namespace System.Numerics.Tests
             result = Complex.Negate(complex);
             VerifyRealImaginaryProperties(result, -complex.Real, -complex.Imaginary);
         }
-        
+
         [Theory]
-        [MemberData("Boundaries_2_TestData")]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("Invalid_2_TestData")]
+        [MemberData(nameof(Boundaries_2_TestData))]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(Invalid_2_TestData))]
         private static void Pow(double real, double imaginary)
         {
             Pow_Complex_Double(real, imaginary);
@@ -1040,7 +1286,7 @@ namespace System.Numerics.Tests
             VerifyPow_Complex_Complex(real, imaginary, 1, 0);
             VerifyPow_Complex_Complex(real, imaginary, 0, 1);
             VerifyPow_Complex_Complex(real, imaginary, 0, -1);
-            
+
             VerifyPow_Complex_Complex(real, imaginary, SmallRandomPositiveDouble(), SmallRandomPositiveDouble()); // First quadrant
             VerifyPow_Complex_Complex(real, imaginary, SmallRandomNegativeDouble(), SmallRandomPositiveDouble()); // Second quadrant
             VerifyPow_Complex_Complex(real, imaginary, SmallRandomNegativeDouble(), SmallRandomNegativeDouble()); // Third quadrant
@@ -1068,12 +1314,12 @@ namespace System.Numerics.Tests
             }
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
-        
+
         [Theory]
-        [MemberData("Boundaries_2_TestData")]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
-        [MemberData("Invalid_2_TestData")]
+        [MemberData(nameof(Boundaries_2_TestData))]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
+        [MemberData(nameof(Invalid_2_TestData))]
         public static void Reciprocal(double real, double imaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -1093,8 +1339,8 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void Sin_Basic(double real, double imaginary)
         {
             // The product formula: sin (x+iy) = sin(x)*cosh(y) + icos(x)sinh(y)
@@ -1108,14 +1354,18 @@ namespace System.Numerics.Tests
 
         public static IEnumerable<object[]> Sin_Advanced_TestData()
         {
+            yield return new object[] { double.MaxValue, double.MaxValue, Math.Cos(double.MaxValue) * double.NegativeInfinity, Math.Cos(double.MaxValue) * double.PositiveInfinity };
+            yield return new object[] { double.MinValue, double.MinValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, Math.Cos(double.MaxValue) * double.NegativeInfinity };
+        }
+
+        // Sin() test data for values which are shared across runtimes
+        public static IEnumerable<object[]> Sin_Advanced_TestData_Shared()
+        {
             yield return new object[] { double.MaxValue, 0, Math.Sin(double.MaxValue), 0 };
             yield return new object[] { double.MinValue, 0, Math.Sin(double.MinValue), 0 };
 
             yield return new object[] { 0, double.MaxValue, double.NaN, double.PositiveInfinity };
             yield return new object[] { 0, double.MinValue, double.NaN, double.NegativeInfinity };
-
-            yield return new object[] { double.MaxValue, double.MaxValue, double.PositiveInfinity, Math.Cos(double.MaxValue) * double.PositiveInfinity };
-            yield return new object[] { double.MinValue, double.MinValue, double.NegativeInfinity, double.PositiveInfinity };
 
             foreach (double invalidReal in s_invalidDoubleValues)
             {
@@ -1133,9 +1383,13 @@ namespace System.Numerics.Tests
                     yield return new object[] { invalidReal, invalidImaginary, double.NaN, double.NaN }; // Invalid real, invalid imaginary
                 }
             }
+
         }
 
-        [Theory, MemberData("Sin_Advanced_TestData")]
+        [Theory]
+        [MemberData(nameof(Sin_Advanced_TestData_Shared))]
+        [MemberData(nameof(Sin_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void Sin_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -1143,9 +1397,28 @@ namespace System.Numerics.Tests
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
 
+        public static IEnumerable<object[]> Sin_Legacy_TestData()
+        {
+            // These tests validate legacy .NET Framework behavior.
+
+            yield return new object[] { double.MaxValue, double.MaxValue, double.PositiveInfinity, double.PositiveInfinity};
+            yield return new object[] { double.MinValue, double.MinValue, double.NegativeInfinity, double.PositiveInfinity };
+        }
+
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Sin_Advanced_TestData_Shared))]
+        [MemberData(nameof(Sin_Legacy_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void Sin_Legacy(double real, double imaginary, double expectedReal, double expectedImaginary)
+        {
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Sin(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
+        [Theory]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void Sinh_Basic(double real, double imaginary)
         {
             // The product formula: sinh (x+iy) = sinh(x)*cos(y) + icosh(x)*sin(y)
@@ -1156,7 +1429,7 @@ namespace System.Numerics.Tests
             Sinh_Advanced(real, imaginary, expectedComplex.Real, expectedComplex.Imaginary);
         }
 
-        public static IEnumerable<object[]> Sinh_Advanced_TestData()
+        public static IEnumerable<object[]> Sinh_Advanced_TestData_Shared()
         {
             // Boundary values
             yield return new object[] { double.MaxValue, 0, double.PositiveInfinity, double.NaN };
@@ -1164,9 +1437,6 @@ namespace System.Numerics.Tests
 
             yield return new object[] { 0, double.MaxValue, 0, Math.Sin(double.MaxValue) };
             yield return new object[] { 0, double.MinValue, 0, Math.Sin(double.MinValue) };
-
-            yield return new object[] { double.MaxValue, double.MaxValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, double.PositiveInfinity };
-            yield return new object[] { double.MinValue, double.MinValue, double.PositiveInfinity, double.NegativeInfinity };
 
             // Invalid values
             foreach (double invalidReal in s_invalidDoubleValues)
@@ -1187,13 +1457,42 @@ namespace System.Numerics.Tests
             }
         }
 
-        [Theory, MemberData("Sinh_Advanced_TestData")]
+        public static IEnumerable<object[]> Sinh_Advanced_TestData()
+        {
+            yield return new object[] { double.MaxValue, double.MaxValue, Math.Cos(double.MaxValue) * double.PositiveInfinity, Math.Cos(double.MaxValue) * double.NegativeInfinity };
+            yield return new object[] { double.MinValue, double.MinValue, Math.Cos(double.MaxValue) * double.NegativeInfinity, Math.Cos(double.MaxValue) * double.PositiveInfinity };
+        }
+
+        [Theory]
+        [MemberData(nameof(Sinh_Advanced_TestData_Shared))]
+        [MemberData(nameof(Sinh_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void Sinh_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
             Complex result = Complex.Sinh(complex);
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
+
+        public static IEnumerable<object[]> Sinh_Legacy_TestData()
+        {
+            // These tests validate legacy .NET Framework behavior.
+
+            yield return new object[] { double.MaxValue, double.MaxValue, double.PositiveInfinity, double.PositiveInfinity };
+            yield return new object[] { double.MinValue, double.MinValue, double.PositiveInfinity, double.NegativeInfinity };
+        }
+
+        [Theory]
+        [MemberData(nameof(Sinh_Advanced_TestData_Shared))]
+        [MemberData(nameof(Sinh_Legacy_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void Sinh_Legacy(double real, double imaginary, double expectedReal, double expectedImaginary)
+        {
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Sinh(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
 
         public static IEnumerable<object[]> Subtract_TestData()
         {
@@ -1213,9 +1512,9 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Subtract_TestData")]
-        [MemberData("Random_4_TestData")]
-        [MemberData("Invalid_4_TestData")]
+        [MemberData(nameof(Subtract_TestData))]
+        [MemberData(nameof(Random_4_TestData))]
+        [MemberData(nameof(Invalid_4_TestData))]
         public static void Subtract(double realLeft, double imaginaryLeft, double realRight, double imaginaryRight)
         {
             var left = new Complex(realLeft, imaginaryLeft);
@@ -1236,17 +1535,51 @@ namespace System.Numerics.Tests
 
         public static IEnumerable<object[]> Sqrt_TestData()
         {
+            // Simple known values.
             yield return new object[] { 0, 0, 0, 0 };
             yield return new object[] { 1, 0, 1, 0 };
             yield return new object[] { 0, 1, 0.707106781186547, 0.707106781186547 };
             yield return new object[] { 0, -1, 0.707106781186547, -0.707106781186547 };
 
-            yield return new object[] { double.MaxValue, 0, 1.34078079299426E+154, 0 };
+            // Extreme values don't overflow, even when intermediate quantities would if handled naively.
+            yield return new object[] { double.MaxValue, 0.0, Math.Sqrt(double.MaxValue), 0.0 };
             yield return new object[] { 0, double.MaxValue, 9.48075190810917E+153, 9.48075190810917E+153 };
             yield return new object[] { 0, double.MinValue, 9.48075190810917E+153, -9.48075190810917E+153 };
         }
 
-        [Theory, MemberData("Sqrt_TestData")]
+        public static IEnumerable<object> Sqrt_AdvancedTestData ()
+        {
+            yield return new object[] { -1, 0, 0, 1 }; // .NET Framework does not properly handle this simple case.
+            yield return new object[] { -double.MaxValue, 0.0, 0.0, Math.Sqrt(double.MaxValue) };
+
+            // Extreme values don't overflow, even when intermediate quantities would if handled naively.
+            yield return new object[] { double.MaxValue, double.MaxValue, Math.Sqrt(Math.Sqrt(2.0)) * Math.Sqrt(double.MaxValue) * Math.Cos(Math.PI / 8.0), Math.Sqrt(Math.Sqrt(2.0)) * Math.Sqrt(double.MaxValue) * Math.Sin(Math.PI / 8.0) };
+
+            // Infinities produce the expected infinities.
+            yield return new object[] { double.PositiveInfinity, 0.0, double.PositiveInfinity, 0.0 };
+            yield return new object[] { double.NegativeInfinity, 0.0, 0.0, double.PositiveInfinity };
+            // We can determine signs for double infinities because we know which quadrants are mapped into which by sqrt.
+            yield return new object[] { double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity };
+            yield return new object[] { double.PositiveInfinity, double.NegativeInfinity, double.PositiveInfinity, double.NegativeInfinity };
+            yield return new object[] { double.NegativeInfinity, double.NegativeInfinity, double.PositiveInfinity, double.NegativeInfinity };
+            yield return new object[] { double.NegativeInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity };
+            yield return new object[] { RandomPositiveDouble(), double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity };
+            yield return new object[] { RandomNegativeDouble(), double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity };
+            yield return new object[] { RandomPositiveDouble(), double.NegativeInfinity, double.PositiveInfinity, double.NegativeInfinity };
+            yield return new object[] { RandomNegativeDouble(), double.NegativeInfinity, double.PositiveInfinity, double.NegativeInfinity };
+
+            // NaN in any component produces NaNs in both components (except arguably on real line).
+            yield return new object[] { 0.0, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.MaxValue, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.NegativeInfinity, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, -double.MaxValue, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, double.PositiveInfinity, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, double.NaN, double.NaN, double.NaN };
+
+        }
+
+        [Theory]
+        [MemberData(nameof(Sqrt_TestData))]
         public static void Sqrt(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -1255,8 +1588,18 @@ namespace System.Numerics.Tests
         }
 
         [Theory]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Sqrt_AdvancedTestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public static void Sqrt_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
+        {
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Sqrt(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
+        [Theory]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void Tan_Basic(double real, double imaginary)
         {
             double scale = Math.Cosh(2 * imaginary);
@@ -1276,14 +1619,34 @@ namespace System.Numerics.Tests
 
         public static IEnumerable<object[]> Tan_Advanced_TestData()
         {
+
+            // .NET does not compute simple trig functions of large values correctly, so we can't make any
+            // assertions about complex trig functions with large real parts.
+
+            yield return new object[] { 0.0, double.MaxValue, 0.0, 1.0 };
+            yield return new object[] { 0.0, -double.MaxValue, 0.0, -1.0 };
+
+            yield return new object[] { 0.0, double.PositiveInfinity, 0.0, 1.0 };
+            yield return new object[] { 0.0, double.NegativeInfinity, 0.0, -1.0 };
+
+            yield return new object[] { 0.0, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, 0.0, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, double.PositiveInfinity, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, double.NaN, double.NaN, double.NaN };
+
+            yield return new object[] { 0.0, 750.0, 0.0, 1.0 };
+
+        }
+
+        public static IEnumerable<object[]> Tan_Legacy_TestData()
+        {
+            // These tests validate legacy .NET Framework behavior.
+
             yield return new object[] { double.MaxValue, 0, Math.Sin(double.MaxValue) / Math.Cos(double.MaxValue), 0 };
             yield return new object[] { double.MinValue, 0, Math.Sin(double.MinValue) / Math.Cos(double.MinValue), 0 };
 
             yield return new object[] { 0, double.MaxValue, double.NaN, double.NaN };
             yield return new object[] { 0, double.MinValue, double.NaN, double.NaN };
-
-            yield return new object[] { double.MaxValue, double.MaxValue, double.NaN, double.NaN };
-            yield return new object[] { double.MinValue, double.MinValue, double.NaN, double.NaN };
 
             foreach (double invalidReal in s_invalidDoubleValues)
             {
@@ -1296,7 +1659,8 @@ namespace System.Numerics.Tests
             }
         }
 
-        [Theory, MemberData("Tan_Advanced_TestData")]
+        [Theory, MemberData(nameof(Tan_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void Tan_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -1304,18 +1668,18 @@ namespace System.Numerics.Tests
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
 
-        public static IEnumerable<object[]> Tanh_Basic_TestData()
+        [Theory, MemberData(nameof(Tan_Legacy_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void Tan_Legacy(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
-            // Boundary values
-            yield return new object[] { double.MaxValue, 0 };
-            yield return new object[] { double.MaxValue, double.MaxValue };
-            yield return new object[] { double.MinValue, double.MinValue };
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Tan(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
 
         [Theory]
-        [MemberData("Tanh_Basic_TestData")]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
         public static void Tanh_Basic(double real, double imaginary)
         {
             // The product formula: cosh (x+iy) = sinh (x+iy) / cosh (x+iy)
@@ -1329,10 +1693,32 @@ namespace System.Numerics.Tests
 
         public static IEnumerable<object[]> Tanh_Advanced_TestData()
         {
+            // .NET does not compute simple trig functions of large values correctly, so we can't make any
+            // assertions about complex hyperbolic trig functions with large imaginary parts.
+
+            yield return new object[] { double.MaxValue, 0.0, 1.0, 0.0 };
+            yield return new object[] { -double.MaxValue, 0.0, -1.0, 0.0 };
+
+            yield return new object[] { double.PositiveInfinity, 0.0, 1.0, 0.0 };
+            yield return new object[] { double.NegativeInfinity, 0.0, -1.0, 0.0 };
+
+            yield return new object[] { double.NaN, 0.0, double.NaN, double.NaN };
+            yield return new object[] { double.PositiveInfinity, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { 0.0, double.NaN, double.NaN, double.NaN };
+            yield return new object[] { double.NaN, double.NaN, double.NaN, double.NaN };
+
+            yield return new object[] { -750.0, 0.0, -1.0, 0.0 };
+        }
+
+        public static IEnumerable<object[]> Tanh_Legacy_TestData()
+        {
+            // These tests validate legacy .NET behavior.
+
             // Boundary values
             yield return new object[] { double.MinValue, 0, double.NaN, double.NaN };
             yield return new object[] { 0, double.MaxValue, 0, Math.Sin(double.MaxValue) / Math.Cos(double.MaxValue) };
             yield return new object[] { 0, double.MinValue, 0, Math.Sin(double.MinValue) / Math.Cos(double.MinValue) };
+
 
             // Invalid values
             foreach (double invalidReal in s_invalidDoubleValues)
@@ -1346,7 +1732,8 @@ namespace System.Numerics.Tests
             }
         }
 
-        [Theory, MemberData("Tanh_Advanced_TestData")]
+        [Theory, MemberData(nameof(Tanh_Advanced_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public static void Tanh_Advanced(double real, double imaginary, double expectedReal, double expectedImaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -1354,12 +1741,21 @@ namespace System.Numerics.Tests
             VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
         }
 
+        [Theory, MemberData(nameof(Tanh_Legacy_TestData))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)]
+        public static void Tanh_Legacy(double real, double imaginary, double expectedReal, double expectedImaginary)
+        {
+            var complex = new Complex(real, imaginary);
+            Complex result = Complex.Tanh(complex);
+            VerifyRealImaginaryProperties(result, expectedReal, expectedImaginary);
+        }
+
         [Theory]
-        [MemberData("Boundaries_2_TestData")]
-        [MemberData("Primitives_2_TestData")]
-        [MemberData("Random_2_TestData")]
-        [MemberData("SmallRandom_2_TestData")]
-        [MemberData("Invalid_2_TestData")]
+        [MemberData(nameof(Boundaries_2_TestData))]
+        [MemberData(nameof(Primitives_2_TestData))]
+        [MemberData(nameof(Random_2_TestData))]
+        [MemberData(nameof(SmallRandom_2_TestData))]
+        [MemberData(nameof(Invalid_2_TestData))]
         public static void ToString(double real, double imaginary)
         {
             var complex = new Complex(real, imaginary);
@@ -1509,7 +1905,7 @@ namespace System.Numerics.Tests
             yield return new object[] { (BigInteger)RandomNegativeDouble() };
         }
 
-        [Theory, MemberData("Cast_BigInteger_TestData")]
+        [Theory, MemberData(nameof(Cast_BigInteger_TestData))]
         public static void Cast_BigInteger(BigInteger value)
         {
             Complex complex = (Complex)value;
@@ -1534,7 +1930,7 @@ namespace System.Numerics.Tests
             yield return new object[] { -positiveDecimal };
         }
 
-        [Theory, MemberData("Cast_Decimal_TestData")]
+        [Theory, MemberData(nameof(Cast_Decimal_TestData))]
         public static void Cast_Decimal(decimal value)
         {
             Complex complex = (Complex)value;

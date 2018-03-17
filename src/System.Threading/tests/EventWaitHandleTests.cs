@@ -23,17 +23,17 @@ namespace System.Threading.Tests
         [Fact]
         public void Ctor_InvalidMode()
         {
-            Assert.Throws<ArgumentException>(() => new EventWaitHandle(true, (EventResetMode)12345));
+            AssertExtensions.Throws<ArgumentException>(null, () => new EventWaitHandle(true, (EventResetMode)12345));
         }
 
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]  // names aren't supported on Unix
         [Fact]
         public void Ctor_InvalidNames()
         {
-            Assert.Throws<ArgumentException>(() => new EventWaitHandle(true, EventResetMode.AutoReset, new string('a', 1000)));
+            AssertExtensions.Throws<ArgumentException>("name", null, () => new EventWaitHandle(true, EventResetMode.AutoReset, new string('a', 1000)));
         }
 
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]  // names aren't supported on Unix
         [Fact]
         public void Ctor_NamesArentSupported_Unix()
         {
@@ -42,7 +42,7 @@ namespace System.Threading.Tests
             Assert.Throws<PlatformNotSupportedException>(() => new EventWaitHandle(false, EventResetMode.AutoReset, "anything", out createdNew));
         }
 
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]  // names aren't supported on Unix
         [Theory]
         [InlineData(false, EventResetMode.AutoReset)]
         [InlineData(false, EventResetMode.ManualReset)]
@@ -62,7 +62,7 @@ namespace System.Threading.Tests
             }
         }
 
-        [PlatformSpecific(PlatformID.Windows)] // named semaphores aren't supported on Unix
+        [PlatformSpecific(TestPlatforms.Windows)] // named semaphores aren't supported on Unix
         [Theory]
         [InlineData(EventResetMode.AutoReset)]
         [InlineData(EventResetMode.ManualReset)]
@@ -100,7 +100,7 @@ namespace System.Threading.Tests
             }
         }
 
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]  // OpenExisting not supported on Unix
         [Fact]
         public void OpenExisting_Windows()
         {
@@ -131,7 +131,7 @@ namespace System.Threading.Tests
             }
         }
 
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]  // OpenExisting not supported on Unix
         [Fact]
         public void OpenExisting_NotSupported_Unix()
         {
@@ -140,10 +140,43 @@ namespace System.Threading.Tests
             Assert.Throws<PlatformNotSupportedException>(() => EventWaitHandle.TryOpenExisting("anything", out ewh));
         }
 
-        [PlatformSpecific(PlatformID.Windows)] // names aren't supported on Unix
+        [PlatformSpecific(TestPlatforms.Windows)]  // OpenExisting not supported on Unix
+        [Fact]
+        public void OpenExisting_InvalidNames_Windows()
+        {
+            AssertExtensions.Throws<ArgumentNullException>("name", () => EventWaitHandle.OpenExisting(null));
+            AssertExtensions.Throws<ArgumentException>("name", null, () => EventWaitHandle.OpenExisting(string.Empty));
+            AssertExtensions.Throws<ArgumentException>("name", null, () => EventWaitHandle.OpenExisting(new string('a', 10000)));
+        }
+
+        [PlatformSpecific(TestPlatforms.Windows)]  // OpenExisting not supported on Unix
+        [Fact]
+        public void OpenExisting_UnavailableName_Windows()
+        {
+            string name = Guid.NewGuid().ToString("N");
+            Assert.Throws<WaitHandleCannotBeOpenedException>(() => EventWaitHandle.OpenExisting(name));
+            EventWaitHandle ignored;
+            Assert.False(EventWaitHandle.TryOpenExisting(name, out ignored));
+        }
+
+        [PlatformSpecific(TestPlatforms.Windows)]  // OpenExisting not supported on Unix
+        [Fact]
+        public void OpenExisting_NameUsedByOtherSynchronizationPrimitive_Windows()
+        {
+            string name = Guid.NewGuid().ToString("N");
+            using (Mutex mtx = new Mutex(true, name))
+            {
+                Assert.Throws<WaitHandleCannotBeOpenedException>(() => EventWaitHandle.OpenExisting(name));
+                EventWaitHandle ignored;
+                Assert.False(EventWaitHandle.TryOpenExisting(name, out ignored));
+            }
+        }
+
+        [PlatformSpecific(TestPlatforms.Windows)] // names aren't supported on Unix
         [Theory]
         [InlineData(EventResetMode.ManualReset)]
         [InlineData(EventResetMode.AutoReset)]
+        [ActiveIssue(21275, TargetFrameworkMonikers.Uap)]
         public void PingPong(EventResetMode mode)
         {
             // Create names for the two events

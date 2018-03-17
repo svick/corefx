@@ -24,10 +24,13 @@ namespace System.Linq
             return new RepeatIterator<TResult>(element, count);
         }
 
+        /// <summary>
+        /// An iterator that yields the same item multiple times. 
+        /// </summary>
+        /// <typeparam name="TResult">The type of the item.</typeparam>
         private sealed class RepeatIterator<TResult> : Iterator<TResult>, IPartition<TResult>
         {
             private readonly int _count;
-            private int _sent;
 
             public RepeatIterator(TResult element, int count)
             {
@@ -43,36 +46,38 @@ namespace System.Linq
 
             public override void Dispose()
             {
-                // Don't let base Dispose wipe current.
+                // Don't let base.Dispose wipe Current.
                 _state = -1;
             }
 
             public override bool MoveNext()
             {
-                if (_state == 1 & _sent != _count)
+                // Having a separate field for the number of sent items would be more readable.
+                // However, we save it into _state with a bias to minimize field size of the iterator.
+                int sent = _state - 1;
+
+                // We can't have sent a negative number of items, obviously. However, if this iterator
+                // was illegally casted to IEnumerator without GetEnumerator being called, or if we've
+                // already been disposed, then `sent` will be negative.
+                if (sent >= 0 && sent != _count)
                 {
-                    ++_sent;
+                    ++_state;
                     return true;
                 }
 
-                _state = -1;
+                Dispose();
                 return false;
             }
 
-            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector)
-            {
-                return new SelectIPartitionIterator<TResult, TResult2>(this, selector);
-            }
+            public override IEnumerable<TResult2> Select<TResult2>(Func<TResult, TResult2> selector) =>
+                new SelectIPartitionIterator<TResult, TResult2>(this, selector);
 
             public TResult[] ToArray()
             {
                 TResult[] array = new TResult[_count];
                 if (_current != null)
                 {
-                    for (int i = 0; i != array.Length; ++i)
-                    {
-                        array[i] = _current;
-                    }
+                    Array.Fill(array, _current);
                 }
 
                 return array;
@@ -89,10 +94,7 @@ namespace System.Linq
                 return list;
             }
 
-            public int GetCount(bool onlyIfCheap)
-            {
-                return _count;
-            }
+            public int GetCount(bool onlyIfCheap) => _count;
 
             public IPartition<TResult> Skip(int count)
             {

@@ -46,10 +46,10 @@ namespace System.Linq.Parallel
             _prematureMergeLeft = LeftChild.OrdinalIndexState.IsWorseThan(OrdinalIndexState.Increasing);
             _prematureMergeRight = RightChild.OrdinalIndexState.IsWorseThan(OrdinalIndexState.Increasing);
 
-            if ((LeftChild.OrdinalIndexState == OrdinalIndexState.Indexible)
-                && (RightChild.OrdinalIndexState == OrdinalIndexState.Indexible))
+            if ((LeftChild.OrdinalIndexState == OrdinalIndexState.Indexable)
+                && (RightChild.OrdinalIndexState == OrdinalIndexState.Indexable))
             {
-                SetOrdinalIndex(OrdinalIndexState.Indexible);
+                SetOrdinalIndex(OrdinalIndexState.Indexable);
             }
             else
             {
@@ -222,13 +222,12 @@ namespace System.Linq.Parallel
 
 
         //-----------------------------------------------------------------------------------
-        // Query results for a Concat operator. The results are indexible if the child
-        // results were indexible.
+        // Query results for a Concat operator. The results are indexable if the child
+        // results were indexable.
         //
 
         class ConcatQueryOperatorResults : BinaryQueryOperatorResults
         {
-            private ConcatQueryOperator<TSource> _concatOp; // Operator that generated the results
             private int _leftChildCount; // The number of elements in the left child result set
             private int _rightChildCount; // The number of elements in the right child result set
 
@@ -255,7 +254,6 @@ namespace System.Linq.Parallel
                 bool preferStriping)
                 : base(leftChildQueryResults, rightChildQueryResults, concatOp, settings, preferStriping)
             {
-                _concatOp = concatOp;
                 Debug.Assert(leftChildQueryResults.IsIndexible && rightChildQueryResults.IsIndexible);
 
                 _leftChildCount = leftChildQueryResults.ElementsCount;

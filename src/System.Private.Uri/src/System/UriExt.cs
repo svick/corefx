@@ -45,16 +45,17 @@ namespace System
                     // V1 compat
                     // A relative Uri wins over implicit UNC path unless the UNC path is of the form "\\something" and 
                     // uriKind != Absolute
+                    // A relative Uri wins over implicit Unix path unless uriKind == Absolute
                     if (NotAny(Flags.DosPath) &&
                         uriKind != UriKind.Absolute &&
-                       (uriKind == UriKind.Relative || (_string.Length >= 2 && (_string[0] != '\\' || _string[1] != '\\'))))
-
+                       ((uriKind == UriKind.Relative || (_string.Length >= 2 && (_string[0] != '\\' || _string[1] != '\\')))
+                    || (!IsWindowsSystem && InFact(Flags.UnixPath))))
                     {
                         _syntax = null; //make it be relative Uri
                         _flags &= Flags.UserEscaped; // the only flag that makes sense for a relative uri
                         e = null;
                         return;
-                        // Otheriwse an absolute file Uri wins when it's of the form "\\something"
+                        // Otherwise an absolute file Uri wins when it's of the form "\\something"
                     }
                     //
                     // V1 compat issue
@@ -66,7 +67,7 @@ namespace System
                         _flags &= Flags.UserEscaped; // the only flag that makes sense for a relative uri
                         e = null;
                         return;
-                        // Otheriwse an absolute file Uri wins when it's of the form "c:\something"
+                        // Otherwise an absolute file Uri wins when it's of the form "c:\something"
                     }
                 }
             }
@@ -103,6 +104,7 @@ namespace System
                             _syntax = null; // convert to relative uri
                             e = null;
                             _flags &= Flags.UserEscaped; // the only flag that makes sense for a relative uri
+                            return;
                         }
                         else
                             e = GetException(err);
@@ -127,7 +129,7 @@ namespace System
                     // offer custom parser to create a parsing context
                     _syntax = _syntax.InternalOnNewUri();
 
-                    // incase they won't call us
+                    // in case they won't call us
                     _flags |= Flags.UserDrivenParsing;
 
                     // Ask a registered type to validate this uri
@@ -193,23 +195,26 @@ namespace System
         //
         private bool CheckForUnicode(string data)
         {
-            bool hasUnicode = false;
-            char[] chars = new char[data.Length];
-            int count = 0;
-
-            chars = UriHelper.UnescapeString(data, 0, data.Length, chars, ref count, c_DummyChar, c_DummyChar,
-                c_DummyChar, UnescapeMode.Unescape | UnescapeMode.UnescapeAll, null, false);
-
-            for (int i = 0; i < count; ++i)
+            for (int i = 0; i < data.Length; i++)
             {
-                if (chars[i] > '\x7f')
+                char c = data[i];
+                if (c == '%')
                 {
-                    // Unicode 
-                    hasUnicode = true;
-                    break;
+                    if (i + 2 < data.Length)
+                    {
+                        if (UriHelper.EscapedAscii(data[i + 1], data[i + 2]) > 0x7F)
+                        {
+                            return true;
+                        }
+                        i += 2;
+                    }
+                }
+                else if (c > 0x7F)
+                {
+                    return true;
                 }
             }
-            return hasUnicode;
+            return false;
         }
 
         // Does this string have any %6A sequences that are 3986 Unreserved characters?  These should be un-escaped.
@@ -235,7 +240,7 @@ namespace System
 
         //
         //  Returns true if the string represents a valid argument to the Uri ctor
-        //  If uriKind != AbsoluteUri then certain parsing erros are ignored but Uri usage is limited
+        //  If uriKind != AbsoluteUri then certain parsing errors are ignored but Uri usage is limited
         //
         public static bool TryCreate(string uriString, UriKind uriKind, out Uri result)
         {
@@ -268,7 +273,6 @@ namespace System
         {
             result = null;
 
-            //TODO: Work out the baseUri==null case
             if ((object)baseUri == null || (object)relativeUri == null)
                 return false;
 
@@ -324,7 +328,7 @@ namespace System
         //
         // This is for languages that do not support == != operators overloading
         //
-        // Note that Uri.Equals will get an optimized path but is limited to true/fasle result only
+        // Note that Uri.Equals will get an optimized path but is limited to true/false result only
         //
         public static int Compare(Uri uri1, Uri uri2, UriComponents partsToCompare, UriFormat compareFormat,
             StringComparison comparisonType)
@@ -358,7 +362,6 @@ namespace System
             return Syntax.InternalIsWellFormedOriginalString(this);
         }
 
-        // TODO: (perf) Making it to not create a Uri internally
         public static bool IsWellFormedUriString(string uriString, UriKind uriKind)
         {
             Uri result;
@@ -408,7 +411,7 @@ namespace System
                 if (IsImplicitFile)
                     return false;
 
-                //This will get all the offsets, a Host name will be checked separatelly below
+                //This will get all the offsets, a Host name will be checked separately below
                 EnsureParseRemaining();
 
                 Flags nonCanonical = (_flags & (Flags.E_CannotDisplayCanonical | Flags.IriCanonical));
@@ -457,7 +460,7 @@ namespace System
                     return false;
 
                 //
-                // May need some real CPU processing to anwser the request
+                // May need some real CPU processing to answer the request
                 //
                 //
                 // Check escaping for authority
@@ -525,7 +528,7 @@ namespace System
         }
 
         //
-        // Where stringToEscape is intented to be a completely unescaped URI string.
+        // Where stringToEscape is intended to be a completely unescaped URI string.
         // This method will escape any character that is not a reserved or unreserved character, including percent signs.
         // Note that EscapeUriString will also do not escape a '#' sign.
         //
@@ -664,8 +667,8 @@ namespace System
 
             // Here we can assert that passed "relativeUri" is indeed a relative one
 
-            if (relativeStr.Length > 0 && (IsLWS(relativeStr[0]) || IsLWS(relativeStr[relativeStr.Length - 1])))
-                relativeStr = relativeStr.Trim(s_WSchars);
+            if (relativeStr.Length > 0 && (UriHelper.IsLWS(relativeStr[0]) || UriHelper.IsLWS(relativeStr[relativeStr.Length - 1])))
+                relativeStr = relativeStr.Trim(UriHelper.s_WSchars);
 
             if (relativeStr.Length == 0)
             {
@@ -693,7 +696,7 @@ namespace System
             // Check on the DOS path in the relative Uri (a special case)
             if (relativeStr.Length >= 3
                 && (relativeStr[1] == ':' || relativeStr[1] == '|')
-                && IsAsciiLetter(relativeStr[0])
+                && UriHelper.IsAsciiLetter(relativeStr[0])
                 && (relativeStr[2] == '\\' || relativeStr[2] == '/'))
             {
                 if (baseUri.IsImplicitFile)
@@ -772,7 +775,7 @@ namespace System
             if (uriComponents == UriComponents.Scheme)
                 return _syntax.SchemeName;
 
-            // A serialzation info is "almost" the same as AbsoluteUri except for IPv6 + ScopeID hostname case
+            // A serialization info is "almost" the same as AbsoluteUri except for IPv6 + ScopeID hostname case
             if ((uriComponents & UriComponents.SerializationInfoString) != 0)
                 uriComponents |= UriComponents.AbsoluteUri;
 
@@ -785,7 +788,7 @@ namespace System
                 uriComponents |= UriComponents.Host;
             }
 
-            //Check to see if we need the host/authotity string
+            //Check to see if we need the host/authority string
             if ((uriComponents & UriComponents.Host) != 0)
                 EnsureHostString(true);
 

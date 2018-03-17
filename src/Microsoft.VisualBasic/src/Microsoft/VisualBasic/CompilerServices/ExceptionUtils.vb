@@ -24,7 +24,7 @@ Namespace Microsoft.VisualBasic.CompilerServices
         End Function
 
         Friend Shared Function VbMakeObjNotSetException() As System.Exception
-            Return VbMakeExceptionEx(vbErrors.IllegalFor, GetResourceString(SR.ID91)) ' 91 - ObjNotSet
+            Return VbMakeExceptionEx(vbErrors.ObjNotSet, GetResourceString(SR.ID91)) ' 91 - ObjNotSet
         End Function
 
         Private Shared Function VbMakeExceptionEx(ByVal number As Integer, ByVal sMsg As String) As System.Exception
@@ -73,6 +73,7 @@ Namespace Microsoft.VisualBasic.CompilerServices
         Public Sub New()
             MyBase.New(GetResourceString(SR.InternalError))
         End Sub
+
     End Class
 
 End Namespace

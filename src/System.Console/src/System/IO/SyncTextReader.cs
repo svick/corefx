@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
@@ -55,7 +54,7 @@ namespace System.IO
             }
         }
 
-        public override int Read([In, Out] char[] buffer, int index, int count)
+        public override int Read(char[] buffer, int index, int count)
         {
             lock (this)
             {
@@ -63,7 +62,7 @@ namespace System.IO
             }
         }
 
-        public override int ReadBlock([In, Out] char[] buffer, int index, int count)
+        public override int ReadBlock(char[] buffer, int index, int count)
         {
             lock (this)
             {
@@ -107,10 +106,9 @@ namespace System.IO
             if (buffer == null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? "index" : "count"), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             return Task.FromResult(ReadBlock(buffer, index, count));
         }
@@ -120,10 +118,9 @@ namespace System.IO
             if (buffer == null)
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? "index" : "count"), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - index < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             return Task.FromResult(Read(buffer, index, count));
         }

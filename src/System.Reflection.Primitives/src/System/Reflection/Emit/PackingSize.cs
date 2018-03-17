@@ -4,7 +4,6 @@
 
 namespace System.Reflection.Emit
 {
-    [System.Runtime.InteropServices.ComVisible(true)]
     public enum PackingSize
     {
         Unspecified = 0,

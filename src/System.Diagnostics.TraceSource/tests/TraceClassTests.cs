@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.IO;
+using System.Reflection;
 using Xunit;
 
 namespace System.Diagnostics.TraceSourceTests
@@ -10,6 +12,9 @@ namespace System.Diagnostics.TraceSourceTests
 
     public class TraceClassTests : IDisposable
     {
+        private readonly string TestRunnerAssemblyName = PlatformDetection.IsFullFramework ? 
+            Path.GetFileName(Environment.GetCommandLineArgs()[0]) : Assembly.GetEntryAssembly().GetName().Name;
+
         void IDisposable.Dispose()
         {
             TraceTestHelper.ResetState();
@@ -94,13 +99,15 @@ namespace System.Diagnostics.TraceSourceTests
             var listener = new TestTraceListener();
             Trace.Listeners.Add(listener);
             Trace.Close();
-            Assert.Equal(1, listener.GetCallCount(Method.Dispose));
+            Assert.Equal(1, listener.GetCallCount(Method.Close));
         }
 
         [Fact]
         public void Assert1Test()
         {
             var listener = new TestTraceListener();
+            // We have to clear the listeners list on Trace since there is a trace listener by default with AssertUiEnabled = true in Desktop and that will pop up an assert window with Trace.Fail
+            Trace.Listeners.Clear();
             Trace.Listeners.Add(listener);
             Trace.Assert(true);
             Assert.Equal(0, listener.GetCallCount(Method.WriteLine));
@@ -115,6 +122,8 @@ namespace System.Diagnostics.TraceSourceTests
         {
             var listener = new TestTraceListener();
             var text = new TestTextTraceListener();
+            // We have to clear the listeners list on Trace since there is a trace listener by default with AssertUiEnabled = true in Desktop and that will pop up an assert window with Trace.Fail
+            Trace.Listeners.Clear();
             Trace.Listeners.Add(listener);
             Trace.Listeners.Add(text);
             Trace.Assert(true, "Message");
@@ -134,6 +143,8 @@ namespace System.Diagnostics.TraceSourceTests
         {
             var listener = new TestTraceListener();
             var text = new TestTextTraceListener();
+            // We have to clear the listeners list on Trace since there is a trace listener by default with AssertUiEnabled = true in Desktop and that will pop up an assert window with Trace.Fail
+            Trace.Listeners.Clear();
             Trace.Listeners.Add(listener);
             Trace.Listeners.Add(text);
             Trace.Assert(true, "Message", "Detail");
@@ -301,6 +312,8 @@ namespace System.Diagnostics.TraceSourceTests
         public void FailTest()
         {
             var listener = new TestTraceListener();
+            // We have to clear the listeners list on Trace since there is a trace listener by default with AssertUiEnabled = true in Desktop and that will pop up an assert window with Trace.Fail
+            Trace.Listeners.Clear();
             Trace.Listeners.Add(listener);
             Trace.Fail("Text");
             Assert.Equal(1, listener.GetCallCount(Method.Fail));
@@ -319,7 +332,7 @@ namespace System.Diagnostics.TraceSourceTests
             Trace.IndentLevel = 2;
             Trace.Write("This message should be indented.");
             Trace.TraceError("This error not be indented.");
-            Trace.TraceError("{0}", "This error is indendented");
+            Trace.TraceError("{0}", "This error is indented");
             Trace.TraceWarning("This warning is indented");
             Trace.TraceWarning("{0}", "This warning is also indented");
             Trace.TraceInformation("This information in indented");
@@ -331,8 +344,8 @@ namespace System.Diagnostics.TraceSourceTests
             String newLine = Environment.NewLine;
             var expected =
                 String.Format(
-                    "Message start." + newLine + "    This message should be indented.{0} Error: 0 : This error not be indented." + newLine + "    {0} Error: 0 : This error is indendented" + newLine + "    {0} Warning: 0 : This warning is indented" + newLine + "    {0} Warning: 0 : This warning is also indented" + newLine + "    {0} Information: 0 : This information in indented" + newLine + "    {0} Information: 0 : This information is also indented" + newLine + "Message end." + newLine + "",
-                    "DEFAULT_APPNAME" //DEFAULT_APPNAME this a bug which needs to be fixed.
+                    "Message start." + newLine + "    This message should be indented.{0} Error: 0 : This error not be indented." + newLine + "    {0} Error: 0 : This error is indented" + newLine + "    {0} Warning: 0 : This warning is indented" + newLine + "    {0} Warning: 0 : This warning is also indented" + newLine + "    {0} Information: 0 : This information in indented" + newLine + "    {0} Information: 0 : This information is also indented" + newLine + "Message end." + newLine + "",
+                    TestRunnerAssemblyName
                 );
 
             Assert.Equal(expected, textTL.Output);
@@ -341,7 +354,18 @@ namespace System.Diagnostics.TraceSourceTests
         [Fact]
         public void TraceTest02()
         {
+            String newLine = Environment.NewLine;
             var textTL = new TestTextTraceListener();
+            Trace.Listeners.Clear();
+            Trace.Listeners.Add(textTL);
+            Trace.IndentLevel = 0;
+            Trace.Fail("");
+            textTL.Flush();
+            var fail = textTL.Output.TrimEnd(newLine.ToCharArray());
+
+            textTL = new TestTextTraceListener();
+            // We have to clear the listeners list on Trace since there is a trace listener by default with AssertUiEnabled = true in Desktop and that will pop up an assert window with Trace.Fail
+            Trace.Listeners.Clear();
             Trace.Listeners.Add(textTL);
             Trace.IndentLevel = 0;
             Trace.IndentSize = 2;
@@ -362,8 +386,8 @@ namespace System.Diagnostics.TraceSourceTests
             Trace.Unindent();
             Trace.WriteLine("Message end.");
             textTL.Flush();
-            String newLine = Environment.NewLine;
-            var expected = "Message start." + newLine + "    This message should be indented.This should not be indented." + newLine + "      Fail: This failure is reported with a detailed message" + newLine + "      Fail: " + newLine + "      Fail: This assert is reported" + newLine + "Message end." + newLine;
+            newLine = Environment.NewLine;
+            var expected = "Message start." + newLine + "    This message should be indented.This should not be indented." + newLine + "      " + fail + "This failure is reported with a detailed message" + newLine + "      " + fail + newLine + "      " + fail + "This assert is reported" + newLine + "Message end." + newLine;
             Assert.Equal(expected, textTL.Output);
         }
     }

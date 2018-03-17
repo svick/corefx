@@ -4,9 +4,9 @@
 
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.IO;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.InteropServices;
-using System.Runtime.WindowsRuntime.Internal;
 using System.Threading.Tasks;
 using System.Threading;
 using Windows.Foundation;
@@ -118,7 +118,7 @@ namespace System.IO
 
         private static StreamReadOperationOptimization DetermineStreamReadOptimization(Stream stream)
         {
-            Contract.Requires(stream != null);
+            Debug.Assert(stream != null);
 
             if (CanApplyReadMemoryStreamOptimization(stream))
                 return StreamReadOperationOptimization.MemoryStream;
@@ -140,8 +140,8 @@ namespace System.IO
 
         private NetFxToWinRtStreamAdapter(Stream stream, StreamReadOperationOptimization readOptimization)
         {
-            Contract.Requires(stream != null);
-            Contract.Requires(stream.CanRead || stream.CanWrite || stream.CanSeek);
+            Debug.Assert(stream != null);
+            Debug.Assert(stream.CanRead || stream.CanWrite || stream.CanSeek);
             Contract.EndContractBlock();
 
             Debug.Assert(!stream.CanRead || (stream.CanRead && this is IInputStream));
@@ -192,7 +192,7 @@ namespace System.IO
             if (str == null)
             {
                 ObjectDisposedException ex = new ObjectDisposedException(SR.ObjectDisposed_CannotPerformOperation);
-                ex.SetErrorCode(HResults.RO_E_CLOSED);
+                ex.SetErrorCode(__HResults.RO_E_CLOSED);
                 throw ex;
             }
 
@@ -233,14 +233,14 @@ namespace System.IO
             if (count < 0 || Int32.MaxValue < count)
             {
                 ArgumentOutOfRangeException ex = new ArgumentOutOfRangeException(nameof(count));
-                ex.SetErrorCode(HResults.E_INVALIDARG);
+                ex.SetErrorCode(__HResults.E_INVALIDARG);
                 throw ex;
             }
 
             if (buffer.Capacity < count)
             {
                 ArgumentException ex = new ArgumentException(SR.Argument_InsufficientBufferCapacity);
-                ex.SetErrorCode(HResults.E_INVALIDARG);
+                ex.SetErrorCode(__HResults.E_INVALIDARG);
                 throw ex;
             }
 
@@ -248,7 +248,7 @@ namespace System.IO
             {
                 ArgumentOutOfRangeException ex = new ArgumentOutOfRangeException(nameof(options),
                                                                                  SR.ArgumentOutOfRange_InvalidInputStreamOptionsEnumValue);
-                ex.SetErrorCode(HResults.E_INVALIDARG);
+                ex.SetErrorCode(__HResults.E_INVALIDARG);
                 throw ex;
             }
 
@@ -299,7 +299,7 @@ namespace System.IO
             if (buffer.Capacity < buffer.Length)
             {
                 ArgumentException ex = new ArgumentException(SR.Argument_BufferLengthExceedsCapacity);
-                ex.SetErrorCode(HResults.E_INVALIDARG);
+                ex.SetErrorCode(__HResults.E_INVALIDARG);
                 throw ex;
             }
 
@@ -334,7 +334,7 @@ namespace System.IO
             if (position > Int64.MaxValue)
             {
                 ArgumentException ex = new ArgumentException(SR.IO_CannotSeekBeyondInt64MaxValue);
-                ex.SetErrorCode(HResults.E_INVALIDARG);
+                ex.SetErrorCode(__HResults.E_INVALIDARG);
                 throw ex;
             }
 
@@ -346,7 +346,7 @@ namespace System.IO
 
             Debug.Assert(str != null);
             Debug.Assert(str.CanSeek, "The underlying str is expected to support Seek, but it does not.");
-            Debug.Assert(0 <= pos && pos <= Int64.MaxValue, "Unexpected pos=" + pos + ".");
+            Debug.Assert(0 <= pos, "Unexpected pos=" + pos + ".");
 
             str.Seek(pos, SeekOrigin.Begin);
         }
@@ -399,7 +399,7 @@ namespace System.IO
                 if (value > Int64.MaxValue)
                 {
                     ArgumentException ex = new ArgumentException(SR.IO_CannotSetSizeBeyondInt64MaxValue);
-                    ex.SetErrorCode(HResults.E_INVALIDARG);
+                    ex.SetErrorCode(__HResults.E_INVALIDARG);
                     throw ex;
                 }
 
@@ -411,7 +411,7 @@ namespace System.IO
                 if (!str.CanWrite)
                 {
                     InvalidOperationException ex = new InvalidOperationException(SR.InvalidOperation_CannotSetStreamSizeCannotWrite);
-                    ex.SetErrorCode(HResults.E_ILLEGAL_METHOD_CALL);
+                    ex.SetErrorCode(__HResults.E_ILLEGAL_METHOD_CALL);
                     throw ex;
                 }
 
@@ -419,7 +419,7 @@ namespace System.IO
 
                 Debug.Assert(str != null);
                 Debug.Assert(str.CanSeek, "The underlying str is expected to support Seek, but it does not.");
-                Debug.Assert(0 <= val && val <= Int64.MaxValue, "Unexpected val=" + val + ".");
+                Debug.Assert(0 <= val, "Unexpected val=" + val + ".");
 
                 str.SetLength(val);
             }
@@ -437,31 +437,31 @@ namespace System.IO
         // Cloning can be added in future, however, it would be quite complex
         // to support it correctly for generic streams.
 
-        private static void ThrowCloningNotSuported(String methodName)
+        private static void ThrowCloningNotSupported(String methodName)
         {
             NotSupportedException nse = new NotSupportedException(SR.Format(SR.NotSupported_CloningNotSupported, methodName));
-            nse.SetErrorCode(HResults.E_NOTIMPL);
+            nse.SetErrorCode(__HResults.E_NOTIMPL);
             throw nse;
         }
 
 
         public IRandomAccessStream CloneStream()
         {
-            ThrowCloningNotSuported("CloneStream");
+            ThrowCloningNotSupported("CloneStream");
             return null;
         }
 
 
         public IInputStream GetInputStreamAt(UInt64 position)
         {
-            ThrowCloningNotSuported("GetInputStreamAt");
+            ThrowCloningNotSupported("GetInputStreamAt");
             return null;
         }
 
 
         public IOutputStream GetOutputStreamAt(UInt64 position)
         {
-            ThrowCloningNotSuported("GetOutputStreamAt");
+            ThrowCloningNotSupported("GetOutputStreamAt");
             return null;
         }
         #endregion IRandomAccessStream public interface: Cloning related

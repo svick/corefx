@@ -6,51 +6,36 @@ using System.Globalization;
 
 namespace System.ComponentModel
 {
-    /// <devdoc>
+    /// <summary>
     ///    <para>Provides a type converter to convert 64-bit unsigned integer objects to and
     ///       from various other representations.</para>
-    /// </devdoc>
+    /// </summary>
     public class UInt64Converter : BaseNumberConverter
     {
-        /// <devdoc>
+        /// <summary>
         /// The Type this converter is targeting (e.g. Int16, UInt64, etc.)
-        /// </devdoc>
-        internal override Type TargetType
-        {
-            get
-            {
-                return typeof(UInt64);
-            }
-        }
+        /// </summary>
+        internal override Type TargetType => typeof(ulong);
 
-        /// <devdoc>
+        /// <summary>
         /// Convert the given value to a string using the given radix
-        /// </devdoc>
+        /// </summary>
         internal override object FromString(string value, int radix)
         {
             return Convert.ToUInt64(value, radix);
         }
 
-        /// <devdoc>
+        /// <summary>
         /// Convert the given value to a string using the given formatInfo
-        /// </devdoc>
+        /// </summary>
         internal override object FromString(string value, NumberFormatInfo formatInfo)
         {
             return UInt64.Parse(value, NumberStyles.Integer, formatInfo);
         }
 
-
-        /// <devdoc>
-        /// Convert the given value to a string using the given CultureInfo
-        /// </devdoc>
-        internal override object FromString(string value, CultureInfo culture)
-        {
-            return UInt64.Parse(value, culture);
-        }
-
-        /// <devdoc>
+        /// <summary>
         /// Convert the given value from a string using the given formatInfo
-        /// </devdoc>
+        /// </summary>
         internal override string ToString(object value, NumberFormatInfo formatInfo)
         {
             return ((UInt64)value).ToString("G", formatInfo);

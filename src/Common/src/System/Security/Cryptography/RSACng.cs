@@ -30,6 +30,7 @@ namespace System.Security.Cryptography
         /// <exception cref="CryptographicException">if <paramref name="keySize" /> is not valid</exception>
         public RSACng(int keySize)
         {
+            // Set the property directly so that it gets validated against LegalKeySizes.
             KeySize = keySize;
         }
 
@@ -46,14 +47,32 @@ namespace System.Security.Cryptography
             }
         }
 
-        protected override byte[] HashData(byte[] data, int offset, int count, HashAlgorithmName hashAlgorithm)
-        {
-            return CngCommon.HashData(data, offset, count, hashAlgorithm);
-        }
+        protected override byte[] HashData(byte[] data, int offset, int count, HashAlgorithmName hashAlgorithm) =>
+            CngCommon.HashData(data, offset, count, hashAlgorithm);
 
-        protected override byte[] HashData(Stream data, HashAlgorithmName hashAlgorithm)
+        protected override bool TryHashData(ReadOnlySpan<byte> data, Span<byte> destination, HashAlgorithmName hashAlgorithm, out int bytesWritten) =>
+            CngCommon.TryHashData(data, destination, hashAlgorithm, out bytesWritten);
+
+        protected override byte[] HashData(Stream data, HashAlgorithmName hashAlgorithm) =>
+            CngCommon.HashData(data, hashAlgorithm);
+
+        private void ForceSetKeySize(int newKeySize)
         {
-            return CngCommon.HashData(data, hashAlgorithm);
+            // Our LegalKeySizes value stores the values that we encoded as being the correct
+            // legal key size limitations for this algorithm, as documented on MSDN.
+            //
+            // But on a new OS version we might not question if our limit is accurate, or MSDN
+            // could have been inaccurate to start with.
+            //
+            // Since the key is already loaded, we know that Windows thought it to be valid;
+            // therefore we should set KeySizeValue directly to bypass the LegalKeySizes conformance
+            // check.
+            //
+            // For RSA there are known cases where this change matters. RSACryptoServiceProvider can
+            // create a 384-bit RSA key, which we consider too small to be legal. It can also create
+            // a 1032-bit RSA key, which we consider illegal because it doesn't match our 64-bit
+            // alignment requirement. (In both cases Windows loads it just fine)
+            KeySizeValue = newKeySize;
         }
     }
 #if INTERNAL_ASYMMETRIC_IMPLEMENTATIONS

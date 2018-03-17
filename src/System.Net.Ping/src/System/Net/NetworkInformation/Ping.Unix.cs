@@ -16,16 +16,24 @@ namespace System.Net.NetworkInformation
     public partial class Ping
     {
         private const int IcmpHeaderLengthInBytes = 8;
-        private const int IpHeaderLengthInBytes = 20;
+        private const int MinIpHeaderLengthInBytes = 20;
+        private const int MaxIpHeaderLengthInBytes = 60;
+        [ThreadStatic]
+        private static Random t_idGenerator;
 
         private async Task<PingReply> SendPingAsyncCore(IPAddress address, byte[] buffer, int timeout, PingOptions options)
         {
             try
             {
-                Task<PingReply> t = RawSocketPermissions.CanUseRawSockets() ?
+                Task<PingReply> t = RawSocketPermissions.CanUseRawSockets(address.AddressFamily) ?
                     SendIcmpEchoRequestOverRawSocket(address, buffer, timeout, options) :
                     SendWithPingUtility(address, buffer, timeout, options);
-                return await t.ConfigureAwait(false);
+                PingReply reply = await t.ConfigureAwait(false);
+                if (_canceled)
+                {
+                    throw new OperationCanceledException();
+                }
+                return reply;
             }
             finally
             {
@@ -39,8 +47,12 @@ namespace System.Net.NetworkInformation
 
             bool isIpv4 = address.AddressFamily == AddressFamily.InterNetwork;
             ProtocolType protocolType = isIpv4 ? ProtocolType.Icmp : ProtocolType.IcmpV6;
-            // Use the current thread's ID as the identifier.
-            ushort identifier = (ushort)Environment.CurrentManagedThreadId;
+
+            // Use a random value as the identifier.  This doesn't need to be perfectly random
+            // or very unpredictable, rather just good enough to avoid unexpected conflicts.
+            Random rand = t_idGenerator ?? (t_idGenerator = new Random());
+            ushort identifier = (ushort)rand.Next((int)ushort.MaxValue + 1);
+
             IcmpHeader header = new IcmpHeader()
             {
                 Type = isIpv4 ? (byte)IcmpV4MessageType.EchoRequest : (byte)IcmpV6MessageType.EchoRequest,
@@ -58,9 +70,9 @@ namespace System.Net.NetworkInformation
                 socket.SendTimeout = timeout;
                 // Setting Socket.DontFragment and .Ttl is not supported on Unix, so ignore the PingOptions parameter.
 
-                int ipHeaderLength = isIpv4 ? IpHeaderLengthInBytes : 0;
+                int ipHeaderLength = isIpv4 ? MinIpHeaderLengthInBytes : 0;
                 await socket.SendToAsync(new ArraySegment<byte>(sendBuffer), SocketFlags.None, endPoint).ConfigureAwait(false);
-                byte[] receiveBuffer = new byte[ipHeaderLength + IcmpHeaderLengthInBytes + buffer.Length];
+                byte[] receiveBuffer = new byte[MaxIpHeaderLengthInBytes + IcmpHeaderLengthInBytes + buffer.Length];
 
                 long elapsed;
                 Stopwatch sw = Stopwatch.StartNew();
@@ -92,8 +104,19 @@ namespace System.Net.NetworkInformation
                     byte type, code;
                     unsafe
                     {
-                        fixed (byte* bytesPtr = receiveBuffer)
+                        fixed (byte* bytesPtr = &receiveBuffer[0])
                         {
+                            if (isIpv4)
+                            {
+                                // Determine actual size of IP header
+                                byte ihl = (byte)(bytesPtr[0] & 0x0f); // Internet Header Length
+                                ipHeaderLength = 4 * ihl;
+                                if (bytesReceived - ipHeaderLength < IcmpHeaderLengthInBytes)
+                                {
+                                    continue; // Not enough bytes to reconstruct actual IP header + ICMP header.
+                                }
+                            }
+
                             int icmpHeaderOffset = ipHeaderLength;
                             IcmpHeader receivedHeader = *((IcmpHeader*)(bytesPtr + icmpHeaderOffset)); // Skip IP header.
                             type = receivedHeader.Type;
@@ -164,9 +187,9 @@ namespace System.Net.NetworkInformation
             else
             {
                 cts.Cancel();
-                if (p.ExitCode != 0)
+                if (p.ExitCode == 1 || p.ExitCode == 2)
                 {
-                    // This means no reply was received, although transmission may have been successful.
+                    // Throw timeout for known failure return codes from ping functions.
                     return CreateTimedOutPingReply();
                 }
 
@@ -176,7 +199,7 @@ namespace System.Net.NetworkInformation
                     long rtt = UnixCommandLinePing.ParseRoundTripTime(output);
                     return new PingReply(
                             address,
-                            null, // Ping utility cannot accomodate these, return null to indicate they were ignored.
+                            null, // Ping utility cannot accommodate these, return null to indicate they were ignored.
                             IPStatus.Success,
                             rtt,
                             Array.Empty<byte>()); // Ping utility doesn't deliver this info.
@@ -251,7 +274,7 @@ namespace System.Net.NetworkInformation
                 sum = partialSum + carries;
             }
 
-            return (ushort)~sum;
+            return unchecked((ushort)~sum);
         }
     }
 }

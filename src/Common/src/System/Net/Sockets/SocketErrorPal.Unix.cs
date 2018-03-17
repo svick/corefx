@@ -20,7 +20,7 @@ namespace System.Net.Sockets
         }
 #endif
 
-        private const int NativeErrorToSocketErrorCount = 40;
+        private const int NativeErrorToSocketErrorCount = 41;
         private const int SocketErrorToNativeErrorCount = 40;
 
         // No Interop.Errors are included for the following SocketErrors, as there's no good mapping:
@@ -62,6 +62,7 @@ namespace System.Net.Sockets
             { Interop.Error.ENFILE, SocketError.TooManyOpenSockets },
             { Interop.Error.ENOBUFS, SocketError.NoBufferSpaceAvailable },
             { Interop.Error.ENODATA, SocketError.NoData },
+            { Interop.Error.ENOENT, SocketError.AddressNotAvailable },
             { Interop.Error.ENOPROTOOPT, SocketError.ProtocolOption },
             { Interop.Error.ENOTCONN, SocketError.NotConnected },
             { Interop.Error.ENOTSOCK, SocketError.NotSocket },
@@ -137,9 +138,17 @@ namespace System.Net.Sockets
         internal static Interop.Error GetNativeErrorForSocketError(SocketError error)
         {
             Interop.Error errno;
-            return s_socketErrorToNativeError.TryGetValue(error, out errno) ?
-                errno :
-                (Interop.Error)(int)error; // pass through the SocketError's value, as it at least retains some useful info
-        } 
+            if (!TryGetNativeErrorForSocketError(error, out errno))
+            {
+                // Use the SocketError's value, as it at least retains some useful info
+                errno = (Interop.Error)(int)error;
+            }
+            return errno;
+        }
+
+        internal static bool TryGetNativeErrorForSocketError(SocketError error, out Interop.Error errno)
+        {
+            return s_socketErrorToNativeError.TryGetValue(error, out errno);
+        }
     }
 }

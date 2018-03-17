@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace System.Globalization.Tests
@@ -11,6 +12,33 @@ namespace System.Globalization.Tests
     {
         public static IEnumerable<object[]> GetAscii_TestData()
         {
+            for (int i = 0x20; i < 0x7F; i++)
+            {
+                char c = (char)i;
+
+                // We test '.' separately
+                if (c == '.')
+                {
+                    continue;
+                }
+                string ascii = c.ToString();
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) // expected platform differences, see https://github.com/dotnet/corefx/issues/8242
+                {
+                    if ((c >= 'A' && c <= 'Z'))
+                    {
+                        yield return new object[] { ascii, 0, 1, ascii.ToLower() };
+                    }
+                    else if (c != '-')
+                    {
+                        yield return new object[] { ascii, 0, 1, ascii };
+                    }
+                }
+                else
+                {
+                    yield return new object[] { ascii, 0, 1, ascii };
+                }
+            }
+
             yield return new object[] { "\u0101", 0, 1, "xn--yda" };
             yield return new object[] { "\u0101\u0061\u0041", 0, 3, "xn--aa-cla" };
             yield return new object[] { "\u0061\u0101\u0062", 0, 3, "xn--ab-dla" };
@@ -18,7 +46,7 @@ namespace System.Globalization.Tests
 
             yield return new object[] { "\uD800\uDF00\uD800\uDF01\uD800\uDF02", 0, 6, "xn--097ccd" }; // Surrogate pairs
             yield return new object[] { "\uD800\uDF00\u0061\uD800\uDF01\u0042\uD800\uDF02", 0, 8, "xn--ab-ic6nfag" }; // Surrogate pairs separated by ASCII
-            yield return new object[] { "\uD800\uDF00\u0101\uD800\uDF01\u305D\uD800\uDF02", 0, 8, "xn--yda263v6b6kfag" }; // Surrogate pairs seperated by non-ASCII
+            yield return new object[] { "\uD800\uDF00\u0101\uD800\uDF01\u305D\uD800\uDF02", 0, 8, "xn--yda263v6b6kfag" }; // Surrogate pairs separated by non-ASCII
             yield return new object[] { "\uD800\uDF00\u0101\uD800\uDF01\u0061\uD800\uDF02", 0, 8, "xn--a-nha4529qfag" }; // Surrogate pairs separated by ASCII and non-ASCII
             yield return new object[] { "\u0061\u0062\u0063", 0, 3, "\u0061\u0062\u0063" }; // ASCII only code points
             yield return new object[] { "\u305D\u306E\u30B9\u30D4\u30FC\u30C9\u3067", 0, 7, "xn--d9juau41awczczp" }; // Non-ASCII only code points
@@ -26,10 +54,10 @@ namespace System.Globalization.Tests
             yield return new object[] { "\u0061\u0062\u0063.\u305D\u306E\u30B9\u30D4\u30FC\u30C9\u3067.\u30D1\u30D5\u30A3\u30FC\u0064\u0065\u30EB\u30F3\u30D0", 0, 21, "abc.xn--d9juau41awczczp.xn--de-jg4avhby1noc0d" }; // Fully qualified domain name
 
             // Embedded domain name conversion (NLS + only)(Priority 1)
-            // Per the spec [7], "The index and count parameters (when provided) allow the 
-            // conversion to be done on a larger string where the domain name is embedded 
-            // (such as a URI or IRI). The output string is only the converted FQDN or 
-            // label, not the whole input string (if the input string contains more 
+            // Per the spec [7], "The index and count parameters (when provided) allow the
+            // conversion to be done on a larger string where the domain name is embedded
+            // (such as a URI or IRI). The output string is only the converted FQDN or
+            // label, not the whole input string (if the input string contains more
             // character than the substring to convert)."
             // Fully Qualified Domain Name (Label1.Label2.Label3)
             yield return new object[] { "\u0061\u0062\u0063.\u305D\u306E\u30B9\u30D4\u30FC\u30C9\u3067.\u30D1\u30D5\u30A3\u30FC\u0064\u0065\u30EB\u30F3\u30D0", 0, 21, "abc.xn--d9juau41awczczp.xn--de-jg4avhby1noc0d" };
@@ -56,6 +84,24 @@ namespace System.Globalization.Tests
             Assert.Equal(expected, new IdnMapping().GetAscii(unicode, index, count));
         }
 
+        [Fact]
+        public void TestGetAsciiWithDot()
+        {
+            string result = "";
+            Exception ex = Record.Exception(()=> result = new IdnMapping().GetAscii("."));
+            if (ex == null)
+            {
+                // Windows and OSX always throw exception. some versions of Linux succeed and others throw exception
+                Assert.False(RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
+                Assert.False(RuntimeInformation.IsOSPlatform(OSPlatform.OSX));
+                Assert.Equal(result, ".");
+            }
+            else
+            {
+                Assert.IsType<ArgumentException>(ex);                
+            }
+        }
+
         public static IEnumerable<object[]> GetAscii_Invalid_TestData()
         {
             // Unicode is null
@@ -75,6 +121,19 @@ namespace System.Globalization.Tests
             yield return new object[] { "\u0061\u0062\u0063.\u305D\u306E\u30B9\u30D4\u30FC\u30C9\u3067.\u30D1\u30D5\u30A3\u30FC\u0064\u0065\u30EB\u30F3\u30D0", 3, 8, typeof(ArgumentException) };
             yield return new object[] { "\u0061\u0062\u0063.\u305D\u306E\u30B9\u30D4\u30FC\u30C9\u3067.\u30D1\u30D5\u30A3\u30FC\u0064\u0065\u30EB\u30F3\u30D0", 3, 9, typeof(ArgumentException) };
             yield return new object[] { "\u0061\u0062\u0063.\u305D\u306E\u30B9\u30D4\u30FC\u30C9\u3067.\u30D1\u30D5\u30A3\u30FC\u0064\u0065\u30EB\u30F3\u30D0", 11, 10, typeof(ArgumentException) };
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))  // expected platform differences, see https://github.com/dotnet/corefx/issues/8242
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    yield return new object[] { ".", 0, 1, typeof(ArgumentException) };
+                }
+                yield return new object[] { "-", 0, 1, typeof(ArgumentException) };
+            }
+            else
+            {
+                yield return new object[] { ".", 0, 1, typeof(ArgumentException) };
+            }
 
             // Null containing strings
             yield return new object[] { "\u0101\u0000", 0, 2, typeof(ArgumentException) };

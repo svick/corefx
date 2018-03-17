@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Net.Sockets;
 using System.Net.Test.Common;
+using System.Threading.Tasks;
 
 using Xunit;
 using Xunit.Abstractions;
@@ -18,14 +20,15 @@ namespace System.Net.NetworkInformation.Tests
             _log = TestLogging.GetInstance();
         }
 
-        [Fact]
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
         public void BasicTest_GetNetworkInterfaces_AtLeastOne()
         {
             Assert.NotEqual<int>(0, NetworkInterface.GetAllNetworkInterfaces().Length);
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]  // Not all APIs are supported on Linux and OSX
         public void BasicTest_AccessInstanceProperties_NoExceptions()
         {
             foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
@@ -41,23 +44,29 @@ namespace System.Net.NetworkInformation.Tests
 
                 // Validate NIC speed overflow.
                 // We've found that certain WiFi adapters will return speed of -1 when not connected.
-                Assert.InRange(nic.Speed, nic.OperationalStatus != OperationalStatus.Down ? 0 : -1, long.MaxValue);
+                // We've found that Wi-Fi Direct Virtual Adapters return speed of -1 even when up.
+                Assert.InRange(nic.Speed, -1, long.MaxValue);
 
                 _log.WriteLine("SupportsMulticast: " + nic.SupportsMulticast);
                 _log.WriteLine("GetPhysicalAddress(): " + nic.GetPhysicalAddress());
             }
         }
 
-        [Fact]
-        [PlatformSpecific(PlatformID.Linux)]
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
+        [PlatformSpecific(TestPlatforms.Linux)]  // Some APIs are not supported on Linux
         public void BasicTest_AccessInstanceProperties_NoExceptions_Linux()
         {
             foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 _log.WriteLine("- NetworkInterface -");
                 _log.WriteLine("Name: " + nic.Name);
-                Assert.Throws<PlatformNotSupportedException>(() => nic.Description);
-                Assert.Throws<PlatformNotSupportedException>(() => nic.Id);
+                string description = nic.Description;
+                Assert.False(string.IsNullOrEmpty(description), "NetworkInterface.Description should not be null or empty.");
+                _log.WriteLine("Description: " + description);
+                string id = nic.Id;
+                Assert.False(string.IsNullOrEmpty(id), "NetworkInterface.Id should not be null or empty.");
+                _log.WriteLine("ID: " + id);
                 Assert.Throws<PlatformNotSupportedException>(() => nic.IsReceiveOnly);
                 _log.WriteLine("Type: " + nic.NetworkInterfaceType);
                 _log.WriteLine("Status: " + nic.OperationalStatus);
@@ -65,7 +74,7 @@ namespace System.Net.NetworkInformation.Tests
                 try
                 {
                     _log.WriteLine("Speed: " + nic.Speed);
-                    Assert.InRange(nic.Speed, 0, long.MaxValue);
+                    Assert.InRange(nic.Speed, -1, long.MaxValue);
                 }
                 // We cannot guarantee this works on all devices.
                 catch (PlatformNotSupportedException pnse)
@@ -79,15 +88,19 @@ namespace System.Net.NetworkInformation.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.OSX)]
+        [PlatformSpecific(TestPlatforms.OSX)]  // Some APIs are not supported on OSX
         public void BasicTest_AccessInstanceProperties_NoExceptions_Osx()
         {
             foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 _log.WriteLine("- NetworkInterface -");
                 _log.WriteLine("Name: " + nic.Name);
-                Assert.Throws<PlatformNotSupportedException>(() => nic.Description);
-                _log.WriteLine("ID: " + nic.Id);
+                string description = nic.Description;
+                Assert.False(string.IsNullOrEmpty(description), "NetworkInterface.Description should not be null or empty.");
+                _log.WriteLine("Description: " + description);
+                string id = nic.Id;
+                Assert.False(string.IsNullOrEmpty(id), "NetworkInterface.Id should not be null or empty.");
+                _log.WriteLine("ID: " + id);
                 Assert.Throws<PlatformNotSupportedException>(() => nic.IsReceiveOnly);
                 _log.WriteLine("Type: " + nic.NetworkInterfaceType);
                 _log.WriteLine("Status: " + nic.OperationalStatus);
@@ -98,7 +111,8 @@ namespace System.Net.NetworkInformation.Tests
             }
         }
 
-        [Fact]
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
         [Trait("IPv4", "true")]
         public void BasicTest_StaticLoopbackIndex_MatchesLoopbackNetworkInterface()
         {
@@ -120,7 +134,8 @@ namespace System.Net.NetworkInformation.Tests
             }
         }
 
-        [Fact]
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
         [Trait("IPv4", "true")]
         public void BasicTest_StaticLoopbackIndex_ExceptionIfV4NotSupported()
         {
@@ -129,7 +144,8 @@ namespace System.Net.NetworkInformation.Tests
             _log.WriteLine("Loopback IPv4 index: " + NetworkInterface.LoopbackInterfaceIndex);
         }
 
-        [Fact]
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
         [Trait("IPv6", "true")]
         public void BasicTest_StaticIPv6LoopbackIndex_MatchesLoopbackNetworkInterface()
         {
@@ -153,7 +169,8 @@ namespace System.Net.NetworkInformation.Tests
             }
         }
 
-        [Fact]
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
         [Trait("IPv6", "true")]
         public void BasicTest_StaticIPv6LoopbackIndex_ExceptionIfV6NotSupported()
         {
@@ -162,10 +179,9 @@ namespace System.Net.NetworkInformation.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]  // Not all APIs are supported on Linux and OSX
         public void BasicTest_GetIPInterfaceStatistics_Success()
         {
-            // This API is not actually IPv4 specific.
             foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 IPInterfaceStatistics stats = nic.GetIPStatistics();
@@ -186,11 +202,11 @@ namespace System.Net.NetworkInformation.Tests
             }
         }
 
-        [Fact]
-        [PlatformSpecific(PlatformID.Linux)]
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
+        [PlatformSpecific(TestPlatforms.Linux)]  // Some APIs are not supported on Linux
         public void BasicTest_GetIPInterfaceStatistics_Success_Linux()
         {
-            // This API is not actually IPv4 specific.
             foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 IPInterfaceStatistics stats = nic.GetIPStatistics();
@@ -212,10 +228,9 @@ namespace System.Net.NetworkInformation.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.OSX)]
+        [PlatformSpecific(TestPlatforms.OSX)]  // Some APIs are not supported on OSX
         public void BasicTest_GetIPInterfaceStatistics_Success_OSX()
         {
-            // This API is not actually IPv4 specific.
             foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 IPInterfaceStatistics stats = nic.GetIPStatistics();
@@ -236,10 +251,39 @@ namespace System.Net.NetworkInformation.Tests
             }
         }
 
-        [Fact]
+
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
         public void BasicTest_GetIsNetworkAvailable_Success()
         {
             Assert.True(NetworkInterface.GetIsNetworkAvailable());
+        }
+
+        // dotnet: /d/git/corefx/src/Native/Unix/Common/pal_safecrt.h:47: errno_t memcpy_s(void *, size_t, const void *, size_t): Assertion `sizeInBytes >= count' failed.
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/dotnet/corefx/issues/15513
+        [PlatformSpecific(~TestPlatforms.OSX)]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task NetworkInterface_LoopbackInterfaceIndex_MatchesReceivedPackets(bool ipv6)
+        {
+            using (var client = new Socket(SocketType.Dgram, ProtocolType.Udp))
+            using (var server = new Socket(SocketType.Dgram, ProtocolType.Udp))
+            {
+                server.Bind(new IPEndPoint(ipv6 ? IPAddress.IPv6Loopback : IPAddress.Loopback, 0));
+                var serverEndPoint = (IPEndPoint)server.LocalEndPoint;
+
+                Task<SocketReceiveMessageFromResult> receivedTask = 
+                    server.ReceiveMessageFromAsync(new ArraySegment<byte>(new byte[1]), SocketFlags.None, serverEndPoint);
+                while (!receivedTask.IsCompleted)
+                {
+                    client.SendTo(new byte[] { 42 }, serverEndPoint);
+                    await Task.Delay(1);
+                }
+
+                Assert.Equal(
+                    (await receivedTask).PacketInformation.Interface,
+                    ipv6 ? NetworkInterface.IPv6LoopbackInterfaceIndex : NetworkInterface.LoopbackInterfaceIndex);
+            }
         }
     }
 }

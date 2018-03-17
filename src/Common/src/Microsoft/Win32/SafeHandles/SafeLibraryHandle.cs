@@ -8,17 +8,17 @@ namespace Microsoft.Win32.SafeHandles
 {
     internal sealed class SafeLibraryHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
-        private SafeLibraryHandle() : base(true)
+        internal SafeLibraryHandle() : base(true)
         {
         }
 
-        private SafeLibraryHandle(bool ownsHandle) : base(ownsHandle)
+        internal SafeLibraryHandle(bool ownsHandle) : base(ownsHandle)
         {
         }
 
         protected override bool ReleaseHandle()
         {
-            return Interop.mincore.FreeLibrary(handle);
+            return Interop.Kernel32.FreeLibrary(handle);
         }
     }
 }

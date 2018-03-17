@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Globalization;
 
 namespace System.Net.Http.Headers
@@ -40,7 +40,7 @@ namespace System.Net.Http.Headers
 
         private RetryConditionHeaderValue(RetryConditionHeaderValue source)
         {
-            Contract.Requires(source != null);
+            Debug.Assert(source != null);
 
             _delta = source._delta;
             _date = source._date;
@@ -109,7 +109,7 @@ namespace System.Net.Http.Headers
 
         internal static int GetRetryConditionLength(string input, int startIndex, out object parsedValue)
         {
-            Contract.Requires(startIndex >= 0);
+            Debug.Assert(startIndex >= 0);
 
             parsedValue = null;
 
@@ -120,7 +120,7 @@ namespace System.Net.Http.Headers
 
             int current = startIndex;
 
-            // Caller must remove leading whitespaces.
+            // Caller must remove leading whitespace.
             DateTimeOffset date = DateTimeOffset.MinValue;
             int deltaSeconds = -1; // use -1 to indicate that the value was not set. 'delta' values are always >=0
 
@@ -148,7 +148,7 @@ namespace System.Net.Http.Headers
                     return 0;
                 }
 
-                if (!HeaderUtilities.TryParseInt32(input.Substring(deltaStartIndex, deltaLength), out deltaSeconds))
+                if (!HeaderUtilities.TryParseInt32(input, deltaStartIndex, deltaLength, out deltaSeconds))
                 {
                     return 0; // int.TryParse() may return 'false' if the value has 10 digits and is > Int32.MaxValue.
                 }
@@ -160,7 +160,7 @@ namespace System.Net.Http.Headers
                     return 0;
                 }
 
-                // If we got a valid date, then the parser consumed the whole string (incl. trailing whitespaces).
+                // If we got a valid date, then the parser consumed the whole string (incl. trailing whitespace).
                 current = input.Length;
             }
 

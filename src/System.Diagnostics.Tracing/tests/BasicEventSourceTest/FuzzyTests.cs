@@ -7,9 +7,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+#if USE_MDT_EVENTSOURCE
+using Microsoft.Diagnostics.Tracing;
+#else
 using System.Diagnostics.Tracing;
+#endif
 using Xunit;
-#if USE_ETW // TODO: Enable when TraceEvent is available on CoreCLR. GitHub issue #4864.
+#if USE_ETW
 using Microsoft.Diagnostics.Tracing.Session;
 #endif
 
@@ -21,7 +25,6 @@ namespace BasicEventSourceTests
         /// Tests the EventSource.Write[T] method (can only use the self-describing mechanism).  
         /// 
         /// </summary>
-        [ActiveIssue(4871, PlatformID.AnyUnix)]
         [Fact]
         public void Test_Write_Fuzzy()
         {
@@ -2744,11 +2747,19 @@ namespace BasicEventSourceTests
                     Assert.Equal("FWKFKXHDFY", evt.EventName);
                 }));
 
-                // Run tests for ETW
-#if USE_ETW // TODO: Enable when TraceEvent is available on CoreCLR. GitHub issue #4864.
-                EventTestHarness.RunTests(tests, new EtwListener(), logger);
+#if USE_ETW
+                if(TestUtilities.IsProcessElevated)
+                {
+                    using (var listener = new EtwListener())
+                    {
+                        EventTestHarness.RunTests(tests, listener, logger);
+                    }
+                }
 #endif // USE_ETW
-                EventTestHarness.RunTests(tests, new EventListenerListener(), logger);
+                using (var listener = new EventListenerListener())
+                {
+                    EventTestHarness.RunTests(tests, listener, logger);
+                }
             }
         }
     }

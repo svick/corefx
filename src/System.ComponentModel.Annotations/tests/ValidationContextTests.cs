@@ -2,46 +2,44 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using Xunit;
 
-namespace System.ComponentModel.DataAnnotations
+namespace System.ComponentModel.DataAnnotations.Tests
 {
     public class ValidationContextTests
     {
         [Fact]
         public static void Constructor_throws_if_passed_null_instance()
         {
-            Assert.Equal("instance",
-                Assert.Throws<ArgumentNullException>(() => new ValidationContext(null)).ParamName);
+            AssertExtensions.Throws<ArgumentNullException>("instance", () => new ValidationContext(null));
         }
 
         [Fact]
         public static void Constructor_creates_new_instance_for_one_arg_constructor()
         {
             var testDataAnnotationsDerived = new TestClass();
-            AssertEx.DoesNotThrow(() => new ValidationContext(testDataAnnotationsDerived));
+            new ValidationContext(testDataAnnotationsDerived);
         }
 
         [Fact]
         public static void Constructor_creates_new_instance_for_two_arg_constructor()
         {
             var testDataAnnotationsDerived = new TestClass();
-            AssertEx.DoesNotThrow(() => new ValidationContext(testDataAnnotationsDerived, null));
+            new ValidationContext(testDataAnnotationsDerived, null);
             var items = new Dictionary<object, object>();
-            AssertEx.DoesNotThrow(() => new ValidationContext(testDataAnnotationsDerived, items));
+            new ValidationContext(testDataAnnotationsDerived, items);
         }
 
         [Fact]
         public static void Constructor_creates_new_instance_for_three_arg_constructor()
         {
             var testDataAnnotationsDerived = new TestClass();
-            AssertEx.DoesNotThrow(() => new ValidationContext(testDataAnnotationsDerived, null, null));
+            new ValidationContext(testDataAnnotationsDerived, null, null);
             var items = new Dictionary<object, object>();
-            AssertEx.DoesNotThrow(() => new ValidationContext(testDataAnnotationsDerived, null, items));
+            new ValidationContext(testDataAnnotationsDerived, null, items);
             var serviceProvider = new TestServiceProvider();
-            AssertEx.DoesNotThrow(() => new ValidationContext(testDataAnnotationsDerived, serviceProvider, items));
+            new ValidationContext(testDataAnnotationsDerived, serviceProvider, items);
         }
 
         [Fact]
@@ -100,10 +98,8 @@ namespace System.ComponentModel.DataAnnotations
             Assert.Equal("ExistingMember", validationContext.DisplayName);
             validationContext.DisplayName = "NonExistentDisplayName";
             Assert.Equal("NonExistentDisplayName", validationContext.DisplayName);
-            Assert.Equal("value",
-                Assert.Throws<ArgumentNullException>(() => validationContext.DisplayName = null).ParamName);
-            Assert.Equal("value",
-                Assert.Throws<ArgumentNullException>(() => validationContext.DisplayName = string.Empty).ParamName);
+            AssertExtensions.Throws<ArgumentNullException>("value", () => validationContext.DisplayName = null);
+            AssertExtensions.Throws<ArgumentNullException>("value", () => validationContext.DisplayName = string.Empty);
         }
 
         // DisplayName_returns_class_name_for_unset_member_name_and_can_be_overridden()
@@ -139,6 +135,32 @@ namespace System.ComponentModel.DataAnnotations
             Assert.Equal("ExistingMember", validationContext.DisplayName);
             validationContext.DisplayName = "OverriddenDisplayName";
             Assert.Equal("OverriddenDisplayName", validationContext.DisplayName);
+        }
+
+        [Fact]
+        public void DisplayName_NoSuchMemberName_ReturnsMemberName()
+        {
+            var validationContext = new ValidationContext(new object()) { MemberName = "test" };
+            Assert.Equal("test", validationContext.DisplayName);
+        }
+
+        [Fact]
+        public void GetService_CustomServiceProvider_ReturnsNull()
+        {
+            var validationContext = new ValidationContext(new object());
+            validationContext.InitializeServiceProvider(type =>
+            {
+                Assert.Equal(typeof(int), type);
+                return typeof(bool);
+            });
+            Assert.Equal(typeof(bool), validationContext.GetService(typeof(int)));
+        }
+
+        [Fact]
+        public void GetService_NullServiceProvider_ReturnsNull()
+        {
+            var validationContext = new ValidationContext(new object());
+            Assert.Null(validationContext.GetService(typeof(int)));
         }
     }
 

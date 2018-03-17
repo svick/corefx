@@ -3,12 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Net.Http.Headers
 {
     // Don't derive from BaseHeaderParser since parsing is delegated to DateTimeOffset.TryParseExact() 
-    // which will remove leading, trailing, and whitespaces in the middle of the string.
+    // which will remove leading, trailing, and whitespace in the middle of the string.
     internal class DateHeaderParser : HttpHeaderParser
     {
         internal static readonly DateHeaderParser Parser = new DateHeaderParser();

@@ -25,9 +25,7 @@ namespace System.Net.Http
             _offset = 0;
             _count = content.Length;
             
-#if NETNative
             SetBuffer(_content, _offset, _count);
-#endif
         }
 
         public ByteArrayContent(byte[] content, int offset, int count)
@@ -49,9 +47,7 @@ namespace System.Net.Http
             _offset = offset;
             _count = count;
             
-#if NETNative
             SetBuffer(_content, _offset, _count);
-#endif
         }
 
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
@@ -66,9 +62,13 @@ namespace System.Net.Http
             return true;
         }
 
-        protected override Task<Stream> CreateContentReadStreamAsync()
-        {
-            return Task.FromResult<Stream>(new MemoryStream(_content, _offset, _count, writable: false));
-        }
+        protected override Task<Stream> CreateContentReadStreamAsync() =>
+            Task.FromResult<Stream>(CreateMemoryStreamForByteArray());
+
+        internal override Stream TryCreateContentReadStream() =>
+            GetType() == typeof(ByteArrayContent) ? CreateMemoryStreamForByteArray() : // type check ensures we use possible derived type's CreateContentReadStreamAsync override
+            null;
+
+        internal MemoryStream CreateMemoryStreamForByteArray() => new MemoryStream(_content, _offset, _count, writable: false);
     }
 }

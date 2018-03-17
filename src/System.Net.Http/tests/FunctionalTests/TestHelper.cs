@@ -3,19 +3,23 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.Linq;
+using System.Net.NetworkInformation;
+using System.Net.Security;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
-
+using System.Threading.Tasks;
 using Xunit;
 
 namespace System.Net.Http.Functional.Tests
 {
-    // TODO: This class will eventually be moved to Common once the HttpTestServers are finalized.
     public static class TestHelper
     {
+        public static int PassingTestTimeoutMilliseconds => 60 * 1000;
         public static bool JsonMessageContainsKeyValue(string message, string key, string value)
         {
-            // TODO: Align with the rest of tests w.r.t response parsing once the test server is finalized.
+            // TODO (#5525): Align with the rest of tests w.r.t response parsing once the test server is finalized.
             // Currently not adding any new dependencies
             string pattern = string.Format(@"""{0}"": ""{1}""", key, value);
             return message.Contains(pattern);
@@ -23,7 +27,7 @@ namespace System.Net.Http.Functional.Tests
 
         public static bool JsonMessageContainsKey(string message, string key)
         {
-            // TODO: Align with the rest of tests w.r.t response parsing once the test server is finalized.
+            // TODO (#5525): Align with the rest of tests w.r.t response parsing once the test server is finalized.
             // Currently not adding any new dependencies
             string pattern = string.Format(@"""{0}"": """, key);
             return message.Contains(pattern);
@@ -39,7 +43,7 @@ namespace System.Net.Http.Functional.Tests
             byte[] actualMD5Hash = ComputeMD5Hash(responseContent);
             Assert.Equal(expectedMD5Hash, actualMD5Hash);
 
-            // Verify upload semsntics: 'Content-Length' vs. 'Transfer-Encoding: chunked'.
+            // Verify upload semantics: 'Content-Length' vs. 'Transfer-Encoding: chunked'.
             if (requestBody != null)
             {
                 bool requestUsedContentLengthUpload =
@@ -79,5 +83,29 @@ namespace System.Net.Http.Functional.Tests
                 return md5.ComputeHash(data);
             }        
         }
+
+        public static Task WhenAllCompletedOrAnyFailed(params Task[] tasks)
+        {
+            return TaskTimeoutExtensions.WhenAllOrAnyFailed(tasks);
+        }
+
+        public static Task WhenAllCompletedOrAnyFailedWithTimeout(int timeoutInMilliseconds, params Task[] tasks)
+        {
+            return TaskTimeoutExtensions.WhenAllOrAnyFailed(tasks, timeoutInMilliseconds);
+        }
+
+#if netcoreapp
+       public static Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> AllowAllCertificates = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+#else
+        public static Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> AllowAllCertificates = (_, __, ___, ____) => true;
+#endif
+
+        public static IPAddress GetIPv6LinkLocalAddress() =>
+            NetworkInterface
+                .GetAllNetworkInterfaces()
+                .SelectMany(i => i.GetIPProperties().UnicastAddresses)
+                .Select(a => a.Address)
+                .Where(a => a.IsIPv6LinkLocal)
+                .FirstOrDefault();
     }
 }

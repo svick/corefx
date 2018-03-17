@@ -5,7 +5,6 @@
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics.Contracts;
 using System.Security.Claims;
 
 namespace System.Security.Principal
@@ -38,11 +37,10 @@ namespace System.Security.Principal
         {
             if (ntIdentity == null)
                 throw new ArgumentNullException(nameof(ntIdentity));
-            Contract.EndContractBlock();
 
             _identity = ntIdentity;
         }
-
+        
         //
         // Properties.
         //
@@ -131,7 +129,6 @@ namespace System.Security.Principal
         {
             if (role < WindowsBuiltInRole.Administrator || role > WindowsBuiltInRole.Replicator)
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)role), nameof(role));
-            Contract.EndContractBlock();
 
             return IsInRole((int)role);
         }
@@ -153,7 +150,6 @@ namespace System.Security.Principal
         {
             if (sid == null)
                 throw new ArgumentNullException(nameof(sid));
-            Contract.EndContractBlock();
 
             // special case the anonymous identity.
             if (_identity.AccessToken.IsInvalid)
@@ -163,7 +159,7 @@ namespace System.Security.Principal
             SafeAccessTokenHandle token = SafeAccessTokenHandle.InvalidHandle;
             if (_identity.ImpersonationLevel == TokenImpersonationLevel.None)
             {
-                if (!Interop.mincore.DuplicateTokenEx(_identity.AccessToken,
+                if (!Interop.Advapi32.DuplicateTokenEx(_identity.AccessToken,
                                                   (uint)TokenAccessLevels.Query,
                                                   IntPtr.Zero,
                                                   (uint)TokenImpersonationLevel.Identification,
@@ -173,11 +169,20 @@ namespace System.Security.Principal
             }
 
             bool isMember = false;
+
             // CheckTokenMembership will check if the SID is both present and enabled in the access token.
-            if (!Interop.mincore.CheckTokenMembership((_identity.ImpersonationLevel != TokenImpersonationLevel.None ? _identity.AccessToken : token),
+#if uap
+            if (!Interop.Kernel32.CheckTokenMembershipEx((_identity.ImpersonationLevel != TokenImpersonationLevel.None ? _identity.AccessToken : token),
+                                                  sid.BinaryForm,
+                                                  Interop.Kernel32.CTMF_INCLUDE_APPCONTAINER,
+                                                  ref isMember))
+                throw new SecurityException(new Win32Exception().Message);
+#else
+            if (!Interop.Advapi32.CheckTokenMembership((_identity.ImpersonationLevel != TokenImpersonationLevel.None ? _identity.AccessToken : token),
                                                   sid.BinaryForm,
                                                   ref isMember))
                 throw new SecurityException(new Win32Exception().Message);
+#endif
 
             token.Dispose();
             return isMember;

@@ -14,7 +14,7 @@ namespace System.Diagnostics.TraceSourceTests
 
         public override TraceListenerCollection Create(int count = 0)
         {
-            // TraceListenerCollection has an internal consructor
+            // TraceListenerCollection has an internal constructor
             // so we use a TraceSource to create one for us.
             var list = new TraceSource("Test").Listeners;
             list.Clear();
@@ -243,7 +243,7 @@ namespace System.Diagnostics.TraceSourceTests
             }
             else
             {
-                Assert.Throws<ArgumentException>(() => list.Add(item));
+                AssertExtensions.Throws<ArgumentException>("value", () => list.Add(item));
             }
         }
 
@@ -275,7 +275,7 @@ namespace System.Diagnostics.TraceSourceTests
                 Assert.Equal(item, list[1]);
 
                 var nonItem = CreateNonItem();
-                Assert.Throws<ArgumentException>(() => list[1] = nonItem);
+                AssertExtensions.Throws<ArgumentException>("value", () => list[1] = nonItem);
             }
         }
 
@@ -307,7 +307,7 @@ namespace System.Diagnostics.TraceSourceTests
         public virtual void InsertExceptionTest()
         {
             var list = Create(2);
-            Assert.Throws<ArgumentException>(() => list.Insert(1, null));
+            AssertExtensions.Throws<ArgumentException>("value", () => list.Insert(1, null));
         }
 
         [Fact]
@@ -401,7 +401,7 @@ namespace System.Diagnostics.TraceSourceTests
         {
             var list = Create(4);
             var arr = new Object[2];
-            Assert.Throws<ArgumentException>(() => list.CopyTo(arr, 0));
+            AssertExtensions.Throws<ArgumentException>("destinationArray", "", () => list.CopyTo(arr, 0));
         }
     }
 

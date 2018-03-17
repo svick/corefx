@@ -30,14 +30,14 @@ namespace System.Collections.Tests
 
             //[] Call Find an empty collection
             linkedList = new LinkedList<T>();
-            Assert.Null(linkedList.Find(headItems[0])); //"Err_2899hjaied Expected Find to return false with a non null item on a empty collection"
-            Assert.Null(linkedList.Find(default(T))); //"Err_5808ajiea Expected Find to return false with a null item on a empty collection"
+            Assert.Null(linkedList.Find(headItems[0])); //"Err_2899hjaied Expected Find to return false with a non null item on an empty collection"
+            Assert.Null(linkedList.Find(default(T))); //"Err_5808ajiea Expected Find to return false with a null item on an empty collection"
 
             //[] Call Find on a collection with one item in it
             linkedList = new LinkedList<T>();
             linkedList.AddLast(headItems[0]);
-            Assert.Null(linkedList.Find(headItems[1])); //"Err_2899hjaied Expected Find to return false with a non null item on a empty collection size=1"
-            Assert.Null(linkedList.Find(default(T))); //"Err_5808ajiea Expected Find to return false with a null item on a empty collection size=1"
+            Assert.Null(linkedList.Find(headItems[1])); //"Err_2899hjaied Expected Find to return false with a non null item on an empty collection size=1"
+            Assert.Null(linkedList.Find(default(T))); //"Err_5808ajiea Expected Find to return false with a null item on an empty collection size=1"
             VerifyFind(linkedList, new T[] { headItems[0] });
 
             //[] Call Find on a collection with two items in it
@@ -57,7 +57,7 @@ namespace System.Collections.Tests
             Assert.Null(linkedList.Find(default(T))); //"Err_3969887wiqpi Expected Find to return false with an null item not in the collection size=3"
             VerifyFind(linkedList, new T[] { headItems[0], headItems[1], headItems[2] });
 
-            //[] Call Find on a collection with mulitple items in it
+            //[] Call Find on a collection with multiple items in it
             linkedList = new LinkedList<T>();
             for (int i = 0; i < headItems.Length; ++i)
                 linkedList.AddLast(headItems[i]);

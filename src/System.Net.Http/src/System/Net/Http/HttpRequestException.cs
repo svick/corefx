@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace System.Net.Http
 {
+    [SuppressMessage("Microsoft.Serialization", "CA2229")]
     public class HttpRequestException : Exception
     {
         public HttpRequestException()

@@ -3,10 +3,13 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Runtime.Serialization;
 
 namespace System.ServiceProcess
 {
-    public class TimeoutException : Exception
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("System.ServiceProcess, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")]
+    public class TimeoutException : SystemException
     {
         private const int ServiceControllerTimeout = unchecked((int)0x80131906);
 
@@ -24,6 +27,11 @@ namespace System.ServiceProcess
             : base(message, innerException)
         {
             HResult = ServiceControllerTimeout;
+        }
+
+        protected TimeoutException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
+        {
         }
     }
 }

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Test.Common;
 using System.Security.Principal;
@@ -12,14 +13,16 @@ using Xunit;
 
 namespace System.Net.Security.Tests
 {
-    public class NegotiateStreamStreamToStreamTest
+    [PlatformSpecific(TestPlatforms.Windows)] // NegotiateStream only supports client-side functionality on Unix
+    public abstract class NegotiateStreamStreamToStreamTest
     {
         private readonly byte[] _sampleMsg = Encoding.UTF8.GetBytes("Sample Test Message");
 
-        [ActiveIssue(5284, PlatformID.Windows)]
+        protected abstract Task AuthenticateAsClientAsync(NegotiateStream client, NetworkCredential credential, string targetName);
+        protected abstract Task AuthenticateAsServerAsync(NegotiateStream server);
+
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
-        public void NegotiateStream_StreamToStream_Authentication_Success()
+        public async Task NegotiateStream_StreamToStream_Authentication_Success()
         {
             VirtualNetwork network = new VirtualNetwork();
 
@@ -32,11 +35,9 @@ namespace System.Net.Security.Tests
                 Assert.False(server.IsAuthenticated);
 
                 Task[] auth = new Task[2];
-                auth[0] = client.AuthenticateAsClientAsync();
-                auth[1] = server.AuthenticateAsServerAsync();
-
-                bool finished = Task.WaitAll(auth, TestConfiguration.PassingTestTimeoutMilliseconds);
-                Assert.True(finished, "Handshake completed in the allotted time");
+                auth[0] = AuthenticateAsClientAsync(client, CredentialCache.DefaultNetworkCredentials, string.Empty);
+                auth[1] = AuthenticateAsServerAsync(server);
+                await TestConfiguration.WhenAllOrAnyFailedWithTimeout(auth);
 
                 // Expected Client property values:
                 Assert.True(client.IsAuthenticated);
@@ -65,14 +66,13 @@ namespace System.Net.Security.Tests
                 Assert.Equal("NTLM", clientIdentity.AuthenticationType);
 
                 Assert.Equal(true, clientIdentity.IsAuthenticated);
+
                 IdentityValidator.AssertIsCurrentIdentity(clientIdentity);
             }
         }
 
-        [ActiveIssue(5284, PlatformID.Windows)]
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
-        public void NegotiateStream_StreamToStream_Authentication_TargetName_Success()
+        public async Task NegotiateStream_StreamToStream_Authentication_TargetName_Success()
         {
             string targetName = "testTargetName";
 
@@ -88,11 +88,10 @@ namespace System.Net.Security.Tests
 
                 Task[] auth = new Task[2];
 
-                auth[0] = client.AuthenticateAsClientAsync(CredentialCache.DefaultNetworkCredentials, targetName);
-                auth[1] = server.AuthenticateAsServerAsync();
+                auth[0] = AuthenticateAsClientAsync(client, CredentialCache.DefaultNetworkCredentials, targetName);
+                auth[1] = AuthenticateAsServerAsync(server);
 
-                bool finished = Task.WaitAll(auth, TestConfiguration.PassingTestTimeoutMilliseconds);
-                Assert.True(finished, "Handshake completed in the allotted time");
+                await TestConfiguration.WhenAllOrAnyFailedWithTimeout(auth);
 
                 // Expected Client property values:
                 Assert.True(client.IsAuthenticated);
@@ -121,14 +120,14 @@ namespace System.Net.Security.Tests
                 Assert.Equal("NTLM", clientIdentity.AuthenticationType);
 
                 Assert.Equal(true, clientIdentity.IsAuthenticated);
+
                 IdentityValidator.AssertIsCurrentIdentity(clientIdentity);
             }
         }
 
-        [ActiveIssue(5284, PlatformID.Windows)]
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
-        public void NegotiateStream_StreamToStream_Authentication_EmptyCredentials_Fails()
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, ".NET Core difference in behavior: https://github.com/dotnet/corefx/issues/5241")]
+        public async Task NegotiateStream_StreamToStream_Authentication_EmptyCredentials_Fails()
         {
             string targetName = "testTargetName";
 
@@ -150,11 +149,10 @@ namespace System.Net.Security.Tests
 
                 Task[] auth = new Task[2];
 
-                auth[0] = client.AuthenticateAsClientAsync(emptyNetworkCredential, targetName);
-                auth[1] = server.AuthenticateAsServerAsync();
+                auth[0] = AuthenticateAsClientAsync(client, emptyNetworkCredential, targetName);
+                auth[1] = AuthenticateAsServerAsync(server);
 
-                bool finished = Task.WaitAll(auth, TestConfiguration.PassingTestTimeoutMilliseconds);
-                Assert.True(finished, "Handshake completed in the allotted time");
+                await TestConfiguration.WhenAllOrAnyFailedWithTimeout(auth);
 
                 // Expected Client property values:
                 Assert.True(client.IsAuthenticated);
@@ -186,14 +184,12 @@ namespace System.Net.Security.Tests
                 Assert.Equal(false, clientIdentity.IsAuthenticated);
                 // On .Net Desktop: Assert.Equal(true, clientIdentity.IsAuthenticated);
 
-                IdentityValidator.AssertHasName(clientIdentity, @"NT AUTHORITY\ANONYMOUS LOGON");
+                IdentityValidator.AssertHasName(clientIdentity, new SecurityIdentifier(WellKnownSidType.AnonymousSid, null).Translate(typeof(NTAccount)).Value);
             }
         }
 
-        [ActiveIssue(5283, PlatformID.Windows)]
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
-        public void NegotiateStream_StreamToStream_Successive_ClientWrite_Sync_Success()
+        public async Task NegotiateStream_StreamToStream_Successive_ClientWrite_Sync_Success()
         {
             byte[] recvBuf = new byte[_sampleMsg.Length];
             VirtualNetwork network = new VirtualNetwork();
@@ -207,11 +203,10 @@ namespace System.Net.Security.Tests
                 Assert.False(server.IsAuthenticated);
 
                 Task[] auth = new Task[2];
-                auth[0] = client.AuthenticateAsClientAsync();
-                auth[1] = server.AuthenticateAsServerAsync();
+                auth[0] = AuthenticateAsClientAsync(client, CredentialCache.DefaultNetworkCredentials, string.Empty);
+                auth[1] = AuthenticateAsServerAsync(server);
 
-                bool finished = Task.WaitAll(auth, TestConfiguration.PassingTestTimeoutMilliseconds);
-                Assert.True(finished, "Handshake completed in the allotted time");
+                await TestConfiguration.WhenAllOrAnyFailedWithTimeout(auth);
 
                 client.Write(_sampleMsg, 0, _sampleMsg.Length);
                 server.Read(recvBuf, 0, _sampleMsg.Length);
@@ -225,10 +220,8 @@ namespace System.Net.Security.Tests
             }
         }
 
-        [ActiveIssue(5284, PlatformID.Windows)]
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
-        public void NegotiateStream_StreamToStream_Successive_ClientWrite_Async_Success()
+        public async Task NegotiateStream_StreamToStream_Successive_ClientWrite_Async_Success()
         {
             byte[] recvBuf = new byte[_sampleMsg.Length];
             VirtualNetwork network = new VirtualNetwork();
@@ -242,31 +235,80 @@ namespace System.Net.Security.Tests
                 Assert.False(server.IsAuthenticated);
 
                 Task[] auth = new Task[2];
-                auth[0] = client.AuthenticateAsClientAsync();
-                auth[1] = server.AuthenticateAsServerAsync();
+                auth[0] = AuthenticateAsClientAsync(client, CredentialCache.DefaultNetworkCredentials, string.Empty);
+                auth[1] = AuthenticateAsServerAsync(server);
 
-                bool finished = Task.WaitAll(auth, TestConfiguration.PassingTestTimeoutMilliseconds);
-                Assert.True(finished, "Handshake completed in the allotted time");
+                await TestConfiguration.WhenAllOrAnyFailedWithTimeout(auth);
 
                 auth[0] = client.WriteAsync(_sampleMsg, 0, _sampleMsg.Length);
                 auth[1] = server.ReadAsync(recvBuf, 0, _sampleMsg.Length);
-                finished = Task.WaitAll(auth, TestConfiguration.PassingTestTimeoutMilliseconds);
-                Assert.True(finished, "Send/receive completed in the allotted time");
+                await TestConfiguration.WhenAllOrAnyFailedWithTimeout(auth);
                 Assert.True(_sampleMsg.SequenceEqual(recvBuf));
 
                 auth[0] = client.WriteAsync(_sampleMsg, 0, _sampleMsg.Length);
                 auth[1] = server.ReadAsync(recvBuf, 0, _sampleMsg.Length);
-                finished = Task.WaitAll(auth, TestConfiguration.PassingTestTimeoutMilliseconds);
-                Assert.True(finished, "Send/receive completed in the allotted time");
+                await TestConfiguration.WhenAllOrAnyFailedWithTimeout(auth);
                 Assert.True(_sampleMsg.SequenceEqual(recvBuf));
             }
         }
-        
+
+
         [Fact]
-        [PlatformSpecific(PlatformID.Linux | PlatformID.OSX)]
-        public void NegotiateStream_Ctor_Throws()
+        public void NegotiateStream_StreamToStream_Flush_Propagated()
         {
-            Assert.Throws<PlatformNotSupportedException>(() => new NegotiateStream(new VirtualNetworkStream(null, isServer: false)));
+            VirtualNetwork network = new VirtualNetwork();
+
+            using (var stream = new VirtualNetworkStream(network, isServer: false))
+            using (var negotiateStream = new NegotiateStream(stream))
+            {
+                Assert.False(stream.HasBeenSyncFlushed);
+                negotiateStream.Flush();
+                Assert.True(stream.HasBeenSyncFlushed);
+            }
         }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "Relies on FlushAsync override not available in desktop")]
+        public void NegotiateStream_StreamToStream_FlushAsync_Propagated()
+        {
+            VirtualNetwork network = new VirtualNetwork();
+
+            using (var stream = new VirtualNetworkStream(network, isServer: false))
+            using (var negotiateStream = new NegotiateStream(stream))
+            {
+                Task task = negotiateStream.FlushAsync();
+
+                Assert.False(task.IsCompleted);
+                stream.CompleteAsyncFlush();
+                Assert.True(task.IsCompleted);
+            }
+        }
+    }
+
+    public sealed class NegotiateStreamStreamToStreamTest_Async : NegotiateStreamStreamToStreamTest
+    {
+        protected override Task AuthenticateAsClientAsync(NegotiateStream client, NetworkCredential credential, string targetName) =>
+            client.AuthenticateAsClientAsync(credential, targetName);
+
+        protected override Task AuthenticateAsServerAsync(NegotiateStream server) =>
+            server.AuthenticateAsServerAsync();
+    }
+
+    public sealed class NegotiateStreamStreamToStreamTest_BeginEnd : NegotiateStreamStreamToStreamTest
+    {
+        protected override Task AuthenticateAsClientAsync(NegotiateStream client, NetworkCredential credential, string targetName) =>
+            Task.Factory.FromAsync(client.BeginAuthenticateAsClient, client.EndAuthenticateAsClient, credential, targetName, null);
+
+        protected override Task AuthenticateAsServerAsync(NegotiateStream server) =>
+            Task.Factory.FromAsync(server.BeginAuthenticateAsServer, server.EndAuthenticateAsServer, null);
+    }
+
+    public sealed class NegotiateStreamStreamToStreamTest_Sync : NegotiateStreamStreamToStreamTest
+    {
+        protected override Task AuthenticateAsClientAsync(NegotiateStream client, NetworkCredential credential, string targetName) =>
+            Task.Run(() => client.AuthenticateAsClient(credential, targetName));
+
+        protected override Task AuthenticateAsServerAsync(NegotiateStream server) =>
+            Task.Run(() => server.AuthenticateAsServer());
     }
 }

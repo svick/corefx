@@ -12,7 +12,6 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Contracts;
 
 namespace System.Collections
 {
@@ -20,14 +19,17 @@ namespace System.Collections
     // buffer, so Enqueue can be O(n).  Dequeue is O(1).
     [DebuggerTypeProxy(typeof(System.Collections.Queue.QueueDebugView))]
     [DebuggerDisplay("Count = {Count}")]
-    public class Queue : ICollection
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
+    public class Queue : ICollection, ICloneable
     {
-        private Object[] _array;
-        private int _head;       // First valid element in the queue
-        private int _tail;       // Last valid element in the queue
-        private int _size;       // Number of elements.
-        private int _growFactor; // 100 == 1.0, 130 == 1.3, 200 == 2.0
-        private int _version;
+        private Object[] _array; // Do not rename (binary serialization)
+        private int _head; // First valid element in the queue. Do not rename (binary serialization)
+        private int _tail; // Last valid element in the queue. Do not rename (binary serialization)
+        private int _size; // Number of elements. Do not rename (binary serialization)
+        private int _growFactor; // 100 == 1.0, 130 == 1.3, 200 == 2.0. Do not rename (binary serialization)
+        private int _version; // Do not rename (binary serialization)
+        [NonSerialized]
         private Object _syncRoot;
 
         private const int _MinimumGrow = 4;
@@ -57,7 +59,6 @@ namespace System.Collections
                 throw new ArgumentOutOfRangeException(nameof(capacity), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (!(growFactor >= 1.0 && growFactor <= 10.0))
                 throw new ArgumentOutOfRangeException(nameof(growFactor), SR.Format(SR.ArgumentOutOfRange_QueueGrowFactor, 1, 10));
-            Contract.EndContractBlock();
 
             _array = new Object[capacity];
             _head = 0;
@@ -73,7 +74,7 @@ namespace System.Collections
         {
             if (col == null)
                 throw new ArgumentNullException(nameof(col));
-            Contract.EndContractBlock();
+
             IEnumerator en = col.GetEnumerator();
             while (en.MoveNext())
                 Enqueue(en.Current);
@@ -147,10 +148,10 @@ namespace System.Collections
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
             if (array.Rank != 1)
-                throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
+                throw new ArgumentException(SR.Arg_RankMultiDimNotSupported, nameof(array));
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
-            Contract.EndContractBlock();
+
             int arrayLen = array.Length;
             if (arrayLen - index < _size)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
@@ -199,7 +200,6 @@ namespace System.Collections
         {
             if (Count == 0)
                 throw new InvalidOperationException(SR.InvalidOperation_EmptyQueue);
-            Contract.EndContractBlock();
 
             Object removed = _array[_head];
             _array[_head] = null;
@@ -216,7 +216,6 @@ namespace System.Collections
         {
             if (Count == 0)
                 throw new InvalidOperationException(SR.InvalidOperation_EmptyQueue);
-            Contract.EndContractBlock();
 
             return _array[_head];
         }
@@ -229,7 +228,7 @@ namespace System.Collections
         {
             if (queue == null)
                 throw new ArgumentNullException(nameof(queue));
-            Contract.EndContractBlock();
+
             return new SynchronizedQueue(queue);
         }
 
@@ -441,7 +440,7 @@ namespace System.Collections
         // Implements an enumerator for a Queue.  The enumerator uses the
         // internal version number of the list to ensure that no modifications are
         // made to the list while an enumeration is in progress.
-        private class QueueEnumerator : IEnumerator
+        private class QueueEnumerator : IEnumerator, ICloneable
         {
             private Queue _q;
             private int _index;
@@ -457,6 +456,8 @@ namespace System.Collections
                 if (_q._size == 0)
                     _index = -1;
             }
+
+            public object Clone() => MemberwiseClone();
 
             public virtual bool MoveNext()
             {
@@ -510,7 +511,6 @@ namespace System.Collections
             {
                 if (queue == null)
                     throw new ArgumentNullException(nameof(queue));
-                Contract.EndContractBlock();
 
                 _queue = queue;
             }

@@ -12,22 +12,41 @@ namespace System.Net.Tests
 {
     public class HttpWebResponseTest
     {
-        [Fact]
-        public async Task ContentType_ServerResponseHasContentTypeHeader_ContentTypeIsNonEmptyString()
+        [Theory]
+        [InlineData("text/html")]
+        [InlineData("text/html; charset=utf-8")]
+        [InlineData("TypeAndNoSubType")]
+        public async Task ContentType_ServerResponseHasContentTypeHeader_ContentTypeReceivedCorrectly(string expectedContentType)
         {
-            HttpWebRequest request = WebRequest.CreateHttp(HttpTestServers.RemoteEchoServer);
-            request.Method = HttpMethod.Get.Method;
-            WebResponse response = await request.GetResponseAsync();
-            Assert.True(!string.IsNullOrEmpty(response.ContentType));
+            await LoopbackServer.CreateServerAsync(async (server, url) =>
+            {
+                HttpWebRequest request = WebRequest.CreateHttp(url);
+                request.Method = HttpMethod.Get.Method;
+                Task<WebResponse> getResponse = request.GetResponseAsync();
+                await server.AcceptConnectionSendResponseAndCloseAsync(HttpStatusCode.OK, $"Content-Type: {expectedContentType}\r\n", "12345");
+
+                using (WebResponse response = await getResponse)
+                {
+                    Assert.Equal(expectedContentType, response.ContentType);
+                }
+            });
         }
 
         [Fact]
         public async Task ContentType_ServerResponseMissingContentTypeHeader_ContentTypeIsEmptyString()
         {
-            HttpWebRequest request = WebRequest.CreateHttp(HttpTestServers.RemoteEmptyContentServer);
-            request.Method = HttpMethod.Get.Method;
-            WebResponse response = await request.GetResponseAsync();
-            Assert.Equal(string.Empty, response.ContentType);
+            await LoopbackServer.CreateServerAsync(async (server, url) =>
+            {
+                HttpWebRequest request = WebRequest.CreateHttp(url);
+                request.Method = HttpMethod.Get.Method;
+                Task<WebResponse> getResponse = request.GetResponseAsync();
+                await server.AcceptConnectionSendResponseAndCloseAsync(content: "12345");
+
+                using (WebResponse response = await getResponse)
+                {
+                    Assert.Equal(string.Empty, response.ContentType);
+                }
+            });
         }
     }
 }

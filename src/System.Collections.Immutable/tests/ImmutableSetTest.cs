@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using Xunit;
 using SetTriad = System.Tuple<System.Collections.Generic.IEnumerable<int>, System.Collections.Generic.IEnumerable<int>, bool>;
@@ -222,11 +221,37 @@ namespace System.Collections.Immutable.Tests
             Assert.Same(builder.SyncRoot, builder.SyncRoot);
         }
 
+        [Fact]
+        public void NullHandling()
+        {
+            var empty = this.Empty<string>();
+            var set = empty.Add(null);
+            Assert.True(set.Contains(null));
+            Assert.True(set.TryGetValue(null, out var @null));
+            Assert.Null(@null);
+            Assert.Equal(empty, set.Remove(null));
+
+            set = empty.Union(new[] { null, "a" });
+            Assert.True(set.IsSupersetOf(new[] { null, "a" }));
+            Assert.True(set.IsSubsetOf(new[] { null, "a" }));
+            Assert.True(set.IsProperSupersetOf(new[] { default(string) }));
+            Assert.True(set.IsProperSubsetOf(new[] { null, "a", "b" }));
+            Assert.True(set.Overlaps(new[] { null, "b" }));
+            Assert.True(set.SetEquals(new[] { null, null, "a", "a" }));
+
+            set = set.Intersect(new[] { default(string) });
+            Assert.Equal(1, set.Count);
+
+            set = set.Except(new[] { default(string) });
+            Assert.False(set.Contains(null));
+        }
+
         protected abstract bool IncludesGetHashCodeDerivative { get; }
 
         internal static List<T> ToListNonGeneric<T>(System.Collections.IEnumerable sequence)
         {
-            Contract.Requires(sequence != null);
+            Assert.NotNull(sequence);
+
             var list = new List<T>();
             var enumerator = sequence.GetEnumerator();
             while (enumerator.MoveNext())
@@ -268,9 +293,9 @@ namespace System.Collections.Immutable.Tests
 
         protected void CustomSortTestHelper<T>(IImmutableSet<T> emptySet, bool matchOrder, T[] injectedValues, T[] expectedValues)
         {
-            Contract.Requires(emptySet != null);
-            Contract.Requires(injectedValues != null);
-            Contract.Requires(expectedValues != null);
+            Assert.NotNull(emptySet);
+            Assert.NotNull(injectedValues);
+            Assert.NotNull(expectedValues);
 
             var set = emptySet;
             foreach (T value in injectedValues)
@@ -296,7 +321,7 @@ namespace System.Collections.Immutable.Tests
         /// <param name="emptySet">The empty set.</param>
         protected void EmptyTestHelper<T>(IImmutableSet<T> emptySet)
         {
-            Contract.Requires(emptySet != null);
+            Assert.NotNull(emptySet);
 
             Assert.Equal(0, emptySet.Count); //, "Empty set should have a Count of 0");
             Assert.Equal(0, emptySet.Count()); //, "Enumeration of an empty set yielded elements.");
@@ -398,8 +423,8 @@ namespace System.Collections.Immutable.Tests
 
         private void RemoveTestHelper<T>(IImmutableSet<T> set, params T[] values)
         {
-            Contract.Requires(set != null);
-            Contract.Requires(values != null);
+            Assert.NotNull(set);
+            Assert.NotNull(values);
 
             Assert.Same(set, set.Except(Enumerable.Empty<T>()));
 
@@ -442,8 +467,8 @@ namespace System.Collections.Immutable.Tests
 
         private void AddRemoveLoadTestHelper<T>(IImmutableSet<T> set, T[] data)
         {
-            Contract.Requires(set != null);
-            Contract.Requires(data != null);
+            Assert.NotNull(set);
+            Assert.NotNull(data);
 
             foreach (T value in data)
             {
@@ -514,8 +539,8 @@ namespace System.Collections.Immutable.Tests
 
         private void ExceptTestHelper<T>(IImmutableSet<T> set, params T[] valuesToRemove)
         {
-            Contract.Requires(set != null);
-            Contract.Requires(valuesToRemove != null);
+            Assert.NotNull(set);
+            Assert.NotNull(valuesToRemove);
 
             var expectedSet = new HashSet<T>(set);
             expectedSet.ExceptWith(valuesToRemove);
@@ -528,8 +553,8 @@ namespace System.Collections.Immutable.Tests
 
         private void SymmetricExceptTestHelper<T>(IImmutableSet<T> set, params T[] otherCollection)
         {
-            Contract.Requires(set != null);
-            Contract.Requires(otherCollection != null);
+            Assert.NotNull(set);
+            Assert.NotNull(otherCollection);
 
             var expectedSet = new HashSet<T>(set);
             expectedSet.SymmetricExceptWith(otherCollection);
@@ -542,8 +567,8 @@ namespace System.Collections.Immutable.Tests
 
         private void IntersectTestHelper<T>(IImmutableSet<T> set, params T[] values)
         {
-            Contract.Requires(set != null);
-            Contract.Requires(values != null);
+            Assert.NotNull(set);
+            Assert.NotNull(values);
 
             Assert.True(set.Intersect(Enumerable.Empty<T>()).Count == 0);
 
@@ -558,8 +583,8 @@ namespace System.Collections.Immutable.Tests
 
         private void UnionTestHelper<T>(IImmutableSet<T> set, params T[] values)
         {
-            Contract.Requires(set != null);
-            Contract.Requires(values != null);
+            Assert.NotNull(set);
+            Assert.NotNull(values);
 
             var expected = new HashSet<T>(set);
             expected.UnionWith(values);
@@ -572,8 +597,8 @@ namespace System.Collections.Immutable.Tests
 
         private void AddTestHelper<T>(IImmutableSet<T> set, params T[] values)
         {
-            Contract.Requires(set != null);
-            Contract.Requires(values != null);
+            Assert.NotNull(set);
+            Assert.NotNull(values);
 
             Assert.Same(set, set.Union(Enumerable.Empty<T>()));
 

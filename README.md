@@ -1,83 +1,104 @@
 # .NET Core Libraries (CoreFX)
 
-The corefx repo contains the library implementation (called "CoreFX") for [.NET Core](http://github.com/dotnet/core). It includes System.Collections, System.IO, System.Xml, and many other components. You can see more information in [Documentation](Documentation/README.md). The corresponding [.NET Core Runtime repo](https://github.com/dotnet/coreclr) contains the runtime implementation (called "CoreCLR") for .NET Core. It includes RyuJIT, the .NET GC, and many other components. Runtime-specific library code - namely [mscorlib][mscorlib] - lives in the CoreCLR repo. It needs to be built and versioned in tandem with the runtime. The rest of CoreFX is agnostic of runtime-implementation and can be run on any compatible .NET runtime.
+This repo contains the library implementation (called "CoreFX") for .NET Core. It includes System.Collections, System.IO, System.Xml, and many other components.
+The corresponding [.NET Core Runtime repo](https://github.com/dotnet/coreclr) (called "CoreCLR") contains the runtime implementation for .NET Core. It includes RyuJIT, the .NET GC, and many other components.
+Runtime-specific library code ([mscorlib](https://github.com/dotnet/coreclr/tree/master/src/mscorlib)) lives in the CoreCLR repo. It needs to be built and versioned in tandem with the runtime. The rest of CoreFX is agnostic of runtime-implementation and can be run on any compatible .NET runtime (e.g. [CoreRT](https://github.com/dotnet/corert)).
 
-[mscorlib]: https://github.com/dotnet/coreclr/tree/master/src/mscorlib
 
-## Build Status
 
-|   | Debug | Release |
-|---|------:|--------:|
-|**CentOS 7.1**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/centos7.1_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/centos7.1_debug)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_centos7.1_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_centos7.1_debug/)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/centos7.1_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/centos7.1_release)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_centos7.1_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_centos7.1_release/)|
-|**Debian 8.2**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/debian8.2_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/debian8.2_debug)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/debian8.2_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/debian8.2_release)|
-|**openSUSE 13.2**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/opensuse13.2_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/opensuse13.2_debug)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_opensuse13.2_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_opensuse13.2_debug/)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/opensuse13.2_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/opensuse13.2_release)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_opensuse13.2_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_opensuse13.2_release/)|
-|**OS X 10.11**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/osx_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/osx_debug)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_osx_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_osx_debug/)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/osx_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/osx_release)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_osx_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_osx_release/)|
-|**Red Hat 7.2**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/rhel7.2_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/rhel7.2_debug)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_rhel7.2_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_rhel7.2_debug/)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/rhel7.2_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/rhel7.2_release)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_rhel7.2_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_rhel7.2_release/)|
-|**Ubuntu 14.04**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/ubuntu_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/ubuntu_debug)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_ubuntu14.04_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_ubuntu14.04_debug/)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/ubuntu_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/ubuntu_release)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_ubuntu14.04_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_ubuntu14.04_release/)|
-|**Ubuntu 15.10**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/ubuntu15.10_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/ubuntu15.10_debug)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_ubuntu15.10_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_ubuntu15.10_debug/)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/ubuntu15.10_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/ubuntu15.10_release)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_ubuntu15.10_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_ubuntu15.10_release/)|
-|**Windows 7**|[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_win7_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_win7_debug)|[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_win7_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_win7_release)|
-|**Windows 8**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/windows_nt_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/windows_nt_debug)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_windows_nt_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_windows_nt_debug)<br/>[![coverage](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/code_coverage_windows.svg?label=coverage)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/code_coverage_windows/Code_Coverage_Report)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/windows_nt_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/windows_nt_release)<br/>[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_windows_nt_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_windows_nt_release)|
-|**Windows 10**|[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_win10_debug.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_win10_debug)|[![outerloop build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_win10_release.svg?label=outerloop+build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_win10_release)|
-|**Windows Nano Server**|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_winnano_debug.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_winnano_debug)|[![build & test](https://img.shields.io/jenkins/s/http/dotnet-ci.cloudapp.net/job/dotnet_corefx/outerloop_winnano_release.svg?label=build+%26+test)](http://dotnet-ci.cloudapp.net/job/dotnet_corefx/job/outerloop_winnano_release)|
+## .NET Core
+
+Official Starting Page: http://dotnet.github.io
+
+* [How to use .NET Core](https://github.com/dotnet/core/#get-started) (with VS, VS Code, command-line CLI)
+  * [Install official releases](https://www.microsoft.com/net/core)
+  * [Documentation](https://docs.microsoft.com/en-us/dotnet) (Get Started, Tutorials, Porting from .NET Framework, API reference, ...)
+    * [Deploying apps](https://docs.microsoft.com/en-us/dotnet/articles/core/preview3/deploying)
+  * [Supported OS versions](https://github.com/dotnet/core/blob/master/roadmap.md#technology-roadmaps)
+* [Roadmap](https://github.com/dotnet/core/blob/master/roadmap.md)
+* [Releases](https://github.com/dotnet/core/tree/master/release-notes)
+* [Bringing more APIs to .NET Core](https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/porting.md) (and why some APIs will be left out)
+
+
 
 ## How to Engage, Contribute and Provide Feedback
 
-Some of the best ways to contribute are to try things out, file bugs, and join in design conversations. If you are having issues with the Full .NET Framework or .NET Runtime, the best way to file a bug is at [Connect](http://connect.microsoft.com/VisualStudio) or through [Product Support](https://support.microsoft.com/en-us/contactus?ws=support) if you have a contract.
+Some of the best ways to contribute are to try things out, file bugs, join in design conversations, and fix issues.
 
-Want to get more familiar with what's going on in the code?
-* [Pull requests](https://github.com/dotnet/corefx/pulls): [Open](https://github.com/dotnet/corefx/pulls?q=is%3Aopen+is%3Apr)/[Closed](https://github.com/dotnet/corefx/pulls?q=is%3Apr+is%3Aclosed)
-* [![Backlog](https://cloud.githubusercontent.com/assets/1302850/6260412/38987b1e-b793-11e4-9ade-d3fef4c6bf48.png)](https://github.com/dotnet/corefx/issues?q=is%3Aopen+is%3Aissue+label%3A%220+-+Backlog%22), [![Up Next](https://cloud.githubusercontent.com/assets/1302850/6260418/4c2c7a54-b793-11e4-8ce1-a27ff5378d08.png)](https://github.com/dotnet/corefx/issues?q=is%3Aopen+is%3Aissue+label%3A%221+-+Up+Next%22) and [![In Progress](https://cloud.githubusercontent.com/assets/1302850/6260414/41b0fc30-b793-11e4-9d50-d09563cd138a.png)](https://github.com/dotnet/corefx/issues?q=is%3Aopen+is%3Aissue+label%3A%222+-+In+Progress%22) changes
+* [Dogfooding daily builds](https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/dogfooding.md)
+* If you have a question or idea, [file a new issue](https://github.com/dotnet/corefx/issues/new).
 
-Looking for something to work on? The list of [up-for-grabs issues](https://github.com/dotnet/corefx/labels/up%20for%20grabs) is a great place to start. See some of our guides for more details:
+If you are having issues with the "full" .NET Framework (also called "Desktop"), the best way to file a bug is the [Report a Problem](https://aka.ms/vs-rap) tool, which is integrated with the [VS Developer Community Portal](https://developercommunity.visualstudio.com/); or through [Product Support](https://support.microsoft.com/en-us/contactus?ws=support) if you have a contract.
 
-* [Contributing Guide](Documentation/project-docs/contributing.md)
-* [Developer Guide](Documentation/project-docs/developer-guide.md)
-* [Issue Guide](Documentation/project-docs/issue-guide.md)
+### Issue Guide
 
-We've also started to share some of our direction via more higher-level documentation, specifically:
+This section is **in progress** here: [New contributor Docs - Issues](https://github.com/dotnet/corefx/wiki/New-contributor-Docs#issue-guide) (feel free to make it better - it's easy-to-edit wiki with RW permissions to everyone!)
 
-* [Road to RTM](Documentation/project-docs/rtm.md)
-* [How we triage](Documentation/project-docs/triage.md)
-* [Porting to .NET Core](Documentation/project-docs/porting.md)
+Each issue area has one or more Microsoft owners, who are [listed here](https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/issue-guide.md).
 
-You are also encouraged to start a discussion by filing an issue or creating a
-gist.
+### Contributing Guide
 
-You can discuss .NET OSS more generally in the [.NET Foundation forums].
+This section is **in progress** here: [New contributor Docs - Contributing](https://github.com/dotnet/corefx/wiki/New-contributor-Docs#contributing-guide) (feel free to make it better - it's easy-to-edit wiki with RW permissions to everyone!) 
 
-Want to chat with other members of the CoreFX community?
+### Useful Links
 
-[![Join the chat at https://gitter.im/dotnet/corefx](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/dotnet/corefx?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+* [.NET Core source index](https://source.dot.net) / [.NET Framework source index](https://referencesource.microsoft.com)
+* [API Reference docs](https://docs.microsoft.com/en-us/dotnet/core/api)
+* [.NET API Catalog](http://apisof.net) (incl. APIs from daily builds and API usage info)
 
-[.NET Foundation forums]: http://forums.dotnetfoundation.org/
+### Community
 
-## .NET Core Library Components
+* General .NET OSS discussions: [.NET Foundation forums](http://forums.dotnetfoundation.org)
+* Chat with other community members [![Join the chat at https://gitter.im/dotnet/corefx](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/dotnet/corefx?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![.NET Slack Status](https://aspnetcoreslack.herokuapp.com/badge.svg?2)](http://tattoocoder.com/aspnet-slack-sign-up)
 
-The repo contains the source for each of the assemblies that comprises .NET Core.  Each ```Microsoft.*``` or ```System.``` folder under
-[src](https://github.com/dotnet/corefx/tree/master/src) represents an individual library.  Each such folder may contain a ```ref``` folder,
-which contains the source representing the "contract" or "reference assembly" for that library.  It may also contain a ```src``` folder,
-which contains the source for some or all of the implementation for that library (some implementation may live in mscorlib in the 
-[coreclr repo](https://github.com/dotnet/coreclr), with the build tooling generating type forwards from the library assembly to mscorlib.)  
-It may also contain a ```test``` folder containing the tests associated with that library, whether the implementation source lives in corefx 
-or in coreclr.
+This project has adopted the code of conduct defined by the [Contributor Covenant](http://contributor-covenant.org/)
+to clarify expected behavior in our community. For more information, see the [.NET Foundation Code of Conduct](http://www.dotnetfoundation.org/code-of-conduct).
 
-## Daily Builds
+### Reporting security issues and security bugs
 
-Daily builds of .NET Core components are published to [dotnet-core MyGet gallery](https://www.myget.org/gallery/dotnet-core).
-The latest version number of each library can be seen in that gallery.
+Security issues and bugs should be reported privately, via email, to the Microsoft Security Response Center (MSRC) <secure@microsoft.com>. You should receive a response within 24 hours. If for some reason you do not, please follow up via email to ensure we received your original message. Further information, including the MSRC PGP key, can be found in the [Security TechCenter](https://technet.microsoft.com/en-us/security/ff852094.aspx).
+
+Also see info about related [Microsoft .NET Core and ASP.NET Core Bug Bounty Program](https://technet.microsoft.com/en-us/mt764065.aspx).
 
 ## License
 
-.NET Core (including the corefx repo) is licensed under the [MIT license](LICENSE).
+.NET Core (including the corefx repo) is licensed under the [MIT license](LICENSE.TXT).
+
+
 
 ## .NET Foundation
 
 .NET Core is a [.NET Foundation](http://www.dotnetfoundation.org/projects) project.
 
-## Related Projects
 There are many .NET related projects on GitHub.
 
-- The [.NET home repo](https://github.com/Microsoft/dotnet) links to 100s of .NET projects, from Microsoft and the community.
-- The [.NET Core repo](https://github.com/dotnet/core) links to .NET Core related projects from Microsoft.
-- The [ASP.NET home repo](https://github.com/aspnet/home) is the best place to start learning about ASP.NET 5.
-- [dotnet.github.io](http://dotnet.github.io) is a good place to discover .NET Foundation projects.
+- [.NET home repo](https://github.com/Microsoft/dotnet) - links to 100s of .NET projects, from Microsoft and the community.
+- [ASP.NET Core home](https://github.com/aspnet/home) - the best place to start learning about ASP.NET Core.
+
+
+
+## CoreFX Project
+
+### Daily Builds
+
+Daily builds of .NET Core components are published to [dotnet-core MyGet gallery](https://dotnet.myget.org/gallery/dotnet-core).
+The latest version number of each library can be seen in that gallery.
+
+### Build & Test Status
+
+Note: See officially supported [OS versions](https://github.com/dotnet/core/blob/master/roadmap.md#technology-roadmaps).
+
+|    | Inner x64 Debug | Inner x64 Release | Outer x64 Debug | Outer x64 Release |
+|:---|----------------:|------------------:|----------------:|------------------:|
+|**CentOS 7.1**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/centos7.1_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/centos7.1_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/centos7.1_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/centos7.1_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_centos7.1_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_centos7.1_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_centos7.1_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_centos7.1_release/lastCompletedBuild/testReport)|
+|**Debian 8**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/debian8.4_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/debian8.4_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/debian8.4_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/debian8.4_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_debian8.4_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_debian8.4_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_debian8.4_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_debian8.4_release/lastCompletedBuild/testReport)|
+|**Fedora 24**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/fedora24_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/fedora24_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/fedora24_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/fedora24_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_fedora24_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_fedora24_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_fedora24_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_fedora24_release/lastCompletedBuild/testReport)|
+|**OS X 10.12**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/osx10.12_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/osx10.12_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/osx10.12_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/osx10.12_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_osx_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_osx_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_osx_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_osx_release/lastCompletedBuild/testReport)|
+|**Red Hat 7.2**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/rhel7.2_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/rhel7.2_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/rhel7.2_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/rhel7.2_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_rhel7.2_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_rhel7.2_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_rhel7.2_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_rhel7.2_release/lastCompletedBuild/testReport)|
+|**Ubuntu 14.04**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu14.04_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu14.04_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu14.04_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu14.04_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu14.04_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu14.04_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu14.04_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu14.04_release/lastCompletedBuild/testReport)|
+|**Ubuntu 16.04**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.04_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.04_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.04_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.04_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu16.04_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu16.04_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu16.04_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu16.04_release/lastCompletedBuild/testReport)|
+|**Ubuntu 16.10**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.10_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.10_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.10_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/ubuntu16.10_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu16.10_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu16.10_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu16.10_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_ubuntu16.10_release/lastCompletedBuild/testReport)|
+|**PortableLinux**|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/portablelinux_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/portablelinux_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/portablelinux_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/portablelinux_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_portablelinux_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_portablelinux_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_portablelinux_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_portablelinux_release/lastCompletedBuild/testReport)|
+|**Windows 7**| | |[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_win7_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_win7_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_win7_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_win7_release/lastCompletedBuild/testReport)|
+|**Windows 8.1**|(x86) [![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/windows_nt_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/windows_nt_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/windows_nt_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/windows_nt_release/lastCompletedBuild/testReport)|[![x64-debug](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_windows_nt_debug/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_windows_nt_debug/lastCompletedBuild/testReport)|[![x64-release](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_windows_nt_release/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/outerloop_netcoreapp_windows_nt_release/lastCompletedBuild/testReport)|
+|**Code Coverage (Windows)**| | |[![code coverage](https://ci.dot.net/job/dotnet_corefx/job/master/job/code_coverage_windows/badge/icon)](https://ci.dot.net/job/dotnet_corefx/job/master/job/code_coverage_windows/Code_Coverage_Report)|

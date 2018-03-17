@@ -18,11 +18,12 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
 {
     // Note:  Disposing the HttpClient object automatically disposes the handler within. So, it is not necessary
     // to separately Dispose (or have a 'using' statement) for the handler.
+    [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "WinHttpHandler not supported on UAP")]
     public class WinHttpHandlerTest
     {
         // TODO: This is a placeholder until GitHub Issue #2383 gets resolved.
         private const string SlowServer = "http://httpbin.org/drip?numbytes=1&duration=1&delay=40&code=200";
-        
+
         private readonly ITestOutputHelper _output;
 
         public WinHttpHandlerTest(ITestOutputHelper output)
@@ -30,6 +31,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
             _output = output;
         }
 
+        [OuterLoop] // TODO: Issue #11345
         [Fact]
         public void SendAsync_SimpleGet_Success()
         {
@@ -37,13 +39,14 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
             using (var client = new HttpClient(handler))
             {
                 // TODO: This is a placeholder until GitHub Issue #2383 gets resolved.
-                var response = client.GetAsync(HttpTestServers.RemoteEchoServer).Result;
+                var response = client.GetAsync(System.Net.Test.Common.Configuration.Http.RemoteEchoServer).Result;
                 Assert.Equal(HttpStatusCode.OK, response.StatusCode);
                 var responseContent = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                 _output.WriteLine(responseContent);
             }
         }
 
+        [OuterLoop] // TODO: Issue #11345
         [Theory]
         [InlineData(CookieUsePolicy.UseInternalCookieStoreOnly, "cookieName1", "cookieValue1")]
         [InlineData(CookieUsePolicy.UseSpecifiedCookieContainer, "cookieName2", "cookieValue2")]
@@ -52,7 +55,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
             string cookieName,
             string cookieValue)
         {
-            Uri uri = HttpTestServers.RedirectUriForDestinationUri(false, HttpTestServers.RemoteEchoServer, 1);
+            Uri uri = System.Net.Test.Common.Configuration.Http.RedirectUriForDestinationUri(false, 302, System.Net.Test.Common.Configuration.Http.RemoteEchoServer, 1);
             var handler = new WinHttpHandler();
             handler.WindowsProxyUsePolicy = WindowsProxyUsePolicy.UseWinInetProxy;
             handler.CookieUsePolicy = cookieUsePolicy;
@@ -75,6 +78,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
             }            
         }
 
+        [OuterLoop] // TODO: Issue #11345
         [Fact]
         [OuterLoop]
         public async Task SendAsync_SlowServerAndCancel_ThrowsTaskCanceledException()
@@ -93,6 +97,8 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
             }
         }        
         
+        [ActiveIssue(17234)]
+        [OuterLoop] // TODO: Issue #11345
         [Fact]
         [OuterLoop]
         public void SendAsync_SlowServerRespondsAfterDefaultReceiveTimeout_ThrowsHttpRequestException()

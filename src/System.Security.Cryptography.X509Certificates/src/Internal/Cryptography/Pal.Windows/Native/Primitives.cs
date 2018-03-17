@@ -148,6 +148,11 @@ namespace Internal.Cryptography.Pal.Native
 
         public byte[] ToByteArray()
         {
+            if (cbData == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
             byte[] array = new byte[cbData];
             Marshal.Copy((IntPtr)pbData, array, 0, cbData);
             return array;
@@ -158,11 +163,17 @@ namespace Internal.Cryptography.Pal.Native
     {
         CERT_KEY_PROV_INFO_PROP_ID   = 2,
         CERT_SHA1_HASH_PROP_ID       = 3,
+        CERT_KEY_CONTEXT_PROP_ID     = 5,
         CERT_FRIENDLY_NAME_PROP_ID   = 11,
         CERT_ARCHIVED_PROP_ID        = 19,
         CERT_KEY_IDENTIFIER_PROP_ID  = 20,
         CERT_PUBKEY_ALG_PARA_PROP_ID = 22,
-        CERT_DELETE_KEYSET_PROP_ID   = 101,
+        CERT_NCRYPT_KEY_HANDLE_PROP_ID = 78,
+
+        // CERT_DELETE_KEYSET_PROP_ID is not defined by Windows. It's a custom property set by the framework
+        // as a backchannel message from the portion of X509Certificate2Collection.Import() that loads up the PFX
+        // to the X509Certificate2..ctor(IntPtr) call that creates the managed wrapper.
+        CERT_DELETE_KEYSET_PROP_ID = 101,
     }
 
     [Flags]
@@ -248,6 +259,11 @@ namespace Internal.Cryptography.Pal.Native
 
         public byte[] ToByteArray()
         {
+            if (cbData == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
             byte[] array = new byte[cbData];
             Marshal.Copy((IntPtr)pbData, array, 0, cbData);
             return array;
@@ -277,11 +293,15 @@ namespace Internal.Cryptography.Pal.Native
         public static FILETIME FromDateTime(DateTime dt)
         {
             long fileTime = dt.ToFileTime();
-            return new FILETIME()
+
+            unchecked
             {
-                ftTimeLow = (uint)fileTime,
-                ftTimeHigh = (uint)(fileTime >> 32),
-            };
+                return new FILETIME()
+                {
+                    ftTimeLow = (uint)fileTime,
+                    ftTimeHigh = (uint)(fileTime >> 32),
+                };
+            }
         }
     }
 
@@ -381,7 +401,7 @@ namespace Internal.Cryptography.Pal.Native
         EXPORT_PRIVATE_KEYS                   = 0x00000004,
         None                                  = 0x00000000,
     }
-
+    
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct CRYPT_KEY_PROV_INFO
     {
@@ -530,15 +550,6 @@ namespace Internal.Cryptography.Pal.Native
     {
         DSS_MAGIC = 0x31535344,
     }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct BLOBHEADER
-    {
-        public byte bType;
-        public byte bVersion;
-        public short reserved;
-        public uint aiKeyAlg;
-    };
 
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct CERT_BASIC_CONSTRAINTS_INFO
@@ -739,13 +750,6 @@ namespace Internal.Cryptography.Pal.Native
 
         // Following is updated with unique Id when the chain context is logged.
         public Guid ChainId;
-    }
-
-    [Flags]
-    internal enum FormatMessageFlags : int
-    {
-        FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000,
-        FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200,
     }
 
     [StructLayout(LayoutKind.Sequential)]

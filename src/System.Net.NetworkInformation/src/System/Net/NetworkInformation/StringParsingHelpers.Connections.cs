@@ -139,7 +139,7 @@ namespace System.Net.NetworkInformation
         // Parsing logic for local and remote addresses and ports, as well as socket state.
         internal static TcpConnectionInformation ParseTcpConnectionInformationFromLine(string line)
         {
-            StringParser parser = new StringParser(line, ' ', true);
+            StringParser parser = new StringParser(line, ' ', skipEmpty: true);
             parser.MoveNextOrFail(); // skip Index
 
             string localAddressAndPort = parser.MoveAndExtractNext(); // local_address
@@ -163,7 +163,7 @@ namespace System.Net.NetworkInformation
         // Common parsing logic for the local connection information.
         private static IPEndPoint ParseLocalConnectionInformation(string line)
         {
-            StringParser parser = new StringParser(line, ' ', true);
+            StringParser parser = new StringParser(line, ' ', skipEmpty: true);
             parser.MoveNextOrFail(); // skip Index
 
             string localAddressAndPort = parser.MoveAndExtractNext();
@@ -229,7 +229,7 @@ namespace System.Net.NetworkInformation
             }
         }
 
-        // Simply converst the hex string into a long and uses the IPAddress(long) constructor.
+        // Simply converts the hex string into a long and uses the IPAddress(long) constructor.
         // Strings passed to this method must be 8 or less characters in length (32-bit address).
         private static IPAddress ParseIPv4HexString(string hexAddress)
         {

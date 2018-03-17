@@ -5,12 +5,11 @@
 using System;
 using System.Text;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
-using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 
 using Internal.Cryptography;
+using static Interop;
+using static Interop.BCrypt;
 
 namespace Internal.NativeCrypto
 {
@@ -21,9 +20,11 @@ namespace Internal.NativeCrypto
         /// </summary>
         internal static class AlgorithmName
         {
+            public const string ECDH = "ECDH";                  // BCRYPT_ECDH_ALGORITHM
             public const string ECDHP256 = "ECDH_P256";         // BCRYPT_ECDH_P256_ALGORITHM
             public const string ECDHP384 = "ECDH_P384";         // BCRYPT_ECDH_P384_ALGORITHM
             public const string ECDHP521 = "ECDH_P521";         // BCRYPT_ECDH_P521_ALGORITHM
+            public const string ECDsa = "ECDSA";                // BCRYPT_ECDSA_ALGORITHM
             public const string ECDsaP256 = "ECDSA_P256";       // BCRYPT_ECDSA_P256_ALGORITHM
             public const string ECDsaP384 = "ECDSA_P384";       // BCRYPT_ECDSA_P384_ALGORITHM
             public const string ECDsaP521 = "ECDSA_P521";       // BCRYPT_ECDSA_P521_ALGORITHM
@@ -32,18 +33,6 @@ namespace Internal.NativeCrypto
             public const string Sha256 = "SHA256";              // BCRYPT_SHA256_ALGORITHM
             public const string Sha384 = "SHA384";              // BCRYPT_SHA384_ALGORITHM
             public const string Sha512 = "SHA512";              // BCRYPT_SHA512_ALGORITHM
-        }
-
-        /// <summary>
-        ///     Magic numbers identifying blob types
-        /// </summary>
-        internal enum KeyBlobMagicNumber {
-            ECDHPublicP256 = 0x314B4345,                        // BCRYPT_ECDH_PUBLIC_P256_MAGIC
-            ECDHPublicP384 = 0x334B4345,                        // BCRYPT_ECDH_PUBLIC_P384_MAGIC
-            ECDHPublicP521 = 0x354B4345,                        // BCRYPT_ECDH_PUBLIC_P521_MAGIC
-            ECDsaPublicP256 = 0x31534345,                       // BCRYPT_ECDSA_PUBLIC_P256_MAGIC
-            ECDsaPublicP384 = 0x33534345,                       // BCRYPT_ECDSA_PUBLIC_P384_MAGIC
-            ECDsaPublicP521 = 0x35534345                        // BCRYPT_ECDSA_PUBLIC_P521_MAGIC
         }
 
         internal static class KeyDerivationFunction
@@ -59,9 +48,6 @@ namespace Internal.NativeCrypto
     //
     internal static partial class Cng
     {
-        public const String CngDll = "BCrypt.dll";
-        public const String Capi2Dll = "Crypt32.dll";
-
         [Flags]
         public enum OpenAlgorithmProviderFlags : int
         {
@@ -71,6 +57,8 @@ namespace Internal.NativeCrypto
 
         public const string BCRYPT_3DES_ALGORITHM = "3DES";
         public const string BCRYPT_AES_ALGORITHM = "AES";
+        public const string BCRYPT_DES_ALGORITHM = "DES";
+        public const string BCRYPT_RC2_ALGORITHM = "RC2";
 
         public const string BCRYPT_CHAIN_MODE_CBC = "ChainingModeCBC";
         public const string BCRYPT_CHAIN_MODE_ECB = "ChainingModeECB";
@@ -121,7 +109,17 @@ namespace Internal.NativeCrypto
 
         public static void SetCipherMode(this SafeAlgorithmHandle hAlg, string cipherMode)
         {
-            NTSTATUS ntStatus = Interop.BCryptSetProperty(hAlg, "ChainingMode", cipherMode, (cipherMode.Length + 1) * 2, 0);
+            NTSTATUS ntStatus = Interop.BCryptSetProperty(hAlg, BCryptPropertyStrings.BCRYPT_CHAINING_MODE, cipherMode, (cipherMode.Length + 1) * 2, 0);
+
+            if (ntStatus != NTSTATUS.STATUS_SUCCESS)
+            {
+                throw CreateCryptographicException(ntStatus);
+            }
+        }
+
+        public static void SetEffectiveKeyLength(this SafeAlgorithmHandle hAlg, int effectiveKeyLength)
+        {
+            NTSTATUS ntStatus = Interop.BCryptSetIntProperty(hAlg, BCryptPropertyStrings.BCRYPT_EFFECTIVE_KEY_LENGTH, ref effectiveKeyLength, 0);
 
             if (ntStatus != NTSTATUS.STATUS_SUCCESS)
             {
@@ -226,21 +224,30 @@ namespace Internal.NativeCrypto
     {
         private static class Interop
         {
-            [DllImport(CngDll, CharSet = CharSet.Unicode)]
+            [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode)]
             public static extern NTSTATUS BCryptOpenAlgorithmProvider(out SafeAlgorithmHandle phAlgorithm, String pszAlgId, String pszImplementation, int dwFlags);
 
-            [DllImport(CngDll, CharSet = CharSet.Unicode)]
+            [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode)]
             public static extern unsafe NTSTATUS BCryptSetProperty(SafeAlgorithmHandle hObject, String pszProperty, String pbInput, int cbInput, int dwFlags);
-            [DllImport(CngDll, CharSet = CharSet.Unicode)]
+
+            [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode, EntryPoint = "BCryptSetProperty")]
+            private static extern unsafe NTSTATUS BCryptSetIntPropertyPrivate(SafeBCryptHandle hObject, string pszProperty, ref int pdwInput, int cbInput, int dwFlags);
+
+            public static unsafe NTSTATUS BCryptSetIntProperty(SafeBCryptHandle hObject, string pszProperty, ref int pdwInput, int dwFlags)
+            {
+                return BCryptSetIntPropertyPrivate(hObject, pszProperty, ref pdwInput, sizeof(int), dwFlags);
+            }
+
+            [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode)]
             public static extern NTSTATUS BCryptImportKey(SafeAlgorithmHandle hAlgorithm, IntPtr hImportKey, String pszBlobType, out SafeKeyHandle hKey, IntPtr pbKeyObject, int cbKeyObject, byte[] pbInput, int cbInput, int dwFlags);
 
-            [DllImport(CngDll, CharSet = CharSet.Unicode)]
+            [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode)]
             public static extern unsafe NTSTATUS BCryptEncrypt(SafeKeyHandle hKey, byte* pbInput, int cbInput, IntPtr paddingInfo, [In,Out] byte [] pbIV, int cbIV, byte* pbOutput, int cbOutput, out int cbResult, int dwFlags);
 
-            [DllImport(CngDll, CharSet = CharSet.Unicode)]
+            [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode)]
             public static extern unsafe NTSTATUS BCryptDecrypt(SafeKeyHandle hKey, byte* pbInput, int cbInput, IntPtr paddingInfo, [In, Out] byte[] pbIV, int cbIV, byte* pbOutput, int cbOutput, out int cbResult, int dwFlags);
 
-            [DllImport(Capi2Dll, CharSet = CharSet.Ansi, SetLastError = true, BestFitMapping = false)]
+            [DllImport(Libraries.Crypt32, CharSet = CharSet.Ansi, SetLastError = true, BestFitMapping = false)]
             public static extern bool CryptFormatObject(
                 [In]      int dwCertEncodingType,   // only valid value is X509_ASN_ENCODING
                 [In]      int dwFormatType,         // unused - pass 0.
@@ -280,31 +287,39 @@ namespace Internal.NativeCrypto
             return ntStatus == 0;
         }
 
-        [DllImport(Cng.CngDll)]
+        [DllImport(Libraries.BCrypt)]
         private static extern uint BCryptCloseAlgorithmProvider(IntPtr hAlgorithm, int dwFlags);
-    }
-
-    internal sealed class SafeHashHandle : SafeBCryptHandle
-    {
-        protected sealed override bool ReleaseHandle()
-        {
-            uint ntStatus = BCryptDestroyHash(handle);
-            return ntStatus == 0;
-        }
-
-        [DllImport(Cng.CngDll)]
-        private static extern uint BCryptDestroyHash(IntPtr hHash);
     }
 
     internal sealed class SafeKeyHandle : SafeBCryptHandle
     {
+        private SafeAlgorithmHandle _parentHandle = null;
+
+        public void SetParentHandle(SafeAlgorithmHandle parentHandle)
+        {
+            Debug.Assert(_parentHandle == null);
+            Debug.Assert(parentHandle != null);
+            Debug.Assert(!parentHandle.IsInvalid);
+
+            bool ignore = false;
+            parentHandle.DangerousAddRef(ref ignore);
+
+            _parentHandle = parentHandle;
+        }
+
         protected sealed override bool ReleaseHandle()
         {
+            if (_parentHandle != null)
+            {
+                _parentHandle.DangerousRelease();
+                _parentHandle = null;
+            }
+
             uint ntStatus = BCryptDestroyKey(handle);
             return ntStatus == 0;
         }
 
-        [DllImport(Cng.CngDll)]
+        [DllImport(Libraries.BCrypt)]
         private static extern uint BCryptDestroyKey(IntPtr hKey);
     }
 }

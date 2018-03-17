@@ -98,10 +98,10 @@ namespace Microsoft.Framework.WebEncoders
 
                 // Act
                 List<byte> actualUtf8Bytes = new List<byte>(4);
-                uint asUtf8 = (uint)UnicodeHelpers.GetUtf8RepresentationForScalarValue((uint)i);
+                uint asUtf8 = unchecked((uint)UnicodeHelpers.GetUtf8RepresentationForScalarValue((uint)i));
                 do
                 {
-                    actualUtf8Bytes.Add((byte)asUtf8);
+                    actualUtf8Bytes.Add(unchecked((byte)asUtf8));
                 } while ((asUtf8 >>= 8) != 0);
 
                 // Assert
@@ -161,7 +161,7 @@ namespace Microsoft.Framework.WebEncoders
             HashSet<string> seenCategories = new HashSet<string>();
 
             bool[] retVal = new bool[0x10000];
-            string[] allLines = new StreamReader(typeof(UnicodeHelpersTests).GetTypeInfo().Assembly.GetManifestResourceStream("System.Text.Encodings.Web.Tests.UnicodeData.txt")).ReadAllLines();
+            string[] allLines = new StreamReader(typeof(UnicodeHelpersTests).GetTypeInfo().Assembly.GetManifestResourceStream("UnicodeData.8.0.txt")).ReadAllLines();
 
             uint startSpanCodepoint = 0;
             foreach (string line in allLines)

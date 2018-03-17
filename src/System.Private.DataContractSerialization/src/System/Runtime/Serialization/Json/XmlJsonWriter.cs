@@ -7,7 +7,6 @@ using System.Globalization;
 using System.IO;
 using System.Runtime;
 using System.Runtime.Serialization;
-using System.Security;
 using System.Text;
 using System.Xml;
 
@@ -27,7 +26,43 @@ namespace System.Runtime.Serialization.Json
         private const string xmlNamespace = "http://www.w3.org/XML/1998/namespace";
         private const string xmlnsNamespace = "http://www.w3.org/2000/xmlns/";
 
-        [SecurityCritical]
+        // This array was part of a perf improvement for escaping characters < WHITESPACE.
+        private static readonly string[] s_escapedJsonStringTable =
+        {
+            "\\u0000",
+            "\\u0001",
+            "\\u0002",
+            "\\u0003",
+            "\\u0004",
+            "\\u0005",
+            "\\u0006",
+            "\\u0007",
+            "\\b",
+            "\\t",
+            "\\n",
+            "\\u000b",
+            "\\f",
+            "\\r",
+            "\\u000e",
+            "\\u000f",
+            "\\u0010",
+            "\\u0011",
+            "\\u0012",
+            "\\u0013",
+            "\\u0014",
+            "\\u0015",
+            "\\u0016",
+            "\\u0017",
+            "\\u0018",
+            "\\u0019",
+            "\\u001a",
+            "\\u001b",
+            "\\u001c",
+            "\\u001d",
+            "\\u001e",
+            "\\u001f"
+        };
+
         private static BinHexEncoding s_binHexEncoding;
 
         private string _attributeText;
@@ -136,7 +171,6 @@ namespace System.Runtime.Serialization.Json
 
         private static BinHexEncoding BinHexEncoding
         {
-            [SecuritySafeCritical]
             get
             {
                 if (s_binHexEncoding == null)
@@ -147,38 +181,17 @@ namespace System.Runtime.Serialization.Json
             }
         }
 
-        private bool HasOpenAttribute
-        {
-            get
-            {
-                return (_isWritingDataTypeAttribute || _isWritingServerTypeAttribute || IsWritingNameAttribute || _isWritingXmlnsAttribute);
-            }
-        }
+        private bool HasOpenAttribute => (_isWritingDataTypeAttribute || _isWritingServerTypeAttribute || IsWritingNameAttribute || _isWritingXmlnsAttribute);
 
-        private bool IsClosed
-        {
-            get { return (WriteState == WriteState.Closed); }
-        }
+        private bool IsClosed => (WriteState == WriteState.Closed);
 
-        private bool IsWritingCollection
-        {
-            get { return (_depth > 0) && (_scopes[_depth] == JsonNodeType.Collection); }
-        }
+        private bool IsWritingCollection => (_depth > 0) && (_scopes[_depth] == JsonNodeType.Collection);
 
-        private bool IsWritingNameAttribute
-        {
-            get { return (_nameState & NameState.IsWritingNameAttribute) == NameState.IsWritingNameAttribute; }
-        }
+        private bool IsWritingNameAttribute => (_nameState & NameState.IsWritingNameAttribute) == NameState.IsWritingNameAttribute;
 
-        private bool IsWritingNameWithMapping
-        {
-            get { return (_nameState & NameState.IsWritingNameWithMapping) == NameState.IsWritingNameWithMapping; }
-        }
+        private bool IsWritingNameWithMapping => (_nameState & NameState.IsWritingNameWithMapping) == NameState.IsWritingNameWithMapping;
 
-        private bool WrittenNameWithMapping
-        {
-            get { return (_nameState & NameState.WrittenNameWithMapping) == NameState.WrittenNameWithMapping; }
-        }
+        private bool WrittenNameWithMapping => (_nameState & NameState.WrittenNameWithMapping) == NameState.WrittenNameWithMapping;
 
         protected override void Dispose(bool disposing)
         {
@@ -1013,7 +1026,7 @@ namespace System.Runtime.Serialization.Json
                     text = string.Empty;
                 }
 
-                // do work only when not indenting whitespaces
+                // do work only when not indenting whitespace
                 if (!((_dataType == JsonDataType.Array || _dataType == JsonDataType.Object || _nodeType == JsonNodeType.EndElement) && XmlConverter.IsWhitespace(text)))
                 {
                     StartText();
@@ -1069,7 +1082,7 @@ namespace System.Runtime.Serialization.Json
             _nodeWriter.WriteGuidText(value);
         }
 
-        public virtual void WriteValue(DateTime value)
+        public override void WriteValue(DateTime value)
         {
             StartText();
             _nodeWriter.WriteDateTimeText(value);
@@ -1374,7 +1387,6 @@ namespace System.Runtime.Serialization.Json
             }
         }
 
-        [SecuritySafeCritical]
         private unsafe void WriteEscapedJsonString(string str)
         {
             fixed (char* chars = str)
@@ -1396,9 +1408,7 @@ namespace System.Runtime.Serialization.Json
                         else if (ch < WHITESPACE)
                         {
                             _nodeWriter.WriteChars(chars + i, j - i);
-                            _nodeWriter.WriteText(BACK_SLASH);
-                            _nodeWriter.WriteText('u');
-                            _nodeWriter.WriteText(string.Format(CultureInfo.InvariantCulture, "{0:x4}", (int)ch));
+                            _nodeWriter.WriteText(s_escapedJsonStringTable[ch]);
                             i = j + 1;
                         }
                     }
@@ -1556,7 +1566,7 @@ namespace System.Runtime.Serialization.Json
             // E.g. WriteValue(new int[] { 1, 2, 3}) should be equivalent to WriteString("1 2 3").             
             JsonDataType oldDataType = _dataType;
             // Set attribute mode to String because WritePrimitiveValue might write numerical text.
-            //  Calls to methods that write numbers can't be mixed with calls that write quoted text unless the attribute mode is explictly string.            
+            //  Calls to methods that write numbers can't be mixed with calls that write quoted text unless the attribute mode is explicitly string.            
             _dataType = JsonDataType.String;
             StartText();
             for (int i = 0; i < array.Length; i++)
@@ -1572,7 +1582,6 @@ namespace System.Runtime.Serialization.Json
 
         private class JsonNodeWriter : XmlUTF8NodeWriter
         {
-            [SecurityCritical]
             internal unsafe void WriteChars(char* chars, int charCount)
             {
                 base.UnsafeWriteUTF8Chars(chars, charCount);

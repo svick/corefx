@@ -9,7 +9,7 @@ namespace System.Collections.Tests
     public static class CollectionBaseTests
     {
         [Fact]
-        public static void TestCtor_Empty()
+        public static void Ctor_Empty()
         {
             var collBase = new MyCollection();
             var arrList = new ArrayList();
@@ -25,7 +25,7 @@ namespace System.Collections.Tests
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(1024)]
-        public static void TestCtor_Capacity(int capacity)
+        public static void Ctor_Capacity(int capacity)
         {
             var collBase = new MyCollection(capacity);
             var arrList = new ArrayList(capacity);
@@ -37,16 +37,13 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestCtorCapacity_Invalid()
+        public static void CtorCapacity_Invalid()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => new MyCollection(-1)); // Capacity < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("capacity", () => new MyCollection(-1)); // Capacity < 0
             Assert.Throws<OutOfMemoryException>(() => new MyCollection(int.MaxValue)); // Capacity is too large
         }
 
-        private static Foo CreateValue(int i)
-        {
-            return new Foo(i, i.ToString());
-        }
+        private static Foo CreateValue(int i) => new Foo(i, i.ToString());
 
         private static MyCollection CreateCollection(int count)
         {
@@ -59,7 +56,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestAdd()
+        public static void Add()
         {
             MyCollection collBase = new MyCollection();
             for (int i = 0; i < 100; i++)
@@ -77,7 +74,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestRemove()
+        public static void Remove()
         {
             MyCollection collBase = CreateCollection(100);
             for (int i = 0; i < 100; i++)
@@ -90,15 +87,15 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestRemove_Invalid()
+        public static void Remove_Invalid()
         {
             MyCollection collBase = CreateCollection(100);
-            Assert.Throws<ArgumentException>(() => collBase.Remove(new Foo())); // Non existent object
+            AssertExtensions.Throws<ArgumentException>(null, () => collBase.Remove(new Foo())); // Non existent object
             Assert.Equal(100, collBase.Count);
         }
 
         [Fact]
-        public static void TestInsert()
+        public static void Insert()
         {
             var collBase = new MyCollection();
             for (int i = 0; i < 100; i++)
@@ -116,17 +113,17 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestInsert_Invalid()
+        public static void Insert_InvalidIndex_ThrowsArgumentOutOfRangeException()
         {
             MyCollection collBase = CreateCollection(100);
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase.Insert(-1, new Foo())); // Index < 0
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase.Insert(collBase.Count + 1, new Foo())); // Index > collBase.Count
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => collBase.Insert(-1, new Foo())); // Index < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => collBase.Insert(collBase.Count + 1, new Foo())); // Index > collBase.Count
 
             Assert.Equal(100, collBase.Count);
         }
 
         [Fact]
-        public static void TestRemoveAt()
+        public static void RemoveAt()
         {
             MyCollection collBase = CreateCollection(100);
             for (int i = 0; i < collBase.Count; i++)
@@ -137,16 +134,16 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestRemoveAt_Invalid()
+        public static void RemoveAt_InvalidIndex_ThrowsArgumentOutOfRangeException()
         {
             MyCollection collBase = CreateCollection(100);
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase.RemoveAt(-1)); // Index < 0
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase.RemoveAt(collBase.Count)); // Index > collBase.Count
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => collBase.RemoveAt(-1)); // Index < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => collBase.RemoveAt(collBase.Count)); // Index > collBase.Count
             Assert.Equal(100, collBase.Count);
         }
 
         [Fact]
-        public static void TestClear()
+        public static void Clear()
         {
             MyCollection collBase = CreateCollection(100);
             collBase.Clear();
@@ -154,7 +151,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestIndexOf()
+        public static void IndexOf()
         {
             MyCollection collBase = CreateCollection(100);
             for (int i = 0; i < collBase.Count; i++)
@@ -165,7 +162,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestContains()
+        public static void Contains()
         {
             MyCollection collBase = CreateCollection(100);
             for (int i = 0; i < collBase.Count; i++)
@@ -176,7 +173,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestItem_Get()
+        public static void Item_Get()
         {
             MyCollection collBase = CreateCollection(100);
             for (int i = 0; i < collBase.Count; i++)
@@ -186,15 +183,15 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestItem_Get_Invalid()
+        public static void Item_Get_InvalidIndex_ThrowsArgumentOutOfRangeException()
         {
             MyCollection collBase = CreateCollection(100);
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase[-1]); // Index < 0
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase[collBase.Count]); // Index >= InnerList.Count
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => collBase[-1]); // Index < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => collBase[collBase.Count]); // Index >= InnerList.Count
         }
 
         [Fact]
-        public static void TestItem_Set()
+        public static void Item_Set()
         {
             MyCollection collBase = CreateCollection(100);
             for (int i = 0; i < collBase.Count; i++)
@@ -206,17 +203,17 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestItem_Set_Invalid()
+        public static void Item_Set_Invalid()
         {
             MyCollection collBase = CreateCollection(100);
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase[-1] = new Foo()); // Index < 0
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase[collBase.Count] = new Foo()); // Index >= InnerList.Count
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => collBase[-1] = new Foo()); // Index < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => collBase[collBase.Count] = new Foo()); // Index >= InnerList.Count
 
-            Assert.Throws<ArgumentNullException>(() => collBase[0] = null); // Object is null
+            AssertExtensions.Throws<ArgumentNullException>("value", () => collBase[0] = null); // Object is null
         }
 
         [Fact]
-        public static void TestCopyTo()
+        public static void CopyTo()
         {
             MyCollection collBase = CreateCollection(100);
 
@@ -241,16 +238,18 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestCopyTo_Invalid()
+        public static void CopyTo_Invalid()
         {
             MyCollection collBase = CreateCollection(100);
             var fooArr = new Foo[100];
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase.CopyTo(fooArr, -1)); // Index < 0
-            Assert.Throws<ArgumentException>(() => collBase.CopyTo(fooArr, 50)); // Index + fooArray.Length > collBase.Count
+            // Index < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("destinationIndex", "dstIndex", () => collBase.CopyTo(fooArr, -1));
+            // Index + fooArray.Length > collBase.Count
+            AssertExtensions.Throws<ArgumentException>("destinationArray", string.Empty, () => collBase.CopyTo(fooArr, 50));
         }
 
         [Fact]
-        public static void TestGetEnumerator()
+        public static void GetEnumerator()
         {
             MyCollection collBase = CreateCollection(100);
             IEnumerator enumerator = collBase.GetEnumerator();
@@ -267,7 +266,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestGetEnumerator_Invalid()
+        public static void GetEnumerator_Invalid()
         {
             MyCollection collBase = CreateCollection(100);
             IEnumerator enumerator = collBase.GetEnumerator();
@@ -289,7 +288,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestSyncRoot()
+        public static void SyncRoot()
         {
             // SyncRoot should be the reference to the underlying collection, not to MyCollection
             var collBase = new MyCollection();
@@ -299,7 +298,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestIListProperties()
+        public static void IListProperties()
         {
             MyCollection collBase = CreateCollection(100);
             Assert.False(collBase.IsFixedSize);
@@ -308,7 +307,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestCapacityGet()
+        public static void CapacityGet()
         {
             var collBase = new MyCollection(new string[10]);
             Assert.True(collBase.Capacity >= collBase.Count);
@@ -318,7 +317,7 @@ namespace System.Collections.Tests
         [InlineData(0)]
         [InlineData(1)]
         [InlineData(44)]
-        public static void TestCapacitySet(int capacity)
+        public static void CapacitySet(int capacity)
         {
             var collBase = new MyCollection(0);
 
@@ -327,16 +326,16 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestCapacity_SetInvalid()
+        public static void Capacity_Set_Invalid()
         {
             var collBase = new MyCollection(new string[10]);
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase.Capacity = -1); // Capacity < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("value", () => collBase.Capacity = -1); // Capacity < 0
             Assert.Throws<OutOfMemoryException>(() => collBase.Capacity = int.MaxValue); // Capacity is very large
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => collBase.Capacity = collBase.Count - 1); // Capacity < list.Count
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("value", () => collBase.Capacity = collBase.Count - 1); // Capacity < list.Count
         }
         [Fact]
-        public static void TestAdd_Called()
+        public static void Add_Called()
         {
             var f = new Foo(0, "0");
             var collBase = new OnMethodCalledCollectionBase();
@@ -350,7 +349,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestAdd_Throws_Called()
+        public static void Add_Throws_Called()
         {
             var f = new Foo(0, "0");
 
@@ -377,7 +376,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestInsert_Called()
+        public static void Insert_Called()
         {
             var f = new Foo(0, "0");
             var collBase = new OnMethodCalledCollectionBase();
@@ -391,7 +390,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestInsert_Throws_Called()
+        public static void Insert_Throws_Called()
         {
             var f = new Foo(0, "0");
 
@@ -418,7 +417,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestRemove_Called()
+        public static void Remove_Called()
         {
             var f = new Foo(0, "0");
             var collBase = new OnMethodCalledCollectionBase();
@@ -435,7 +434,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestRemove_Throws_Called()
+        public static void Remove_Throws_Called()
         {
             var f = new Foo(0, "0");
 
@@ -465,7 +464,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestRemoveAt_Called()
+        public static void RemoveAt_Called()
         {
             var f = new Foo(0, "0");
             var collBase = new OnMethodCalledCollectionBase();
@@ -482,7 +481,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestRemoveAt_Throws_Called()
+        public static void RemoveAt_Throws_Called()
         {
             var f = new Foo(0, "0");
 
@@ -512,7 +511,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestClear_Called()
+        public static void Clear_Called()
         {
             var f = new Foo(0, "0");
             var collBase = new OnMethodCalledCollectionBase();
@@ -526,7 +525,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestClear_Throws_Called()
+        public static void Clear_Throws_Called()
         {
             var f = new Foo(0, "0");
 
@@ -556,7 +555,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestSet_Called()
+        public static void Set_Called()
         {
             var f = new Foo(1, "1");
 
@@ -574,7 +573,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestSet_Throws_Called()
+        public static void Set_Throws_Called()
         {
             var f1 = new Foo(0, "0");
             var f2 = new Foo(1, "1");
@@ -625,16 +624,10 @@ namespace System.Collections.Tests
 
             public int InnerListCapacity
             {
-                get
-                {
-                    return InnerList.Capacity;
-                }
+                get { return InnerList.Capacity; }
             }
 
-            public int Add(Foo f1)
-            {
-                return List.Add(f1);
-            }
+            public int Add(Foo f1) => List.Add(f1);
 
             public Foo this[int indx]
             {
@@ -642,30 +635,15 @@ namespace System.Collections.Tests
                 set { List[indx] = value; }
             }
 
-            public void CopyTo(Array array, int index)
-            {
-                List.CopyTo(array, index);
-            }
+            public void CopyTo(Array array, int index) => List.CopyTo(array, index);
 
-            public int IndexOf(Foo f)
-            {
-                return List.IndexOf(f);
-            }
+            public int IndexOf(Foo f) => List.IndexOf(f);
 
-            public bool Contains(Foo f)
-            {
-                return List.Contains(f);
-            }
+            public bool Contains(Foo f) => List.Contains(f);
 
-            public void Insert(int index, Foo f)
-            {
-                List.Insert(index, f);
-            }
+            public void Insert(int index, Foo f) => List.Insert(index, f);
 
-            public void Remove(Foo f)
-            {
-                List.Remove(f);
-            }
+            public void Remove(Foo f) => List.Remove(f);
 
             public bool IsSynchronized
             {
@@ -687,6 +665,7 @@ namespace System.Collections.Tests
                 get { return List.IsFixedSize; }
             }
         }
+
         private class OnMethodCalledCollectionBase : CollectionBase
         {
             public bool OnValidateCalled;
@@ -709,10 +688,7 @@ namespace System.Collections.Tests
             public bool OnRemoveThrow;
             public bool OnRemoveCompleteThrow;
 
-            public int Add(Foo f1)
-            {
-                return List.Add(f1);
-            }
+            public int Add(Foo f1) => List.Add(f1);
 
             public Foo this[int indx]
             {
@@ -720,30 +696,15 @@ namespace System.Collections.Tests
                 set { List[indx] = value; }
             }
 
-            public void CopyTo(Array array, int index)
-            {
-                List.CopyTo(array, index);
-            }
+            public void CopyTo(Array array, int index) => List.CopyTo(array, index);
 
-            public int IndexOf(Foo f)
-            {
-                return List.IndexOf(f);
-            }
+            public int IndexOf(Foo f) => List.IndexOf(f);
 
-            public bool Contains(Foo f)
-            {
-                return List.Contains(f);
-            }
+            public bool Contains(Foo f) => List.Contains(f);
 
-            public void Insert(int index, Foo f)
-            {
-                List.Insert(index, f);
-            }
+            public void Insert(int index, Foo f) => List.Insert(index, f);
 
-            public void Remove(Foo f)
-            {
-                List.Remove(f);
-            }
+            public void Remove(Foo f) => List.Remove(f);
 
             protected override void OnSet(int index, object oldValue, object newValue)
             {
@@ -852,39 +813,22 @@ namespace System.Collections.Tests
 
             public Foo(int intValue, string stringValue)
             {
-                _intValue = intValue;
-                _stringValue = stringValue;
+                IntValue = intValue;
+                StringValue = stringValue;
             }
-
-            private int _intValue;
-            public int IntValue
-            {
-                get { return _intValue; }
-                set { _intValue = value; }
-            }
-
-            private string _stringValue;
-            public string StringValue
-            {
-                get { return _stringValue; }
-                set { _stringValue = value; }
-            }
+            
+            public int IntValue { get; set; }
+            public string StringValue { get; set; }
 
             public override bool Equals(object obj)
             {
-                if (obj == null)
+                Foo foo = obj as Foo;
+                if (foo == null)
                     return false;
-                if (!(obj is Foo))
-                    return false;
-                if ((((Foo)obj).IntValue == _intValue) && (((Foo)obj).StringValue == _stringValue))
-                    return true;
-                return false;
+                return foo.IntValue == IntValue && foo.StringValue == StringValue;
             }
 
-            public override int GetHashCode()
-            {
-                return _intValue;
-            }
+            public override int GetHashCode() => IntValue;
         }
     }
 }

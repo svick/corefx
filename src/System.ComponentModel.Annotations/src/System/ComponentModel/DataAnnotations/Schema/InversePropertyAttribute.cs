@@ -12,8 +12,6 @@ namespace System.ComponentModel.DataAnnotations.Schema
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
     public class InversePropertyAttribute : Attribute
     {
-        private readonly string _property;
-
         /// <summary>
         ///     Initializes a new instance of the <see cref="InversePropertyAttribute" /> class.
         /// </summary>
@@ -23,17 +21,15 @@ namespace System.ComponentModel.DataAnnotations.Schema
             if (string.IsNullOrWhiteSpace(property))
             {
                 throw new ArgumentException(string.Format(CultureInfo.CurrentCulture,
-                    SR.ArgumentIsNullOrWhitespace, "property"));
+                    SR.ArgumentIsNullOrWhitespace, nameof(property)));
             }
-            _property = property;
+
+            Property = property;
         }
 
         /// <summary>
         ///     The navigation property representing the other end of the same relationship.
         /// </summary>
-        public string Property
-        {
-            get { return _property; }
-        }
+        public string Property { get; }
     }
 }

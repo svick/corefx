@@ -9,7 +9,6 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-using Internal.NativeCrypto;
 using Internal.Cryptography;
 using Internal.Cryptography.Pal.Native;
 
@@ -19,10 +18,14 @@ using System.Security.Cryptography;
 using SafeX509ChainHandle = Microsoft.Win32.SafeHandles.SafeX509ChainHandle;
 using System.Security.Cryptography.X509Certificates;
 
+using static Interop.Crypt32;
+
 namespace Internal.Cryptography.Pal
 {
     internal sealed partial class CertificatePal : IDisposable, ICertificatePal
     {
+        private SafeCertContextHandle _certContext;
+
         public static ICertificatePal FromHandle(IntPtr handle)
         {
             if (handle == IntPtr.Zero)
@@ -36,6 +39,17 @@ namespace Internal.Cryptography.Pal
             int cbData = 0;
             bool deleteKeyContainer = Interop.crypt32.CertGetCertificateContextProperty(safeCertContextHandle, CertContextPropId.CERT_DELETE_KEYSET_PROP_ID, out dataBlob, ref cbData);
             return new CertificatePal(safeCertContextHandle, deleteKeyContainer);
+        }
+
+        /// <summary>
+        /// Returns the SafeCertContextHandle. Use this instead of FromHandle() when
+        /// creating another X509Certificate object based on this one to ensure the underlying
+        /// cert context is not released at the wrong time.
+        /// </summary>
+        public static ICertificatePal FromOtherCert(X509Certificate copyFrom)
+        {
+            CertificatePal pal = new CertificatePal((CertificatePal)copyFrom.Pal);
+            return pal;
         }
 
         public IntPtr Handle
@@ -101,7 +115,7 @@ namespace Internal.Cryptography.Pal
                     if (keyAlgorithmOid == Oids.RsaRsa)
                         algId = AlgId.CALG_RSA_KEYX;  // Fast-path for the most common case.
                     else
-                        algId = OidInfo.FindOidInfo(CryptOidInfoKeyType.CRYPT_OID_INFO_OID_KEY, keyAlgorithmOid, OidGroup.PublicKeyAlgorithm, fallBackToAllGroups: true).AlgId;
+                        algId = Interop.Crypt32.FindOidInfo(CryptOidInfoKeyType.CRYPT_OID_INFO_OID_KEY, keyAlgorithmOid, OidGroup.PublicKeyAlgorithm, fallBackToAllGroups: true).AlgId;
 
                     unsafe
                     {
@@ -391,31 +405,35 @@ namespace Internal.Cryptography.Pal
 
         public void AppendPrivateKeyInfo(StringBuilder sb)
         {
-#if NETNATIVE
-            if (HasPrivateKey)
+            if (!HasPrivateKey)
             {
-                // Similar to the Unix implementation, in UWP merely acknowledge that there -is- a private key.
-                sb.AppendLine();
-                sb.AppendLine();
-                sb.AppendLine("[Private Key]");
+                return;
             }
-#else
+
+            // UWP, Windows CNG persisted, and Windows Ephemeral keys will all acknowledge that
+            // a private key exists, but detailed printing is limited to Windows CAPI persisted.
+            // (This is the same thing we do in Unix)
+            sb.AppendLine();
+            sb.AppendLine();
+            sb.AppendLine("[Private Key]");
+
             CspKeyContainerInfo cspKeyContainerInfo = null;
             try
             {
-                if (HasPrivateKey)
+                CspParameters parameters = GetPrivateKeyCsp();
+
+                if (parameters != null)
                 {
-                    CspParameters parameters = GetPrivateKey();
                     cspKeyContainerInfo = new CspKeyContainerInfo(parameters);
                 }
             }
             // We could not access the key container. Just return.
             catch (CryptographicException) { }
 
+            // Ephemeral keys will not have container information.
             if (cspKeyContainerInfo == null)
                 return;
 
-            sb.Append(Environment.NewLine + Environment.NewLine + "[Private Key]");
             sb.Append(Environment.NewLine + "  Key Store: ");
             sb.Append(cspKeyContainerInfo.MachineKeyStore ? "Machine" : "User");
             sb.Append(Environment.NewLine + "  Provider Name: ");
@@ -461,7 +479,6 @@ namespace Internal.Cryptography.Pal
             }
             catch (CryptographicException) { }
             catch (NotSupportedException) { }
-#endif // #if NETNATIVE / #else
         }
 
         public void Dispose()
@@ -526,6 +543,13 @@ namespace Internal.Cryptography.Pal
             return sb.ToString();
         }
 
+        private CertificatePal(CertificatePal copyFrom)
+        {
+            // Use _certContext (instead of CertContext) to keep the original context handle from being
+            // finalized until all cert copies are no longer referenced.
+            _certContext = new SafeCertContextHandle(copyFrom._certContext);
+        }
+
         private CertificatePal(SafeCertContextHandle certContext, bool deleteKeyContainer)
         {
             if (deleteKeyContainer)
@@ -538,7 +562,5 @@ namespace Internal.Cryptography.Pal
             }
             _certContext = certContext;
         }
-
-        private SafeCertContextHandle _certContext;
     }
 }

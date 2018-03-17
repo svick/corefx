@@ -372,7 +372,7 @@ namespace Microsoft.SqlServer.Server
                 if (0 == value)
                 {
                     _value._int64 = value;
-                    _object = new byte[0];
+                    _object = Array.Empty<byte>();
                     _type = StorageType.ByteArray;
                     _isNull = false;
                 }
@@ -401,7 +401,7 @@ namespace Microsoft.SqlServer.Server
                 if (0 == value)
                 {
                     _value._int64 = value;
-                    _object = new char[0];
+                    _object = Array.Empty<char>();
                     _type = StorageType.CharArray;
                     _isNull = false;
                 }
@@ -446,7 +446,7 @@ namespace Microsoft.SqlServer.Server
                     case StorageType.Int64: return _metadata ?? SmiMetaData.DefaultBigInt;
                     case StorageType.Single: return SmiMetaData.DefaultReal;
                     case StorageType.String: return _metadata ?? SmiMetaData.DefaultNVarChar;
-                    case StorageType.SqlDecimal: return new SmiMetaData(SqlDbType.Decimal, 17, ((SqlDecimal)_object).Precision, ((SqlDecimal)_object).Scale, 0, SqlCompareOptions.None);
+                    case StorageType.SqlDecimal: return new SmiMetaData(SqlDbType.Decimal, 17, ((SqlDecimal)_object).Precision, ((SqlDecimal)_object).Scale, 0, SqlCompareOptions.None, null);
                     case StorageType.TimeSpan: return SmiMetaData.DefaultTime;
                 }
                 return null;
@@ -512,7 +512,7 @@ namespace Microsoft.SqlServer.Server
             {
                 if (ndataIndex != 0)
                 {    // set the first time: should start from the beginning
-                    throw ADP.ArgumentOutOfRange("fieldOffset");
+                    throw ADP.ArgumentOutOfRange(nameof(fieldOffset));
                 }
                 _object = new byte[length];
                 _type = StorageType.ByteArray;
@@ -523,7 +523,7 @@ namespace Microsoft.SqlServer.Server
             {
                 if (ndataIndex > BytesLength)
                 {    // no gap is allowed
-                    throw ADP.ArgumentOutOfRange("fieldOffset");
+                    throw ADP.ArgumentOutOfRange(nameof(fieldOffset));
                 }
                 if (ndataIndex + length > BytesLength)
                 {    // beyond the current length
@@ -552,7 +552,7 @@ namespace Microsoft.SqlServer.Server
             {
                 if (ndataIndex != 0)
                 {    // set the first time: should start from the beginning
-                    throw ADP.ArgumentOutOfRange("fieldOffset");
+                    throw ADP.ArgumentOutOfRange(nameof(fieldOffset));
                 }
                 _object = new char[length];
                 _type = StorageType.CharArray;
@@ -563,7 +563,7 @@ namespace Microsoft.SqlServer.Server
             {
                 if (ndataIndex > CharsLength)
                 {    // no gap is allowed
-                    throw ADP.ArgumentOutOfRange("fieldOffset");
+                    throw ADP.ArgumentOutOfRange(nameof(fieldOffset));
                 }
                 if (StorageType.String == _type)
                 {    // convert string to char[]

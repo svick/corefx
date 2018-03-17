@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using Xunit;
 
@@ -190,7 +189,6 @@ namespace System.Collections.Immutable.Tests
             Assert.Throws<NotSupportedException>(() => map[3] = 5);
         }
 
-        [ActiveIssue(780)]
         [Fact]
         public void EqualsTest()
         {
@@ -351,8 +349,8 @@ namespace System.Collections.Immutable.Tests
 
         private IImmutableDictionary<TKey, TValue> AddTestHelper<TKey, TValue>(IImmutableDictionary<TKey, TValue> map, TKey key, TValue value) where TKey : IComparable<TKey>
         {
-            Contract.Requires(map != null);
-            Contract.Requires(key != null);
+            Assert.NotNull(map);
+            Assert.NotNull(key);
 
             IImmutableDictionary<TKey, TValue> addedMap = map.Add(key, value);
             Assert.NotSame(map, addedMap);
@@ -368,7 +366,7 @@ namespace System.Collections.Immutable.Tests
 
         protected void AddAscendingTestHelper(IImmutableDictionary<int, GenericParameterHelper> map)
         {
-            Contract.Requires(map != null);
+            Assert.NotNull(map);
 
             for (int i = 0; i < 10; i++)
             {
@@ -398,7 +396,7 @@ namespace System.Collections.Immutable.Tests
 
         protected void AddRemoveRandomDataTestHelper(IImmutableDictionary<double, GenericParameterHelper> map)
         {
-            Contract.Requires(map != null);
+            Assert.NotNull(map);
 
             double[] inputs = GenerateDummyFillData();
             for (int i = 0; i < inputs.Length; i++)
@@ -423,7 +421,7 @@ namespace System.Collections.Immutable.Tests
 
         protected void AddRemoveEnumerableTestHelper(IImmutableDictionary<int, int> empty)
         {
-            Contract.Requires(empty != null);
+            Assert.NotNull(empty);
 
             Assert.Same(empty, empty.RemoveRange(Enumerable.Empty<int>()));
             Assert.Same(empty, empty.AddRange(Enumerable.Empty<KeyValuePair<int, int>>()));
@@ -438,9 +436,9 @@ namespace System.Collections.Immutable.Tests
 
         protected void AddExistingKeySameValueTestHelper<TKey, TValue>(IImmutableDictionary<TKey, TValue> map, TKey key, TValue value1, TValue value2)
         {
-            Contract.Requires(map != null);
-            Contract.Requires(key != null);
-            Contract.Requires(GetValueComparer(map).Equals(value1, value2));
+            Assert.NotNull(map);
+            Assert.NotNull(key);
+            Assert.True(GetValueComparer(map).Equals(value1, value2));
 
             map = map.Add(key, value1);
             Assert.Same(map, map.Add(key, value2));
@@ -462,14 +460,14 @@ namespace System.Collections.Immutable.Tests
         /// </remarks>
         protected void AddExistingKeyDifferentValueTestHelper<TKey, TValue>(IImmutableDictionary<TKey, TValue> map, TKey key, TValue value1, TValue value2)
         {
-            Contract.Requires(map != null);
-            Contract.Requires(key != null);
-            Contract.Requires(!GetValueComparer(map).Equals(value1, value2));
+            Assert.NotNull(map);
+            Assert.NotNull(key);
+            Assert.False(GetValueComparer(map).Equals(value1, value2));
 
             var map1 = map.Add(key, value1);
             var map2 = map.Add(key, value2);
-            Assert.Throws<ArgumentException>(() => map1.Add(key, value2));
-            Assert.Throws<ArgumentException>(() => map2.Add(key, value1));
+            AssertExtensions.Throws<ArgumentException>(null, () => map1.Add(key, value2));
+            AssertExtensions.Throws<ArgumentException>(null, () => map2.Add(key, value1));
         }
 
         protected void ContainsKeyTestHelper<TKey, TValue>(IImmutableDictionary<TKey, TValue> map, TKey key, TValue value)
@@ -583,7 +581,7 @@ namespace System.Collections.Immutable.Tests
             Assert.True(nonGeneric.IsSynchronized);
             Assert.True(collection.IsReadOnly);
 
-            Assert.Throws<ArgumentNullException>(() => nonGeneric.CopyTo(null, 0));
+            AssertExtensions.Throws<ArgumentNullException>("array", () => nonGeneric.CopyTo(null, 0));
             var array = new T[collection.Count + 1];
             nonGeneric.CopyTo(array, 1);
             Assert.Equal(default(T), array[0]);

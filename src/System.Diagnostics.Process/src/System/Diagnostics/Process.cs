@@ -3,10 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
-using System.Security;
 using System.Text;
 using System.Threading;
 
@@ -18,7 +18,7 @@ namespace System.Diagnostics
     ///       processes. Enables you to start and stop system processes.
     ///    </para>
     /// </devdoc>
-    public partial class Process : IDisposable
+    public partial class Process : Component
     {
         private bool _haveProcessId;
         private int _processId;
@@ -49,6 +49,7 @@ namespace System.Diagnostics
         private bool _exited;
         private int _exitCode;
 
+        private DateTime? _startTime;
         private DateTime _exitTime;
         private bool _haveExitTime;
 
@@ -64,6 +65,8 @@ namespace System.Diagnostics
         private bool _disposed;
 
         private static object s_createProcessLock = new object();
+
+        private bool _standardInputAccessed;
 
         private StreamReadMode _outputStreamReadMode;
         private StreamReadMode _errorStreamReadMode;
@@ -119,11 +122,6 @@ namespace System.Diagnostics
             _errorStreamReadMode = StreamReadMode.Undefined;
         }
 
-        ~Process()
-        {
-            Dispose(false);
-        }
-
         public SafeProcessHandle SafeHandle
         {
             get
@@ -132,6 +130,8 @@ namespace System.Diagnostics
                 return OpenProcessHandle();
             }
         }
+
+        public IntPtr Handle => SafeHandle.DangerousGetHandle();
 
         /// <devdoc>
         ///     Returns whether this process component is associated with a real process.
@@ -193,6 +193,19 @@ namespace System.Diagnostics
                     }
                 }
                 return _exited;
+            }
+        }
+
+        /// <summary>Gets the time the associated process was started.</summary>
+        public DateTime StartTime
+        {
+            get
+            {
+                if (!_startTime.HasValue)
+                {
+                    _startTime = StartTimeCore;
+                }
+                return _startTime.Value;
             }
         }
 
@@ -290,14 +303,7 @@ namespace System.Diagnostics
                 if (_modules == null)
                 {
                     EnsureState(State.HaveId | State.IsLocal);
-                    ModuleInfo[] moduleInfos = ProcessManager.GetModuleInfos(_processId);
-                    ProcessModule[] newModulesArray = new ProcessModule[moduleInfos.Length];
-                    for (int i = 0; i < moduleInfos.Length; i++)
-                    {
-                        newModulesArray[i] = new ProcessModule(moduleInfos[i]);
-                    }
-                    ProcessModuleCollection newModules = new ProcessModuleCollection(newModulesArray);
-                    _modules = newModules;
+                    _modules = ProcessManager.GetModules(_processId);
                 }
                 return _modules;
             }
@@ -312,6 +318,17 @@ namespace System.Diagnostics
             }
         }
 
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.NonpagedSystemMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int NonpagedSystemMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PoolNonPagedBytes);
+            }
+        }
+
+
         public long PagedMemorySize64
         {
             get
@@ -320,6 +337,17 @@ namespace System.Diagnostics
                 return _processInfo.PageFileBytes;
             }
         }
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PagedMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PagedMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PageFileBytes);
+            }
+        }
+
 
         public long PagedSystemMemorySize64
         {
@@ -330,12 +358,33 @@ namespace System.Diagnostics
             }
         }
 
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PagedSystemMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PagedSystemMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PoolPagedBytes);
+            }
+        }
+
+
         public long PeakPagedMemorySize64
         {
             get
             {
                 EnsureState(State.HaveProcessInfo);
                 return _processInfo.PageFileBytesPeak;
+            }
+        }
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PeakPagedMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PeakPagedMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PageFileBytesPeak);
             }
         }
 
@@ -348,12 +397,32 @@ namespace System.Diagnostics
             }
         }
 
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PeakWorkingSet64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PeakWorkingSet
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.WorkingSetPeak);
+            }
+        }
+
         public long PeakVirtualMemorySize64
         {
             get
             {
                 EnsureState(State.HaveProcessInfo);
                 return _processInfo.VirtualBytesPeak;
+            }
+        }
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PeakVirtualMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PeakVirtualMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.VirtualBytesPeak);
             }
         }
 
@@ -404,7 +473,7 @@ namespace System.Diagnostics
             {
                 if (!Enum.IsDefined(typeof(ProcessPriorityClass), value))
                 {
-                    throw new ArgumentException(SR.Format(SR.InvalidEnumArgument, "value", (int)value, typeof(ProcessPriorityClass)));
+                    throw new InvalidEnumArgumentException(nameof(value), (int)value, typeof(ProcessPriorityClass));
                 }
 
                 PriorityClassCore = value;
@@ -419,6 +488,16 @@ namespace System.Diagnostics
             {
                 EnsureState(State.HaveProcessInfo);
                 return _processInfo.PrivateBytes;
+            }
+        }
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PrivateMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PrivateMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PrivateBytes);
             }
         }
 
@@ -498,7 +577,7 @@ namespace System.Diagnostics
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
-                
+
                 if (Associated)
                 {
                     throw new InvalidOperationException(SR.CantSetProcessStartInfo);
@@ -535,12 +614,34 @@ namespace System.Diagnostics
             }
         }
 
+        public int HandleCount
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                EnsureHandleCountPopulated();
+                return _processInfo.HandleCount;
+            }
+        }
+
+        partial void EnsureHandleCountPopulated();
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.VirtualMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
         public long VirtualMemorySize64
         {
             get
             {
                 EnsureState(State.HaveProcessInfo);
                 return _processInfo.VirtualBytes;
+            }
+        }
+
+        public int VirtualMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.VirtualBytes);
             }
         }
 
@@ -591,6 +692,7 @@ namespace System.Diagnostics
                     throw new InvalidOperationException(SR.CantGetStandardIn);
                 }
 
+                _standardInputAccessed = true;
                 return _standardInput;
             }
         }
@@ -654,6 +756,16 @@ namespace System.Diagnostics
             }
         }
 
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.WorkingSet64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int WorkingSet
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.WorkingSet);
+            }
+        }
+
         public event EventHandler Exited
         {
             add
@@ -664,28 +776,6 @@ namespace System.Diagnostics
             {
                 _onExited -= value;
             }
-        }
-
-        /// <devdoc>
-        ///     Release the temporary handle we used to get process information.
-        ///     If we used the process handle stored in the process object (we have all access to the handle,) don't release it.
-        /// </devdoc>
-        /// <internalonly/>
-        private void ReleaseProcessHandle(SafeProcessHandle handle)
-        {
-            if (handle == null)
-            {
-                return;
-            }
-
-            if (_haveProcessHandle && handle == _processHandle)
-            {
-                return;
-            }
-#if FEATURE_TRACESWITCH
-            Debug.WriteLineIf(_processTracing.TraceVerbose, "Process - CloseHandle(process)");
-#endif
-            handle.Dispose();
         }
 
         /// <devdoc>
@@ -704,7 +794,7 @@ namespace System.Diagnostics
         ///       Free any resources associated with this component.
         ///    </para>
         /// </devdoc>
-        protected virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             if (!_disposed)
             {
@@ -717,12 +807,29 @@ namespace System.Diagnostics
             }
         }
 
+        public bool CloseMainWindow()
+        {
+            return CloseMainWindowCore();
+        }
+
+        public bool WaitForInputIdle()
+        {
+            return WaitForInputIdle(int.MaxValue);
+        }
+
+        public bool WaitForInputIdle(int milliseconds)
+        {
+            return WaitForInputIdleCore(milliseconds);
+        }
+
+        public ISynchronizeInvoke SynchronizingObject { get; set; }
+
         /// <devdoc>
         ///    <para>
         ///       Frees any resources associated with this component.
         ///    </para>
         /// </devdoc>
-        internal void Close()
+        public void Close()
         {
             if (Associated)
             {
@@ -741,18 +848,45 @@ namespace System.Diagnostics
                 _machineName = ".";
                 _raisedOnExited = false;
 
-                //Don't call close on the Readers and writers
-                //since they might be referenced by somebody else while the 
-                //process is still alive but this method called.
-                _standardOutput = null;
-                _standardInput = null;
-                _standardError = null;
+                // Only call close on the streams if the user cannot have a reference on them.
+                // If they are referenced it is the user's responsibility to dispose of them.
+                try 
+                {
+                    if (_standardOutput != null && (_outputStreamReadMode == StreamReadMode.AsyncMode || _outputStreamReadMode == StreamReadMode.Undefined))
+                    {
+                        if (_outputStreamReadMode == StreamReadMode.AsyncMode)
+                        {
+                            _output.CancelOperation();
+                        }
+                        _standardOutput.Close();
+                    }
 
-                _output = null;
-                _error = null;
+                    if (_standardError != null && (_errorStreamReadMode == StreamReadMode.AsyncMode || _errorStreamReadMode == StreamReadMode.Undefined))
+                    {
+                        if (_errorStreamReadMode == StreamReadMode.AsyncMode)
+                        {
+                            _error.CancelOperation();
+                        }
+                        _standardError.Close();
+                    }
 
-                CloseCore();
-                Refresh();
+                    if (_standardInput != null && !_standardInputAccessed)
+                    {
+                        _standardInput.Close();
+                    }
+                }
+                finally 
+                {
+                    _standardOutput = null;
+                    _standardInput = null;
+                    _standardError = null;
+
+                    _output = null;
+                    _error = null;
+
+                    CloseCore();
+                    Refresh();
+                }
             }
         }
 
@@ -810,37 +944,6 @@ namespace System.Diagnostics
                 if (!_haveProcessHandle)
                 {
                     throw new InvalidOperationException(SR.NoProcessHandle);
-                }
-            }
-        }
-
-        /// <devdoc>
-        ///     Make sure we are watching for a process exit.
-        /// </devdoc>
-        /// <internalonly/>
-        private void EnsureWatchingForExit()
-        {
-            if (!_watchingForExit)
-            {
-                lock (this)
-                {
-                    if (!_watchingForExit)
-                    {
-                        Debug.Assert(_haveProcessHandle, "Process.EnsureWatchingForExit called with no process handle");
-                        Debug.Assert(Associated, "Process.EnsureWatchingForExit called with no associated process");
-                        _watchingForExit = true;
-                        try
-                        {
-                            _waitHandle = new ProcessWaitHandle(_processHandle);
-                            _registeredWaitHandle = ThreadPool.RegisterWaitForSingleObject(_waitHandle,
-                                new WaitOrTimerCallback(CompletionCallback), null, -1, true);
-                        }
-                        catch
-                        {
-                            _watchingForExit = false;
-                            throw;
-                        }
-                    }
                 }
             }
         }
@@ -1058,7 +1161,11 @@ namespace System.Diagnostics
         {
             _processId = processId;
             _haveProcessId = true;
+            ConfigureAfterProcessIdSet();
         }
+
+        /// <summary>Additional optional configuration hook after a process ID is set.</summary>
+        partial void ConfigureAfterProcessIdSet();
 
         /// <devdoc>
         ///    <para>
@@ -1078,6 +1185,10 @@ namespace System.Diagnostics
             {
                 throw new InvalidOperationException(SR.FileNameMissing);
             }
+            if (startInfo.StandardInputEncoding != null && !startInfo.RedirectStandardInput)
+            {
+                throw new InvalidOperationException(SR.StandardInputEncodingNotAllowed);
+            }
             if (startInfo.StandardOutputEncoding != null && !startInfo.RedirectStandardOutput)
             {
                 throw new InvalidOperationException(SR.StandardOutputEncodingNotAllowed);
@@ -1085,6 +1196,10 @@ namespace System.Diagnostics
             if (startInfo.StandardErrorEncoding != null && !startInfo.RedirectStandardError)
             {
                 throw new InvalidOperationException(SR.StandardErrorEncodingNotAllowed);
+            }
+            if (!string.IsNullOrEmpty(startInfo.Arguments) && startInfo.ArgumentList.Count > 0)
+            {
+                throw new InvalidOperationException(SR.ArgumentAndArgumentListInitialized);
             }
 
             //Cannot start a new process and store its handle if the object has been disposed, since finalization has been suppressed.            
@@ -1136,8 +1251,8 @@ namespace System.Diagnostics
                 throw new ArgumentNullException(nameof(startInfo));
 
             process.StartInfo = startInfo;
-            return process.Start() ? 
-                process : 
+            return process.Start() ?
+                process :
                 null;
         }
 
@@ -1355,10 +1470,15 @@ namespace System.Diagnostics
             }
         }
 
-        public void Dispose()
+        private static void AppendArguments(StringBuilder stringBuilder, Collection<string> argumentList)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            if (argumentList.Count > 0)
+            {
+                foreach (string argument in argumentList)
+                {
+                    PasteArguments.AppendArgument(stringBuilder, argument);
+                }
+            }
         }
 
         /// <summary>

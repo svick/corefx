@@ -5,89 +5,156 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Xunit;
 
-namespace System.ComponentModel.DataAnnotations
+namespace System.ComponentModel.DataAnnotations.Tests
 {
-    public class MaxLengthAttributeTests
+    public class MaxLengthAttributeTests : ValidationAttributeTestBase
     {
-        private static readonly ValidationContext s_testValidationContext = new ValidationContext(new object());
+        protected override IEnumerable<TestCase> ValidValues()
+        {
+            yield return new TestCase(new MaxLengthAttribute(10), null);
+            yield return new TestCase(new MaxLengthAttribute(15), "UnderMaxLength");
+            yield return new TestCase(new MaxLengthAttribute(16), "EqualToMaxLength");
+            yield return new TestCase(new MaxLengthAttribute(-1), "SpecifiedMaximumMaxLength");
+            yield return new TestCase(new MaxLengthAttribute(-1), new int[20]);
+            yield return new TestCase(new MaxLengthAttribute(15), new string[14]);
+            yield return new TestCase(new MaxLengthAttribute(16), new string[16]);
+
+            yield return new TestCase(new MaxLengthAttribute(16), new int[4, 4]);
+            yield return new TestCase(new MaxLengthAttribute(16), new string[3, 4]);
+        }
+
+        protected static IEnumerable<object[]> ValidValues_ICollection()
+        {
+            yield return new object[] { new MaxLengthAttribute(-1), new Collection<int>(new int[20]) };
+            yield return new object[] { new MaxLengthAttribute(15), new Collection<string>(new string[14]) };
+            yield return new object[] { new MaxLengthAttribute(16), new Collection<string>(new string[16]) };
+
+            yield return new object[] { new MaxLengthAttribute(-1), new List<int>(new int[20]) };
+            yield return new object[] { new MaxLengthAttribute(15), new List<string>(new string[14]) };
+            yield return new object[] { new MaxLengthAttribute(16), new List<string>(new string[16]) };
+
+            //ICollection<T> but not ICollection
+            yield return new object[] { new MaxLengthAttribute(-1), new HashSet<int>(Enumerable.Range(1, 20)) };
+            yield return new object[] { new MaxLengthAttribute(15), new HashSet<string>(Enumerable.Range(1, 14).Select(i => i.ToString())) };
+            yield return new object[] { new MaxLengthAttribute(16), new HashSet<string>(Enumerable.Range(1, 16).Select(i => i.ToString())) };
+
+            //ICollection but not ICollection<T>
+            yield return new object[] { new MaxLengthAttribute(-1), new ArrayList(new int[20]) };
+            yield return new object[] { new MaxLengthAttribute(15), new ArrayList(new string[14]) };
+            yield return new object[] { new MaxLengthAttribute(16), new ArrayList(new string[16]) };
+
+            //Multi ICollection<T>
+            yield return new object[] { new MaxLengthAttribute(1), new MultiCollection() };
+        }
+
+        protected override IEnumerable<TestCase> InvalidValues()
+        {
+            yield return new TestCase(new MaxLengthAttribute(12), "OverMaxLength");
+            yield return new TestCase(new MaxLengthAttribute(12), new byte[13]);
+
+            yield return new TestCase(new MaxLengthAttribute(12), new int[4, 4]);
+        }
+
+        protected static IEnumerable<object> InvalidValues_ICollection()
+        {
+            yield return new object[] { new MaxLengthAttribute(12), new Collection<byte>(new byte[13]) };
+            yield return new object[] { new MaxLengthAttribute(12), new List<byte>(new byte[13]) };
+            yield return new object[] { new MaxLengthAttribute(12), new HashSet<int>(Enumerable.Range(1, 13)) };
+        }
 
         [Fact]
-        public static void Length_returns_set_length()
+        public static void Ctor()
         {
             Assert.Equal(-1, new MaxLengthAttribute().Length);
-            Assert.Equal(-1, new MaxLengthAttribute(-1).Length);
-            Assert.Equal(10, new MaxLengthAttribute(10).Length);
+        }
 
-            // These only throw when GetValidationResult is called
-            Assert.Equal(0, new MaxLengthAttribute(0).Length);
-            Assert.Equal(-10, new MaxLengthAttribute(-10).Length);
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(10)]
+        [InlineData(0)]
+        [InlineData(-10)]
+        public static void Ctor_Int(int length)
+        {
+            Assert.Equal(length, new MaxLengthAttribute(length).Length);
+        }
+
+        [Theory]
+        [MemberData(nameof(ValidValues_ICollection))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "MaxLengthAttribute in the .NET Framework doesn't support ICollection.Count. See https://github.com/dotnet/corefx/issues/18361")]
+        public void Validate_ICollection_NetCore_Valid(MaxLengthAttribute attribute, object value)
+        {
+            attribute.Validate(value, new ValidationContext(new object()));
+            Assert.True(attribute.IsValid(value));
+        }
+
+        [Theory]
+        [MemberData(nameof(InvalidValues_ICollection))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "MaxLengthAttribute in the .NET Framework doesn't support ICollection.Count. See https://github.com/dotnet/corefx/issues/18361")]
+        public void Validate_ICollection_NetCore_Invalid(MaxLengthAttribute attribute, object value)
+        {
+            Assert.Throws<ValidationException>(() => attribute.Validate(value, new ValidationContext(new object())));
+            Assert.False(attribute.IsValid(value));
+        }
+
+        [Theory]
+        [MemberData(nameof(ValidValues_ICollection))]
+        [MemberData(nameof(InvalidValues_ICollection))]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework, "MaxLengthAttribute in the .NET Core supports ICollection.Count. See https://github.com/dotnet/corefx/issues/18361")]
+        public void Validate_ICollection_NetFx_ThrowsInvalidCastException(MaxLengthAttribute attribute, object value)
+        {
+            Assert.Throws<InvalidCastException>(() => attribute.Validate(value, new ValidationContext(new object())));
+            Assert.Throws<InvalidCastException>(() => attribute.IsValid(value));
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-10)]
+        public static void GetValidationResult_InvalidLength_ThrowsInvalidOperationException(int length)
+        {
+            var attribute = new MaxLengthAttribute(length);
+            Assert.Throws<InvalidOperationException>(() => attribute.Validate("Twoflower", new ValidationContext(new object())));
         }
 
         [Fact]
-        public static void GetValidationResult_throws_for_negative_or_zero_lengths_other_than_negative_one()
+        public static void GetValidationResult_ValueNotStringOrICollection_ThrowsInvalidCastException()
         {
-            var attribute1 = new MaxLengthAttribute(0);
-            Assert.Throws<InvalidOperationException>(
-                () => attribute1.GetValidationResult("Twoflower", s_testValidationContext));
-
-            var attribute2 = new MaxLengthAttribute(-10);
-            Assert.Throws<InvalidOperationException>(
-                () => attribute2.GetValidationResult("Rincewind", s_testValidationContext));
+            Assert.Throws<InvalidCastException>(() => new MaxLengthAttribute().GetValidationResult(new Random(), new ValidationContext(new object())));
         }
 
         [Fact]
-        public static void GetValidationResult_throws_for_object_that_is_not_string_or_array()
+        public static void GetValidationResult_ValueGenericIEnumerable_ThrowsInvalidCastException()
         {
-            Assert.Throws<InvalidCastException>(
-                () => new MaxLengthAttribute().GetValidationResult(new Random(), s_testValidationContext));
+            Assert.Throws<InvalidCastException>(() => new MaxLengthAttribute().GetValidationResult(new GenericIEnumerableClass(), new ValidationContext(new object())));
         }
+    }
 
-        [Fact]
-        public static void GetValidationResult_returns_success_for_null_target()
-        {
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(10).GetValidationResult(null, s_testValidationContext));
-        }
+    class GenericIEnumerableClass : IEnumerable<int>
+    {
+        public IEnumerator<int> GetEnumerator() => Enumerable.Empty<int>().GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 
-        [Fact]
-        public static void GetValidationResult_validates_string_length()
-        {
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute().GetValidationResult("UnspecifiedMaxLength", s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(15).GetValidationResult("UnderMaxLength", s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(16).GetValidationResult("EqualToMaxLength", s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(-1).GetValidationResult("SpecifiedMaximumMaxLength", s_testValidationContext));
-            Assert.NotNull((new MaxLengthAttribute(12).GetValidationResult("OverMaxLength", s_testValidationContext)).ErrorMessage);
-        }
-
-        [Fact]
-        public static void GetValidationResult_validates_array_length()
-        {
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute().GetValidationResult(new int[500], s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(15).GetValidationResult(new string[14], s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(16).GetValidationResult(new string[16], s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(-1).GetValidationResult(new object[500], s_testValidationContext));
-            Assert.NotNull((new MaxLengthAttribute(12).GetValidationResult(new byte[13], s_testValidationContext)).ErrorMessage);
-        }
-
-        [Fact]
-        public static void GetValidationResult_validates_collection_length()
-        {
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute().GetValidationResult(new Collection<int>(new int[500]), s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(15).GetValidationResult(new Collection<string>(new string[14]), s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(16).GetValidationResult(new Collection<string>(new string[16]), s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(-1).GetValidationResult(new Collection<object>(new object[500]), s_testValidationContext));
-            Assert.NotNull((new MaxLengthAttribute(12).GetValidationResult(new Collection<byte>(new byte[13]), s_testValidationContext)).ErrorMessage);
-        }
-
-        [Fact]
-        public static void GetValidationResult_validates_list_length()
-        {
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute().GetValidationResult(new List<int>(new int[500]), s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(15).GetValidationResult(new List<string>(new string[14]), s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(16).GetValidationResult(new List<string>(new string[16]), s_testValidationContext));
-            Assert.Equal(ValidationResult.Success, new MaxLengthAttribute(-1).GetValidationResult(new List<object>(new object[500]), s_testValidationContext));
-            Assert.NotNull((new MaxLengthAttribute(12).GetValidationResult(new List<byte>(new byte[13]), s_testValidationContext)).ErrorMessage);
-        }
+    public class MultiCollection : Collection<string>, ICollection<int>, ICollection<uint>
+    {
+        int ICollection<int>.Count => 0;
+        int ICollection<uint>.Count => 0;
+        bool ICollection<int>.IsReadOnly => throw new NotSupportedException();
+        bool ICollection<uint>.IsReadOnly => throw new NotSupportedException();
+        void ICollection<int>.Add(int item) => throw new NotSupportedException();
+        void ICollection<uint>.Add(uint item) => throw new NotSupportedException();
+        void ICollection<int>.Clear() => throw new NotSupportedException();
+        void ICollection<uint>.Clear() => throw new NotSupportedException();
+        bool ICollection<int>.Contains(int item) => throw new NotSupportedException();
+        bool ICollection<uint>.Contains(uint item) => throw new NotSupportedException();
+        void ICollection<int>.CopyTo(int[] array, int arrayIndex) => throw new NotSupportedException();
+        void ICollection<uint>.CopyTo(uint[] array, int arrayIndex) => throw new NotSupportedException();
+        IEnumerator<int> IEnumerable<int>.GetEnumerator() => throw new NotSupportedException();
+        IEnumerator IEnumerable.GetEnumerator() => throw new NotSupportedException();
+        IEnumerator<uint> IEnumerable<uint>.GetEnumerator() => throw new NotSupportedException();
+        bool ICollection<int>.Remove(int item) => throw new NotSupportedException();
+        bool ICollection<uint>.Remove(uint item) => throw new NotSupportedException();
     }
 }

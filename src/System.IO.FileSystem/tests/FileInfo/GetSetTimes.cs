@@ -3,85 +3,100 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Linq;
 using Xunit;
 
 namespace System.IO.Tests
 {
-    public class FileInfo_GetSetTimes : FileSystemTest
+    public class FileInfo_GetSetTimes : InfoGetSetTimes<FileInfo>
     {
-        public delegate void SetTime(FileInfo testFile, DateTime time);
-        public delegate DateTime GetTime(FileInfo testFile);
+        public override FileInfo GetExistingItem()
+        {
+            string path = GetTestFilePath();
+            File.Create(path).Dispose();
+            return new FileInfo(path);
+        }
 
-        public IEnumerable<Tuple<SetTime, GetTime, DateTimeKind>> TimeFunctions(bool requiresRoundtripping = false)
+        public override FileInfo GetMissingItem() => new FileInfo(GetTestFilePath());
+
+        public override void InvokeCreate(FileInfo item) => item.Create();
+
+        public override IEnumerable<TimeFunction> TimeFunctions(bool requiresRoundtripping = false)
         {
             if (IOInputs.SupportsGettingCreationTime && (!requiresRoundtripping || IOInputs.SupportsSettingCreationTime))
             {
-                yield return Tuple.Create<SetTime, GetTime, DateTimeKind>(
+                yield return TimeFunction.Create(
                     ((testFile, time) => { testFile.CreationTime = time; }),
                     ((testFile) => testFile.CreationTime),
                     DateTimeKind.Local);
-                yield return Tuple.Create<SetTime, GetTime, DateTimeKind>(
+                yield return TimeFunction.Create(
+                    ((testFile, time) => { testFile.CreationTimeUtc = time; }),
+                    ((testFile) => testFile.CreationTimeUtc),
+                    DateTimeKind.Unspecified);
+                yield return TimeFunction.Create(
                     ((testFile, time) => { testFile.CreationTimeUtc = time; }),
                     ((testFile) => testFile.CreationTimeUtc),
                     DateTimeKind.Utc);
             }
-            yield return Tuple.Create<SetTime, GetTime, DateTimeKind>(
+            yield return TimeFunction.Create(
                 ((testFile, time) => { testFile.LastAccessTime = time; }),
                 ((testFile) => testFile.LastAccessTime),
                 DateTimeKind.Local);
-            yield return Tuple.Create<SetTime, GetTime, DateTimeKind>(
+            yield return TimeFunction.Create(
+                ((testFile, time) => { testFile.LastAccessTimeUtc = time; }),
+                ((testFile) => testFile.LastAccessTimeUtc),
+                DateTimeKind.Unspecified);
+            yield return TimeFunction.Create(
                 ((testFile, time) => { testFile.LastAccessTimeUtc = time; }),
                 ((testFile) => testFile.LastAccessTimeUtc),
                 DateTimeKind.Utc);
-            yield return Tuple.Create<SetTime, GetTime, DateTimeKind>(
+            yield return TimeFunction.Create(
                 ((testFile, time) => { testFile.LastWriteTime = time; }),
                 ((testFile) => testFile.LastWriteTime),
                 DateTimeKind.Local);
-            yield return Tuple.Create<SetTime, GetTime, DateTimeKind>(
+            yield return TimeFunction.Create(
+                ((testFile, time) => { testFile.LastWriteTimeUtc = time; }),
+                ((testFile) => testFile.LastWriteTimeUtc),
+                DateTimeKind.Unspecified);
+            yield return TimeFunction.Create(
                 ((testFile, time) => { testFile.LastWriteTimeUtc = time; }),
                 ((testFile) => testFile.LastWriteTimeUtc),
                 DateTimeKind.Utc);
         }
 
         [Fact]
-        public void SettingUpdatesProperties()
+        public void DeleteAfterEnumerate_TimesStillSet()
         {
-            FileInfo testFile = new FileInfo(GetTestFilePath());
-            testFile.Create().Dispose();
+            // When enumerating we populate the state as we already have it.
+            DateTime beforeTime = DateTime.UtcNow.AddSeconds(-1);
+            string filePath = GetTestFilePath();
+            File.Create(filePath).Dispose();
+            FileInfo info = new DirectoryInfo(TestDirectory).EnumerateFiles().First();
 
-            Assert.All(TimeFunctions(requiresRoundtripping: true), (tuple) =>
-            {
-                DateTime dt = new DateTime(2014, 12, 1, 12, 0, 0, tuple.Item3);
-                tuple.Item1(testFile, dt);
-                var result = tuple.Item2(testFile);
-                Assert.Equal(dt, result);
-                Assert.Equal(dt.ToLocalTime(), result.ToLocalTime());
-                Assert.Equal(dt.ToUniversalTime(), result.ToUniversalTime());
-            });
+            DateTime afterTime = DateTime.UtcNow.AddSeconds(1);
+
+            // Deleting doesn't change any info state
+            info.Delete();
+            ValidateSetTimes(info, beforeTime, afterTime);
         }
 
+
         [Fact]
-        public void CreationSetsAllTimes()
+        [PlatformSpecific(TestPlatforms.Linux)]
+        public void BirthTimeIsNotNewerThanLowestOfAccessModifiedTimes()
         {
-            string path = GetTestFilePath();
-            DateTime beforeTime = DateTime.UtcNow.AddSeconds(-3);
+            // On Linux (if no birth time), we synthesize CreationTime from the oldest of 
+            // status changed time (ctime) and write time (mtime)
+            // Sanity check that it is in that range.
 
-            FileInfo testFile = new FileInfo(GetTestFilePath());
-            testFile.Create().Dispose();
+            DateTime before = DateTime.UtcNow.AddMinutes(-1);
 
-            DateTime afterTime = DateTime.UtcNow.AddSeconds(3);
+            FileInfo fi = GetExistingItem(); // should set ctime
+            fi.LastWriteTimeUtc = DateTime.UtcNow.AddMinutes(1); // mtime
+            fi.LastAccessTimeUtc = DateTime.UtcNow.AddMinutes(2); // atime
 
-            Assert.All(TimeFunctions(), (tuple) =>
-            {
-                // We want to test all possible DateTimeKind conversions to ensure they function as expected
-                if (tuple.Item3 == DateTimeKind.Utc)
-                    Assert.InRange(tuple.Item2(testFile).Ticks, beforeTime.Ticks, afterTime.Ticks);
-                else
-                    Assert.InRange(tuple.Item2(testFile).Ticks, beforeTime.ToLocalTime().Ticks, afterTime.ToLocalTime().Ticks);
-                Assert.InRange(tuple.Item2(testFile).ToLocalTime().Ticks, beforeTime.ToLocalTime().Ticks, afterTime.ToLocalTime().Ticks);
-                Assert.InRange(tuple.Item2(testFile).ToUniversalTime().Ticks, beforeTime.Ticks, afterTime.Ticks);
-            });
+            // Assert.InRange is inclusive
+            Assert.InRange(fi.CreationTimeUtc, before, fi.LastWriteTimeUtc);
         }
     }
 }

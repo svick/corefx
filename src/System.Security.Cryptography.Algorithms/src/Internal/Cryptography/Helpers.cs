@@ -49,18 +49,24 @@ namespace Internal.Cryptography
         {
             for (int i = 0; i < legalSizes.Length; i++)
             {
+                KeySizes currentSizes = legalSizes[i];
+              
                 // If a cipher has only one valid key size, MinSize == MaxSize and SkipSize will be 0
-                if (legalSizes[i].SkipSize == 0)
+                if (currentSizes.SkipSize == 0)
                 {
-                    if (legalSizes[i].MinSize == size)
+                    if (currentSizes.MinSize == size)
                         return true;
                 }
-                else
+                else if (size >= currentSizes.MinSize && size <= currentSizes.MaxSize)
                 {
-                    for (int j = legalSizes[i].MinSize; j <= legalSizes[i].MaxSize; j += legalSizes[i].SkipSize)
+                    // If the number is in range, check to see if it's a legal increment above MinSize
+                    int delta = size - currentSizes.MinSize;
+
+                    // While it would be unusual to see KeySizes { 10, 20, 5 } and { 11, 14, 1 }, it could happen.
+                    // So don't return false just because this one doesn't match.
+                    if (delta % currentSizes.SkipSize == 0)
                     {
-                        if (j == size)
-                            return true;
+                        return true;
                     }
                 }
             }
@@ -111,6 +117,16 @@ namespace Internal.Cryptography
                     oddParityKey[index] |= 1;
             }
             return oddParityKey;
+        }
+
+        internal static void ConvertIntToByteArray(uint value, byte[] dest)
+        {
+            Debug.Assert(dest != null);
+            Debug.Assert(dest.Length == 4);
+            dest[0] = (byte)((value & 0xFF000000) >> 24);
+            dest[1] = (byte)((value & 0xFF0000) >> 16);
+            dest[2] = (byte)((value & 0xFF00) >> 8);
+            dest[3] = (byte)(value & 0xFF);
         }
     }
 }

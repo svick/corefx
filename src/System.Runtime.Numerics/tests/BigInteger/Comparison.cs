@@ -106,7 +106,7 @@ namespace System.Numerics.Tests
             VerifyComparison(BigInteger.One, (Int32)(1), 0);
 
 
-            //1 Inputs Arround the boundry of UInt32
+            //1 Inputs Around the boundary of UInt32
             // -1 * UInt32.MaxValue, -1 * UInt32.MaxValue
             VerifyComparison(-1L * (BigInteger)UInt32.MaxValue - 1, -1L * (BigInteger)UInt32.MaxValue - 1, 0);
 
@@ -186,7 +186,6 @@ namespace System.Numerics.Tests
             // (BigInteger UInt32.MaxValue, UInt32.MaxValue
             VerifyComparison((BigInteger)UInt32.MaxValue, UInt32.MaxValue, 0);
 
-
             //BigInteger vs. UInt64
             // One Larger (BigInteger), UInt64.MaxValue
             VerifyComparison((BigInteger)UInt64.MaxValue + 1, UInt64.MaxValue, 1);
@@ -196,6 +195,8 @@ namespace System.Numerics.Tests
 
             // Smaller BigInteger, UInt64.MaxValue
             VerifyComparison((BigInteger)Int16.MinValue - 1, UInt64.MaxValue, -1);
+            VerifyComparison((BigInteger)Int16.MaxValue - 1, UInt64.MaxValue, -1);
+            VerifyComparison((BigInteger)Int32.MaxValue + 1, UInt64.MaxValue, -1);
 
             // One Smaller (BigInteger), UInt64.MaxValue
             VerifyComparison((BigInteger)UInt64.MaxValue - 1, UInt64.MaxValue, -1);
@@ -358,12 +359,25 @@ namespace System.Numerics.Tests
             Assert.Equal(false, BigInteger.Zero.Equals((Object)"0"));
         }
 
-        [Fact]
-        public static void IComparable_Invalid()
+        public static void IComparable_Invalid(string paramName)
         {
             IComparable comparable = new BigInteger();
             Assert.Equal(1, comparable.CompareTo(null));
-            Assert.Throws<ArgumentException>("obj", () => comparable.CompareTo(0)); // Obj is not a BigInteger
+            AssertExtensions.Throws<ArgumentException>(paramName, () => comparable.CompareTo(0)); // Obj is not a BigInteger
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(~TargetFrameworkMonikers.NetFramework)] // Desktop misses Exception.ParamName fixed in .NETCore
+        public static void IComparable_Invalid_net46()
+        {
+            IComparable_Invalid(null);
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public static void IComparable_Invalid_netcore()
+        {
+            IComparable_Invalid("obj");
         }
 
         private static void VerifyComparison(BigInteger x, BigInteger y, int expectedResult)
@@ -553,6 +567,11 @@ namespace System.Numerics.Tests
                 Assert.Equal(x.GetHashCode(), ((BigInteger)y).GetHashCode());
                 Assert.Equal(x.ToString(), ((BigInteger)y).ToString());
             }
+            else
+            {
+                Assert.NotEqual(x.GetHashCode(), ((BigInteger)y).GetHashCode());
+                Assert.NotEqual(x.ToString(), ((BigInteger)y).ToString());
+            }
 
             Assert.Equal(x.GetHashCode(), x.GetHashCode());
             Assert.Equal(((BigInteger)y).GetHashCode(), ((BigInteger)y).GetHashCode());
@@ -604,6 +623,11 @@ namespace System.Numerics.Tests
             {
                 Assert.Equal(x.GetHashCode(), y.GetHashCode());
                 Assert.Equal(x.ToString(), y.ToString());
+            }
+            else
+            {
+                Assert.NotEqual(x.GetHashCode(), y.GetHashCode());
+                Assert.NotEqual(x.ToString(), y.ToString());
             }
 
             Assert.Equal(x.GetHashCode(), x.GetHashCode());

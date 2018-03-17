@@ -2,10 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using Microsoft.Win32.SafeHandles;
+using System.Runtime.InteropServices;
 
 namespace Internal.Cryptography.Pal
 {
@@ -31,6 +32,7 @@ namespace Internal.Cryptography.Pal
                 return true;
             }
 
+            handle.Dispose();
             pkcs12Reader = null;
             return false;
         }
@@ -45,6 +47,7 @@ namespace Internal.Cryptography.Pal
                 return true;
             }
 
+            p12.Dispose();
             pkcs12Reader = null;
             return false;
         }
@@ -75,7 +78,7 @@ namespace Internal.Cryptography.Pal
             }
         }
 
-        public void Decrypt(string password)
+        public void Decrypt(SafePasswordHandle password)
         {
             bool parsed = Interop.Crypto.Pkcs12Parse(
                 _pkcs12Handle,
@@ -104,8 +107,8 @@ namespace Internal.Cryptography.Pal
 
                     if (certPtr != IntPtr.Zero)
                     {
-                        // The STACK_OF(X509) still needs to be cleaned up, so duplicate the handle out of it.
-                        certs.Add(new OpenSslX509CertificateReader(Interop.Crypto.X509Duplicate(certPtr)));
+                        // The STACK_OF(X509) still needs to be cleaned up, so upref the handle out of it.
+                        certs.Add(new OpenSslX509CertificateReader(Interop.Crypto.X509UpRef(certPtr)));
                     }
                 }
             }

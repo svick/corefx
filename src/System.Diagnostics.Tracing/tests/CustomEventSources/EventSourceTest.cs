@@ -5,10 +5,14 @@
 using System;
 using System.Linq;
 using System.Diagnostics;
+#if USE_MDT_EVENTSOURCE
+using Microsoft.Diagnostics.Tracing;
+#else
 using System.Diagnostics.Tracing;
+#endif
 
 // We wish to test both Microsoft.Diagnostics.Tracing (Nuget)
-// and System.Diagnostics.Tracing (Framewwork), we use this Ifdef make each kind 
+// and System.Diagnostics.Tracing (Framework), we use this Ifdef make each kind 
 
 namespace SdtEventSources
 {
@@ -76,7 +80,7 @@ namespace SdtEventSources
         public void StartTrackingActivity() { WriteEvent(15); }
         
         [Event(17, Keywords = Keywords.Transfer | Keywords.HasStringArgs, Opcode = EventOpcode.Send, Task = Tasks.WorkItem)]
-        unsafe public void LogTaskScheduled(Guid RelatedActivityId, string message)
+        public unsafe void LogTaskScheduled(Guid RelatedActivityId, string message)
         {
             unsafe
             {
@@ -133,13 +137,12 @@ namespace SdtEventSources
         public void EventDateTime(DateTime dt) { WriteEvent(24, dt); }
 
         [Event(25, Keywords = Keywords.HasNoArgs, Level = EventLevel.Informational)]
-        public void EventWithManyTypeArgs(string msg, long l, uint ui, UInt64 ui64,
+        public void EventWithManyTypeArgs(string msg, long l, uint ui, UInt64 ui64, char c,
                                           byte b, sbyte sb, short sh, ushort ush,
                                           float f, double d, Guid guid)
         {
             if (IsEnabled(EventLevel.Informational, Keywords.HasNoArgs))
-                // 4.5 EventSource does not support "Char" type
-                WriteEvent(25, msg, l, ui, ui64, b, sb, sh, ush, f, d, guid);
+                WriteEvent(25, msg, l, ui, ui64, c, b, sb, sh, ush, f, d, guid);
         }
 
         [Event(26)]

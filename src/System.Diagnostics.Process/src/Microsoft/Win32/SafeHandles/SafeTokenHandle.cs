@@ -18,7 +18,6 @@ using System.Security;
 
 namespace Microsoft.Win32.SafeHandles
 {
-    [SecurityCritical]
     internal sealed class SafeTokenHandle : SafeHandle
     {
         private const int DefaultInvalidHandleValue = 0;
@@ -47,14 +46,12 @@ namespace Microsoft.Win32.SafeHandles
 
         public override bool IsInvalid
         {
-            [SecurityCritical]
             get { return handle == IntPtr.Zero || handle == new IntPtr(-1); }
         }
 
-        [SecurityCritical]
         protected override bool ReleaseHandle()
         {
-            return Interop.mincore.CloseHandle(handle);
+            return Interop.Kernel32.CloseHandle(handle);
         }
     }
 }

@@ -9,8 +9,8 @@
 
 using System;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 namespace System.Text
 {
@@ -27,8 +27,7 @@ namespace System.Text
     //      Forms D & KD have things like 0934, which decomposes to 0933 + 093C, so not normal.
     //      Form IDNA has the above problems plus case mapping, so false (like most encodings)
     //
-
-    internal class ISCIIEncoding : EncodingNLS
+    internal class ISCIIEncoding : EncodingNLS, ISerializable
     {
         // Constants
         private const int CodeDefault = 0;    // 0x40       Default
@@ -79,6 +78,11 @@ namespace System.Text
                 throw new ArgumentException(SR.Format(SR.Argument_CodepageNotSupported, codePage), nameof(codePage));
         }
 
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
         // Our MaxByteCount is 4 times the input size.  That could be because
         // the first input character could be in the wrong code page ("font") and
         // then that character could also be encoded in 2 code points
@@ -86,7 +90,6 @@ namespace System.Text
         {
             if (charCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Characters would be # of characters + 1 in case high surrogate is ? * max fallback
             long byteCount = (long)charCount + 1;
@@ -109,7 +112,6 @@ namespace System.Text
         {
             if (byteCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Our MaxCharCount is the same as the byteCount.  There are a few sequences
             // where 2 (or more) bytes could become 2 chars, but that's still 1 to 1.
@@ -127,7 +129,6 @@ namespace System.Text
         }
 
         // Our workhorse version
-        [System.Security.SecurityCritical]  // auto-generated
         public override unsafe int GetByteCount(char* chars, int count, EncoderNLS baseEncoder)
         {
             // Use null pointer to ask GetBytes for count
@@ -135,7 +136,6 @@ namespace System.Text
         }
 
         // Workhorse
-        [System.Security.SecurityCritical]  // auto-generated
         public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, EncoderNLS baseEncoder)
         {
             // Allow null bytes for counting
@@ -183,7 +183,7 @@ namespace System.Text
                     continue;
                 }
 
-                // See if its outside of the Indic script Range range
+                // See if its outside of the Indic script range
                 if ((ch < IndicBegin) || (ch > IndicEnd))
                 {
                     // See if its a ZWJ or ZWNJ and if we has bLastVirama;
@@ -311,7 +311,6 @@ namespace System.Text
         }
 
         // Workhorse
-        [System.Security.SecurityCritical]  // auto-generated
         public override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS baseDecoder)
         {
             // Just call GetChars with null chars saying we want count
@@ -324,7 +323,6 @@ namespace System.Text
         // Devenagari F0, B8 -> \u0952
         // Devenagari F0, BF -> \u0970
         // Some characters followed by E9 become a different character instead.
-        [System.Security.SecurityCritical]  // auto-generated
         public override unsafe int GetChars(byte* bytes, int byteCount,
                                                 char* chars, int charCount, DecoderNLS baseDecoder)
         {

@@ -257,7 +257,6 @@ namespace System.Numerics.Tests
 
         // Various rotation decompose test.
         [Fact]
-        [ActiveIssue(4833, PlatformID.OSX)]
         public void Matrix4x4DecomposeTest01()
         {
             DecomposeTest(10.0f, 20.0f, 30.0f, new Vector3(10, 20, 30), new Vector3(2, 3, 4));
@@ -543,7 +542,6 @@ namespace System.Numerics.Tests
 
         // Covers more numeric rigions
         [Fact]
-        [ActiveIssue(4882, PlatformID.OSX)]
         public void Matrix4x4CreateFromYawPitchRollTest2()
         {
             const float step = 35.0f;
@@ -1583,10 +1581,11 @@ namespace System.Numerics.Tests
         public void Matrix4x4GetHashCodeTest()
         {
             Matrix4x4 target = GenerateMatrixNumberFrom1To16();
-            int expected = target.M11.GetHashCode() + target.M12.GetHashCode() + target.M13.GetHashCode() + target.M14.GetHashCode() +
-                            target.M21.GetHashCode() + target.M22.GetHashCode() + target.M23.GetHashCode() + target.M24.GetHashCode() +
-                            target.M31.GetHashCode() + target.M32.GetHashCode() + target.M33.GetHashCode() + target.M34.GetHashCode() +
-                            target.M41.GetHashCode() + target.M42.GetHashCode() + target.M43.GetHashCode() + target.M44.GetHashCode();
+            int expected = unchecked(
+                target.M11.GetHashCode() + target.M12.GetHashCode() + target.M13.GetHashCode() + target.M14.GetHashCode() +
+                target.M21.GetHashCode() + target.M22.GetHashCode() + target.M23.GetHashCode() + target.M24.GetHashCode() +
+                target.M31.GetHashCode() + target.M32.GetHashCode() + target.M33.GetHashCode() + target.M34.GetHashCode() +
+                target.M41.GetHashCode() + target.M42.GetHashCode() + target.M43.GetHashCode() + target.M44.GetHashCode());
             int actual;
 
             actual = target.GetHashCode();
@@ -2516,6 +2515,36 @@ namespace System.Numerics.Tests
             Assert.Equal(new IntPtr(basePtr + 13), new IntPtr(&mat.M42));
             Assert.Equal(new IntPtr(basePtr + 14), new IntPtr(&mat.M43));
             Assert.Equal(new IntPtr(basePtr + 15), new IntPtr(&mat.M44));
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public void PerspectiveFarPlaneAtInfinityTest()
+        {
+            var nearPlaneDistance = 0.125f;
+            var m = Matrix4x4.CreatePerspective(1.0f, 1.0f, nearPlaneDistance, float.PositiveInfinity);
+            Assert.Equal(-1.0f, m.M33);
+            Assert.Equal(-nearPlaneDistance, m.M43);
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public void PerspectiveFieldOfViewFarPlaneAtInfinityTest()
+        {
+            var nearPlaneDistance = 0.125f;
+            var m = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.ToRadians(60.0f), 1.5f, nearPlaneDistance, float.PositiveInfinity);
+            Assert.Equal(-1.0f, m.M33);
+            Assert.Equal(-nearPlaneDistance, m.M43);
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public void PerspectiveOffCenterFarPlaneAtInfinityTest()
+        {
+            var nearPlaneDistance = 0.125f;
+            var m = Matrix4x4.CreatePerspectiveOffCenter(0.0f, 0.0f, 1.0f, 1.0f, nearPlaneDistance, float.PositiveInfinity);
+            Assert.Equal(-1.0f, m.M33);
+            Assert.Equal(-nearPlaneDistance, m.M43);
         }
     }
 }

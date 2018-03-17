@@ -1,128 +1,44 @@
-@echo off
-setlocal
+@if not defined _echo @echo off
+setlocal EnableDelayedExpansion
 
-set cleanlog=%~dp0clean.log
-echo Running Clean.cmd %* > %cleanlog%
+set NO_DASHES_ARG=%1
+if not defined NO_DASHES_ARG goto no_help
+if /I [%NO_DASHES_ARG:-=%] == [?] goto Usage
+if /I [%NO_DASHES_ARG:-=%] == [h] goto Usage
 
-if [%1] == [] (
-  set clean_targets=Clean;
-  goto Begin
+:no_help
+:: Check if VBCSCompiler.exe is running
+tasklist /fi "imagename eq VBCSCompiler.exe" |find ":" > nul
+:: Compiler is running if errorlevel == 1
+if errorlevel 1 (
+	echo Stop VBCSCompiler.exe execution.
+	for /f "tokens=2 delims=," %%F in ('tasklist /nh /fi "imagename eq VBCSCompiler.exe" /fo csv') do taskkill /f /PID %%~F
 )
 
-set clean_targets=
-set clean_src=
-set clean_tools=
-set clean_all=
-set clean_successful=true
-
-:Loop
-if [%1] == [] goto Begin
-
-if /I [%1] == [/?] goto Usage
-
-if /I [%1] == [/b] (
-  set clean_targets=Clean;%clean_targets%
-  goto Next
-)
-
-if /I [%1] == [/p] (
-  set clean_targets=CleanPackages;%clean_targets%
-  goto Next
-)
-
-if /I [%1] == [/c] (
-  set clean_targets=CleanPackagesCache;%clean_targets%
-  goto Next
-)
-
-if /I [%1] == [/s] (
-  set clean_src=true
-  goto Next
-)
-
-if /I [%1] == [/t] (
-  set clean_tools=true
-  goto Next
-)
-
-if /I [%1] == [/all] (
-  set clean_src=
-  set clean_tools=
-  set clean_targets=Clean;CleanPackages;CleanPackagesCache;
-  set clean_all=true
-  goto Begin
-)
-
-echo Unrecognized argument '%1'
-goto Usage
-
-:Next
-shift /1
-goto Loop
-
-:Begin
-
-echo Running init-tools.cmd
-call %~dp0init-tools.cmd
-
-if /I [%clean_src%] == [true] (
-  echo Cleaning src directory ...
-  echo. >> %cleanlog% && echo git clean -xdf %~dp0src >> %cleanlog%
-  call git clean -xdf %~dp0src >> %cleanlog%
-  call :CheckErrorLevel
-)
-
-if NOT "%clean_targets%" == "" (
-  echo Running msbuild clean targets "%clean_targets:~0,-1%" ...
-  echo. >> %cleanlog% && echo msbuild.exe %~dp0build.proj /t:%clean_targets:~0,-1% /nologo /v:minimal /flp:v=detailed;Append;LogFile=%cleanlog% >> %cleanlog%
-  call msbuild.exe %~dp0build.proj /t:%clean_targets:~0,-1% /nologo /v:minimal /flp:v=detailed;Append;LogFile=%cleanlog%
-  call :CheckErrorLevel
-)
-
-if /I [%clean_tools%] == [true] (
-  echo Cleaning tools directory ...
-  echo. >> %cleanlog% && echo rmdir /s /q %~dp0tools >> %cleanlog%
-  rmdir /s /q %~dp0tools >> %cleanlog%
-  REM Don't call CheckErrorLevel because if the Tools directory didn't exist when this script was
-  REM invoked, then it sometimes exits with error level 3 despite successfully deleting the directory.
-)
-
-if /I [%clean_all%] == [true] (
+:: Strip all dashes off the argument and use invariant
+:: compare to match as many versions of "all" that we can
+:: All other argument validation happens inside Run.exe
+if not defined NO_DASHES_ARG goto no_args
+if /I [%NO_DASHES_ARG:-=%] == [all] (
   echo Cleaning entire working directory ...
-  echo. >> %cleanlog% && echo git clean -xdf -e clean.log %~dp0 >> %cleanlog%
-  call git clean -xdf -e clean.log %~dp0 >> %cleanlog%
-  call :CheckErrorLevel
+  call git clean -xdf
+  exit /b !ERRORLEVEL!
 )
 
-if /I [%clean_successful%] == [true] (
-  echo Clean completed successfully.
-  echo. >> %cleanlog% && echo Clean completed successfully. >> %cleanlog%
-  exit /b 0
-) else (
-  echo An error occured while cleaning; see %cleanlog% for more details.
-  echo. >> %cleanlog% && echo Clean completed with errors. >> %cleanlog%
-  exit /b 1
-)
+:no_args
+if [%1]==[] set __args=-b
+call %~dp0run.cmd clean %__args% %*
+exit /b %ERRORLEVEL%
 
 :Usage
 echo.
+echo Usage: clean [-b] [-p] [-c] [-all]
 echo Repository cleaning script.
-echo.
 echo Options:
-echo     /b     - Deletes the binary output directory.
-echo     /p     - Deletes the repo-local nuget package directory.
-echo     /c     - Deletes the user-local nuget package cache.
-echo     /t     - Deletes the tools directory.
-echo     /s     - Deletes the untracked files under src directory (git clean src -xdf).
-echo     /all   - Combines all of the above.
+echo     -b     - Delete the binary output directory.
+echo     -p     - Delete the repo-local NuGet package directory.
+echo     -c     - Deletes the user-local NuGet package cache.
+echo     -all   - Cleans repository and restores it to pristine state.
 echo.
-echo If no option is specified then clean.cmd /b is implied.
-
-exit /b 1
-
-:CheckErrorLevel
-if NOT [%ERRORLEVEL%]==[0] (
-  echo Command exited with ERRORLEVEL %ERRORLEVEL% >> %cleanlog%
-  set clean_successful=false
-)
+echo ^If no option is specified then "clean -b" is implied.
 exit /b

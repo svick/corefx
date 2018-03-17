@@ -9,7 +9,7 @@ using Xunit;
 
 namespace System.Numerics.Tests
 {
-    public class ToStringTest
+    public partial class ToStringTest
     {
         private static bool s_noZeroOut = true;
 
@@ -100,10 +100,14 @@ namespace System.Numerics.Tests
             RunStandardFormatToStringTests(s_random, "D", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 0, DecimalFormatter);
             RunStandardFormatToStringTests(s_random, "d0", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 0, DecimalFormatter);
             RunStandardFormatToStringTests(s_random, "D1", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 1, DecimalFormatter);
+            RunStandardFormatToStringTests(s_random, "D0000001", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 1, DecimalFormatter);
             RunStandardFormatToStringTests(s_random, "d2", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 2, DecimalFormatter);
             RunStandardFormatToStringTests(s_random, "D5", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 5, DecimalFormatter);
             RunStandardFormatToStringTests(s_random, "d33", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 33, DecimalFormatter);
             RunStandardFormatToStringTests(s_random, "D99", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 99, DecimalFormatter);
+            RunStandardFormatToStringTests(s_random, "D\0", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 0, DecimalFormatter);
+            RunStandardFormatToStringTests(s_random, "D4\0", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 4, DecimalFormatter);
+            RunStandardFormatToStringTests(s_random, "D4\0Z", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 4, DecimalFormatter);
 
             // Exponential (note: negative precision means lower case e)
             RunStandardFormatToStringTests(s_random, "E", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 6, ExponentialFormatter);
@@ -180,7 +184,7 @@ namespace System.Numerics.Tests
                 VerifyToString(test, format, null, true, null);
             }
         }
-        
+
         [Fact]
         public static void RunRegionSpecificStandardFormatToStringTests()
         {
@@ -305,7 +309,7 @@ namespace System.Numerics.Tests
         [Fact]
         public static void RunCustomFormatThousandsSeparator()
         {
-            // Thousands Seperator
+            // Thousands Separator
             RunCustomFormatToStringTests(s_random, "#,#", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 0, ThousandsFormatter);
             RunCustomFormatToStringTests(s_random, "00,00", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 4, ThousandsFormatter);
             RunCustomFormatToStringTests(s_random, "0000,0,00,0", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 8, ThousandsFormatter);
@@ -374,7 +378,7 @@ namespace System.Numerics.Tests
         [Fact]
         public static void RunCustomFormatSeparator()
         {
-            // Seperator
+            // Separator
             RunCustomFormatToStringTests(s_random, "00.00;0.00E000", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 2, CombinedFormatter(DecimalPointFormatter, ScientificFormatter));
             RunCustomFormatToStringTests(s_random, "00.00;;0.00E000", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 2, CombinedFormatter(DecimalPointFormatter, DecimalPointFormatter, ScientificFormatter, true));
             RunCustomFormatToStringTests(s_random, "00.00;#%00;0.00E000", CultureInfo.CurrentCulture.NumberFormat.NegativeSign, 2, CombinedFormatter(DecimalPointFormatter, PercentSymbolFormatter, ScientificFormatter));
@@ -1418,36 +1422,41 @@ namespace System.Numerics.Tests
 
                 Assert.False(expectError, "Expected exception not encountered.");
 
-                if (expectedResult != result)
-                {
-                    Assert.Equal(expectedResult.Length, result.Length);
-
-                    int index = expectedResult.LastIndexOf("E", StringComparison.OrdinalIgnoreCase);
-                    Assert.False(index == 0, "'E' found at beginning of expectedResult");
-
-                    bool equal = false;
-                    if (index > 0)
-                    {
-                        var dig1 = (byte)expectedResult[index - 1];
-                        var dig2 = (byte)result[index - 1];
-
-                        equal |= (dig2 == dig1 - 1 || dig2 == dig1 + 1);
-                        equal |= (dig1 == '9' && dig2 == '0' || dig2 == '9' && dig1 == '0');
-                        equal |= (index == 1 && (dig1 == '9' && dig2 == '1' || dig2 == '9' && dig1 == '1'));
-                    }
-
-                    Assert.True(equal);
-                }
-                else
-                {
-                    Assert.Equal(expectedResult, result);
-                }
+                VerifyExpectedStringResult(expectedResult, result);
             }
-            catch (Exception e)
+            catch (FormatException)
             {
-                Assert.True(expectError && e.GetType() == typeof(FormatException), "Unexpected Exception:" + e);
+                Assert.True(expectError);
+            }
+
+            VerifyTryFormat(test, format, provider, expectError, expectedResult);
+        }
+
+        private static void VerifyExpectedStringResult(string expectedResult, string result)
+        {
+            if (expectedResult != result)
+            {
+                Assert.Equal(expectedResult.Length, result.Length);
+
+                int index = expectedResult.LastIndexOf("E", StringComparison.OrdinalIgnoreCase);
+                Assert.False(index == 0, "'E' found at beginning of expectedResult");
+
+                bool equal = false;
+                if (index > 0)
+                {
+                    var dig1 = (byte)expectedResult[index - 1];
+                    var dig2 = (byte)result[index - 1];
+
+                    equal |= (dig2 == dig1 - 1 || dig2 == dig1 + 1);
+                    equal |= (dig1 == '9' && dig2 == '0' || dig2 == '9' && dig1 == '0');
+                    equal |= (index == 1 && (dig1 == '9' && dig2 == '1' || dig2 == '9' && dig1 == '1'));
+                }
+
+                Assert.True(equal);
             }
         }
+
+        static partial void VerifyTryFormat(string test, string format, IFormatProvider provider, bool expectError, string expectedResult);
 
         private static String GetDigitSequence(int min, int max, Random random)
         {
@@ -1488,7 +1497,7 @@ namespace System.Numerics.Tests
             Char result = 'C';
             while (result == 'C')
             {
-                result = (Char)random.Next();
+                result = unchecked((Char)random.Next());
                 for (int i = 0; i < digits.Length; i++)
                 {
                     if (result < 'A')

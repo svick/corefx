@@ -2,23 +2,142 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
 using System.IO;
-
-using Internal.Cryptography;
 
 namespace System.Security.Cryptography
 {
     public abstract partial class RSA : AsymmetricAlgorithm
     {
+        public static new RSA Create(string algName)
+        {
+            return (RSA)CryptoConfig.CreateFromName(algName);
+        }
+
+        public static RSA Create(int keySizeInBits)
+        {
+            RSA rsa = Create();
+
+            try
+            {
+                rsa.KeySize = keySizeInBits;
+                return rsa;
+            }
+            catch
+            {
+                rsa.Dispose();
+                throw;
+            }
+        }
+
+        public static RSA Create(RSAParameters parameters)
+        {
+            RSA rsa = Create();
+
+            try
+            {
+                rsa.ImportParameters(parameters);
+                return rsa;
+            }
+            catch
+            {
+                rsa.Dispose();
+                throw;
+            }
+        }
+
         public abstract RSAParameters ExportParameters(bool includePrivateParameters);
         public abstract void ImportParameters(RSAParameters parameters);
-        public abstract byte[] Encrypt(byte[] data, RSAEncryptionPadding padding);
-        public abstract byte[] Decrypt(byte[] data, RSAEncryptionPadding padding);
-        public abstract byte[] SignHash(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding);
-        public abstract bool VerifyHash(byte[] hash, byte[] signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding);
+        public virtual byte[] Encrypt(byte[] data, RSAEncryptionPadding padding) => throw DerivedClassMustOverride();
+        public virtual byte[] Decrypt(byte[] data, RSAEncryptionPadding padding) => throw DerivedClassMustOverride();
+        public virtual byte[] SignHash(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding) => throw DerivedClassMustOverride();
+        public virtual bool VerifyHash(byte[] hash, byte[] signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding) => throw DerivedClassMustOverride();
 
-        protected abstract byte[] HashData(byte[] data, int offset, int count, HashAlgorithmName hashAlgorithm);
-        protected abstract byte[] HashData(Stream data, HashAlgorithmName hashAlgorithm);
+        protected virtual byte[] HashData(byte[] data, int offset, int count, HashAlgorithmName hashAlgorithm) => throw DerivedClassMustOverride();
+        protected virtual byte[] HashData(Stream data, HashAlgorithmName hashAlgorithm) => throw DerivedClassMustOverride();
+
+        public virtual bool TryDecrypt(ReadOnlySpan<byte> data, Span<byte> destination, RSAEncryptionPadding padding, out int bytesWritten)
+        {
+            byte[] result = Decrypt(data.ToArray(), padding);
+
+            if (destination.Length >= result.Length)
+            {
+                new ReadOnlySpan<byte>(result).CopyTo(destination);
+                bytesWritten = result.Length;
+                return true;
+            }
+
+            bytesWritten = 0;
+            return false;
+        }
+
+        public virtual bool TryEncrypt(ReadOnlySpan<byte> data, Span<byte> destination, RSAEncryptionPadding padding, out int bytesWritten)
+        {
+            byte[] result = Encrypt(data.ToArray(), padding);
+
+            if (destination.Length >= result.Length)
+            {
+                new ReadOnlySpan<byte>(result).CopyTo(destination);
+                bytesWritten = result.Length;
+                return true;
+            }
+
+            bytesWritten = 0;
+            return false;
+        }
+
+        protected virtual bool TryHashData(ReadOnlySpan<byte> data, Span<byte> destination, HashAlgorithmName hashAlgorithm, out int bytesWritten)
+        {
+            byte[] result;
+            byte[] array = ArrayPool<byte>.Shared.Rent(data.Length);
+            try
+            {
+                data.CopyTo(array);
+                result = HashData(array, 0, data.Length, hashAlgorithm);
+            }
+            finally
+            {
+                Array.Clear(array, 0, data.Length);
+                ArrayPool<byte>.Shared.Return(array);
+            }
+
+            if (destination.Length >= result.Length)
+            {
+                new ReadOnlySpan<byte>(result).CopyTo(destination);
+                bytesWritten = result.Length;
+                return true;
+            }
+
+            bytesWritten = 0;
+            return false;
+        }
+
+        public virtual bool TrySignHash(ReadOnlySpan<byte> hash, Span<byte> destination, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding, out int bytesWritten)
+        {
+            byte[] result = SignHash(hash.ToArray(), hashAlgorithm, padding);
+
+            if (destination.Length >= result.Length)
+            {
+                new ReadOnlySpan<byte>(result).CopyTo(destination);
+                bytesWritten = result.Length;
+                return true;
+            }
+
+            bytesWritten = 0;
+            return false;
+        }
+
+        public virtual bool VerifyHash(ReadOnlySpan<byte> hash, ReadOnlySpan<byte> signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding) =>
+            VerifyHash(hash.ToArray(), signature.ToArray(), hashAlgorithm, padding);
+
+        private static Exception DerivedClassMustOverride() =>
+            new NotImplementedException(SR.NotSupported_SubclassOverride);
+
+        public virtual byte[] DecryptValue(byte[] rgb) =>
+            throw new NotSupportedException(SR.NotSupported_Method); // Same as Desktop
+
+        public virtual byte[] EncryptValue(byte[] rgb) =>
+            throw new NotSupportedException(SR.NotSupported_Method); // Same as Desktop
 
         public byte[] SignData(byte[] data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
         {
@@ -63,6 +182,27 @@ namespace System.Security.Cryptography
 
             byte[] hash = HashData(data, hashAlgorithm);
             return SignHash(hash, hashAlgorithm, padding);
+        }
+
+        public virtual bool TrySignData(ReadOnlySpan<byte> data, Span<byte> destination, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding, out int bytesWritten)
+        {
+            if (string.IsNullOrEmpty(hashAlgorithm.Name))
+            {
+                throw HashAlgorithmNameNullOrEmpty();
+            }
+            if (padding == null)
+            {
+                throw new ArgumentNullException(nameof(padding));
+            }
+
+            if (TryHashData(data, destination, hashAlgorithm, out int hashLength) &&
+                TrySignHash(destination.Slice(0, hashLength), destination, hashAlgorithm, padding, out bytesWritten))
+            {
+                return true;
+            }
+
+            bytesWritten = 0;
+            return false;
         }
 
         public bool VerifyData(byte[] data, byte[] signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
@@ -113,9 +253,40 @@ namespace System.Security.Cryptography
             return VerifyHash(hash, signature, hashAlgorithm, padding);
         }
 
-        private static Exception HashAlgorithmNameNullOrEmpty()
+        public virtual bool VerifyData(ReadOnlySpan<byte> data, ReadOnlySpan<byte> signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
         {
-            return new ArgumentException(SR.Cryptography_HashAlgorithmNameNullOrEmpty, "hashAlgorithm");
+            if (string.IsNullOrEmpty(hashAlgorithm.Name))
+            {
+                throw HashAlgorithmNameNullOrEmpty();
+            }
+            if (padding == null)
+            {
+                throw new ArgumentNullException(nameof(padding));
+            }
+
+            for (int i = 256; ; i = checked(i * 2))
+            {
+                int hashLength = 0;
+                byte[] hash = ArrayPool<byte>.Shared.Rent(i);
+                try
+                {
+                    if (TryHashData(data, hash, hashAlgorithm, out hashLength))
+                    {
+                        return VerifyHash(new ReadOnlySpan<byte>(hash, 0, hashLength), signature, hashAlgorithm, padding);
+                    }
+                }
+                finally
+                {
+                    Array.Clear(hash, 0, hashLength);
+                    ArrayPool<byte>.Shared.Return(hash);
+                }
+            }
         }
+
+        public override string KeyExchangeAlgorithm => "RSA";
+        public override string SignatureAlgorithm => "RSA";
+
+        private static Exception HashAlgorithmNameNullOrEmpty() =>
+            new ArgumentException(SR.Cryptography_HashAlgorithmNameNullOrEmpty, "hashAlgorithm");
     }
 }

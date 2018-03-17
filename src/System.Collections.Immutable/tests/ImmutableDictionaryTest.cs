@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using Xunit;
 
 namespace System.Collections.Immutable.Tests
@@ -88,6 +89,18 @@ namespace System.Collections.Immutable.Tests
         public void ContainsValueTest()
         {
             this.ContainsValueTestHelper(ImmutableDictionary<int, GenericParameterHelper>.Empty, 1, new GenericParameterHelper());
+        }
+
+        [Fact]
+        public void ContainsValue_NoSuchValue_ReturnsFalse()
+        {
+            ImmutableDictionary<int, string> dictionary = new Dictionary<int, string>
+            {
+                { 1, "a" },
+                { 2, "b" }
+            }.ToImmutableDictionary();
+            Assert.False(dictionary.ContainsValue("c"));
+            Assert.False(dictionary.ContainsValue(null));
         }
 
         [Fact]
@@ -190,9 +203,9 @@ namespace System.Collections.Immutable.Tests
             Assert.Equal(2, stringIntDictionary["2"]);
             Assert.Equal(2, intDictionary.Count);
 
-            Assert.Throws<ArgumentNullException>(() => list.ToImmutableDictionary<int, int>(null));
-            Assert.Throws<ArgumentNullException>(() => list.ToImmutableDictionary<int, int, int>(null, v => v));
-            Assert.Throws<ArgumentNullException>(() => list.ToImmutableDictionary<int, int, int>(k => k, null));
+            AssertExtensions.Throws<ArgumentNullException>("keySelector", () => list.ToImmutableDictionary<int, int>(null));
+            AssertExtensions.Throws<ArgumentNullException>("keySelector", () => list.ToImmutableDictionary<int, int, int>(null, v => v));
+            AssertExtensions.Throws<ArgumentNullException>("elementSelector", () => list.ToImmutableDictionary<int, int, int>(k => k, null));
 
             list.ToDictionary(k => k, v => v, null); // verifies BCL behavior is to not throw.
             list.ToImmutableDictionary(k => k, v => v, null, null);
@@ -251,7 +264,7 @@ namespace System.Collections.Immutable.Tests
             // Now check where collisions have conflicting values.
             map = ImmutableDictionary.Create<string, string>()
               .Add("a", "1").Add("A", "2").Add("b", "3");
-            Assert.Throws<ArgumentException>(() => map.WithComparers(StringComparer.OrdinalIgnoreCase));
+            AssertExtensions.Throws<ArgumentException>(null, () => map.WithComparers(StringComparer.OrdinalIgnoreCase));
 
             // Force all values to be considered equal.
             map = map.WithComparers(StringComparer.OrdinalIgnoreCase, EverythingEqual<string>.Default);
@@ -267,8 +280,12 @@ namespace System.Collections.Immutable.Tests
         {
             var map = ImmutableDictionary.Create<string, string>()
                 .Add("firstKey", "1").Add("secondKey", "2");
-            var exception = Assert.Throws<ArgumentException>(() => map.Add("firstKey", "3"));
-            Assert.Contains("firstKey", exception.Message);
+            var exception = AssertExtensions.Throws<ArgumentException>(null, () => map.Add("firstKey", "3"));
+
+            if (!PlatformDetection.IsNetNative) //.Net Native toolchain removes exception messages.
+            {
+                Assert.Contains("firstKey", exception.Message);
+            }
         }
 
         [Fact]
@@ -330,13 +347,54 @@ namespace System.Collections.Immutable.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Cannot do DebuggerAttribute testing on UapAot: requires internal Reflection on framework types.")]
         public void DebuggerAttributesValid()
         {
             DebuggerAttributes.ValidateDebuggerDisplayReferences(ImmutableDictionary.Create<int, int>());
-            DebuggerAttributes.ValidateDebuggerTypeProxyProperties(ImmutableDictionary.Create<string, int>());
+            ImmutableDictionary<string, int> dict = ImmutableDictionary.Create<string, int>().Add("One", 1).Add("Two", 2);
+            DebuggerAttributeInfo info = DebuggerAttributes.ValidateDebuggerTypeProxyProperties(dict);
 
             object rootNode = DebuggerAttributes.GetFieldValue(ImmutableDictionary.Create<string, string>(), "_root");
             DebuggerAttributes.ValidateDebuggerDisplayReferences(rootNode);
+            PropertyInfo itemProperty = info.Properties.Single(pr => pr.GetCustomAttribute<DebuggerBrowsableAttribute>().State == DebuggerBrowsableState.RootHidden);
+            KeyValuePair<string, int>[] items = itemProperty.GetValue(info.Instance) as KeyValuePair<string, int>[];
+            Assert.Equal(dict, items);
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Cannot do DebuggerAttribute testing on UapAot: requires internal Reflection on framework types.")]
+        public static void TestDebuggerAttributes_Null()
+        {
+            Type proxyType = DebuggerAttributes.GetProxyType(ImmutableHashSet.Create<string>());
+            TargetInvocationException tie = Assert.Throws<TargetInvocationException>(() => Activator.CreateInstance(proxyType, (object)null));
+            Assert.IsType<ArgumentNullException>(tie.InnerException);
+        }
+
+        [Fact]
+        public void Clear_NoComparer_ReturnsEmptyWithoutComparer()
+        {
+            ImmutableDictionary<string, int> dictionary = new Dictionary<string, int>
+            {
+                { "a", 1 }
+            }.ToImmutableDictionary();
+            Assert.Same(ImmutableDictionary<string, int>.Empty, dictionary.Clear());
+            Assert.NotEmpty(dictionary);
+        }
+
+        [Fact]
+        public void Clear_HasComparer_ReturnsEmptyWithOriginalComparer()
+        {
+            ImmutableDictionary<string, int> dictionary = new Dictionary<string, int>
+            {
+                { "a", 1 }
+            }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase);
+
+            ImmutableDictionary<string, int> clearedDictionary = dictionary.Clear();
+            Assert.NotSame(ImmutableDictionary<string, int>.Empty, clearedDictionary.Clear());
+            Assert.NotEmpty(dictionary);
+
+            clearedDictionary = clearedDictionary.Add("a", 1);
+            Assert.True(clearedDictionary.ContainsKey("A"));
         }
 
         protected override IImmutableDictionary<TKey, TValue> Empty<TKey, TValue>()

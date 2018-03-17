@@ -11,17 +11,11 @@ namespace System.Collections.Tests
     /// <summary>
     /// Contains tests that ensure the correctness of the HashSet class.
     /// </summary>
-    public abstract class HashSet_Generic_Tests<T> : ISet_Generic_Tests<T>
+    public abstract partial class HashSet_Generic_Tests<T> : ISet_Generic_Tests<T>
     {
         #region ISet<T> Helper Methods
 
-        protected override bool ResetImplemented
-        {
-            get
-            {
-                return true;
-            }
-        }
+        protected override bool ResetImplemented => true;
 
         protected override ISet<T> GenericISetFactory()
         {
@@ -72,7 +66,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("EnumerableTestData")]
+        [MemberData(nameof(EnumerableTestData))]
         public void HashSet_Generic_Constructor_IEnumerable(EnumerableType enumerableType, int setLength, int enumerableLength, int numberOfMatchingElements, int numberOfDuplicateElements)
         {
             IEnumerable<T> enumerable = CreateEnumerable(enumerableType, null, enumerableLength, 0, numberOfDuplicateElements);
@@ -81,7 +75,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_Constructor_IEnumerable_WithManyDuplicates(int count)
         {
             IEnumerable<T> items = CreateEnumerable(EnumerableType.List, null, count, 0, 0);
@@ -91,10 +85,10 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_Constructor_HashSet_SparselyFilled(int count)
         {
-            HashSet<T> source = (HashSet <T>)CreateEnumerable(EnumerableType.HashSet, null, count, 0, 0);
+            HashSet<T> source = (HashSet<T>)CreateEnumerable(EnumerableType.HashSet, null, count, 0, 0);
             List<T> sourceElements = source.ToList();
             foreach (int i in NonSquares(count))
                 source.Remove(sourceElements[i]);// Unevenly spaced survivors increases chance of catching any spacing-related bugs.
@@ -112,7 +106,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("EnumerableTestData")]
+        [MemberData(nameof(EnumerableTestData))]
         public void HashSet_Generic_Constructor_IEnumerable_IEqualityComparer(EnumerableType enumerableType, int setLength, int enumerableLength, int numberOfMatchingElements, int numberOfDuplicateElements)
         {
             IEnumerable<T> enumerable = CreateEnumerable(enumerableType, null, enumerableLength, 0, 0);
@@ -125,7 +119,7 @@ namespace System.Collections.Tests
         #region RemoveWhere
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_RemoveWhere_AllElements(int setLength)
         {
             HashSet<T> set = (HashSet<T>)GenericISetFactory(setLength);
@@ -134,7 +128,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_RemoveWhere_NoElements(int setLength)
         {
             HashSet<T> set = (HashSet<T>)GenericISetFactory(setLength);
@@ -144,7 +138,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_RemoveWhere_NewObject(int setLength) // Regression Dev10_624201
         {
             object[] array = new object[2];
@@ -159,7 +153,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_RemoveWhere_NullMatchPredicate(int setLength)
         {
             HashSet<T> set = (HashSet<T>)GenericISetFactory(setLength);
@@ -171,7 +165,7 @@ namespace System.Collections.Tests
         #region TrimExcess
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_TrimExcess_OnValidSetThatHasntBeenRemovedFrom(int setLength)
         {
             HashSet<T> set = (HashSet<T>)GenericISetFactory(setLength);
@@ -179,7 +173,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_TrimExcess_Repeatedly(int setLength)
         {
             HashSet<T> set = (HashSet<T>)GenericISetFactory(setLength);
@@ -191,7 +185,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_TrimExcess_AfterRemovingOneElement(int setLength)
         {
             if (setLength > 0)
@@ -210,7 +204,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_TrimExcess_AfterClearingAndAddingSomeElementsBack(int setLength)
         {
             if (setLength > 0)
@@ -228,7 +222,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_TrimExcess_AfterClearingAndAddingAllElementsBack(int setLength)
         {
             if (setLength > 0)
@@ -250,7 +244,7 @@ namespace System.Collections.Tests
         #region CopyTo
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_CopyTo_NegativeCount_ThrowsArgumentOutOfRangeException(int count)
         {
             HashSet<T> set = (HashSet<T>)GenericISetFactory(count);
@@ -260,7 +254,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void HashSet_Generic_CopyTo_NoIndexDefaultsToZero(int count)
         {
             HashSet<T> set = (HashSet<T>)GenericISetFactory(count);
@@ -269,6 +263,72 @@ namespace System.Collections.Tests
             set.CopyTo(arr1);
             set.CopyTo(arr2, 0);
             Assert.True(arr1.SequenceEqual(arr2));
+        }
+
+        #endregion
+
+        #region CreateSetComparer
+
+        [Fact]
+        public void SetComparer_SetEqualsTests()
+        {
+            List<T> objects = new List<T>() { CreateT(1), CreateT(2), CreateT(3), CreateT(4), CreateT(5), CreateT(6) };
+
+            var set = new HashSet<HashSet<T>>()
+            {
+                new HashSet<T> { objects[0], objects[1], objects[2] },
+                new HashSet<T> { objects[3], objects[4], objects[5] }
+            };
+
+            var noComparerSet = new HashSet<HashSet<T>>()
+            {
+                new HashSet<T> { objects[0], objects[1], objects[2] },
+                new HashSet<T> { objects[3], objects[4], objects[5] }
+            };
+
+            var comparerSet1 = new HashSet<HashSet<T>>(HashSet<T>.CreateSetComparer())
+            {
+                new HashSet<T> { objects[0], objects[1], objects[2] },
+                new HashSet<T> { objects[3], objects[4], objects[5] }
+            };
+
+            var comparerSet2 = new HashSet<HashSet<T>>(HashSet<T>.CreateSetComparer())
+            {
+                new HashSet<T> { objects[3], objects[4], objects[5] },
+                new HashSet<T> { objects[0], objects[1], objects[2] }
+            };
+
+            Assert.False(noComparerSet.SetEquals(set));
+            Assert.True(comparerSet1.SetEquals(set));
+            Assert.True(comparerSet2.SetEquals(set));
+        }
+
+        [Fact]
+        public void SetComparer_SequenceEqualTests()
+        {
+            List<T> objects = new List<T>() { CreateT(1), CreateT(2), CreateT(3), CreateT(4), CreateT(5), CreateT(6) };
+
+            var set = new HashSet<HashSet<T>>()
+            {
+                new HashSet<T> { objects[0], objects[1], objects[2] },
+                new HashSet<T> { objects[3], objects[4], objects[5] }
+            };
+
+            var noComparerSet = new HashSet<HashSet<T>>()
+            {
+                new HashSet<T> { objects[0], objects[1], objects[2] },
+                new HashSet<T> { objects[3], objects[4], objects[5] }
+            };
+
+            var comparerSet = new HashSet<HashSet<T>>(HashSet<T>.CreateSetComparer())
+            {
+                new HashSet<T> { objects[0], objects[1], objects[2] },
+                new HashSet<T> { objects[3], objects[4], objects[5] }
+            };
+
+            Assert.False(noComparerSet.SequenceEqual(set));
+            Assert.True(noComparerSet.SequenceEqual(set, HashSet<T>.CreateSetComparer()));
+            Assert.False(comparerSet.SequenceEqual(set));
         }
 
         #endregion

@@ -28,7 +28,17 @@ namespace System.Numerics.Tests
             Assert.Throws<NullReferenceException>(() => v1.CopyTo(null, 0));
             Assert.Throws<ArgumentOutOfRangeException>(() => v1.CopyTo(a, -1));
             Assert.Throws<ArgumentOutOfRangeException>(() => v1.CopyTo(a, a.Length));
-            Assert.Throws<ArgumentException>(() => v1.CopyTo(a, 2));
+            
+            if (!PlatformDetection.IsNetNative)
+            {
+               AssertExtensions.Throws<ArgumentException>(null, () => v1.CopyTo(a, 2));
+            }
+            else
+            {
+               // The .Net Native code generation optimizer does aggressive optimizations to range checks 
+               // which result in an ArgumentOutOfRangeException exception being thrown at runtime.
+               Assert.ThrowsAny<ArgumentException>(() => v1.CopyTo(a, 2));
+            }
 
             v1.CopyTo(a, 1);
             v1.CopyTo(b);
@@ -43,22 +53,21 @@ namespace System.Numerics.Tests
         public void Vector2GetHashCodeTest()
         {
             Vector2 v1 = new Vector2(2.0f, 3.0f);
-
-            Vector2 v3 = new Vector2(2.0f, 3.0f);
-            Vector2 v5 = new Vector2(3.0f, 2.0f);
-            Assert.True(v1.GetHashCode() == v1.GetHashCode());
-            Assert.False(v1.GetHashCode() == v5.GetHashCode());
-            Assert.True(v1.GetHashCode() == v3.GetHashCode());
+            Vector2 v2 = new Vector2(2.0f, 3.0f);
+            Vector2 v3 = new Vector2(3.0f, 2.0f);
+            Assert.Equal(v1.GetHashCode(), v1.GetHashCode());
+            Assert.Equal(v1.GetHashCode(), v2.GetHashCode());
+            Assert.NotEqual(v1.GetHashCode(), v3.GetHashCode());
             Vector2 v4 = new Vector2(0.0f, 0.0f);
             Vector2 v6 = new Vector2(1.0f, 0.0f);
             Vector2 v7 = new Vector2(0.0f, 1.0f);
             Vector2 v8 = new Vector2(1.0f, 1.0f);
-            Assert.False(v4.GetHashCode() == v6.GetHashCode());
-            Assert.False(v4.GetHashCode() == v7.GetHashCode());
-            Assert.False(v4.GetHashCode() == v8.GetHashCode());
-            Assert.False(v7.GetHashCode() == v6.GetHashCode());
-            Assert.False(v8.GetHashCode() == v6.GetHashCode());
-            Assert.False(v8.GetHashCode() == v7.GetHashCode());
+            Assert.NotEqual(v4.GetHashCode(), v6.GetHashCode());
+            Assert.NotEqual(v4.GetHashCode(), v7.GetHashCode());
+            Assert.NotEqual(v4.GetHashCode(), v8.GetHashCode());
+            Assert.NotEqual(v7.GetHashCode(), v6.GetHashCode());
+            Assert.NotEqual(v8.GetHashCode(), v6.GetHashCode());
+            Assert.NotEqual(v8.GetHashCode(), v7.GetHashCode());
         }
 
         [Fact]
@@ -489,7 +498,7 @@ namespace System.Numerics.Tests
             Vector2 actual;
 
             actual = Vector2.TransformNormal(v, m);
-            Assert.Equal(expected, actual);
+            Assert.True(MathHelper.Equal(expected, actual), "Vector2f.Tranform did not return the expected value.");
         }
 
         // A test for TransformNormal (Vector2f, Matrix3x2)
@@ -505,7 +514,7 @@ namespace System.Numerics.Tests
             Vector2 actual;
 
             actual = Vector2.TransformNormal(v, m);
-            Assert.Equal(expected, actual);
+            Assert.True(MathHelper.Equal(expected, actual), "Vector2f.Transform did not return the expected value.");
         }
 
         // A test for Transform (Vector2f, Quaternion)
@@ -1054,7 +1063,6 @@ namespace System.Numerics.Tests
 
         // A test for Reflect (Vector2f, Vector2f)
         [Fact]
-        [ActiveIssue(1011)]
         public void Vector2ReflectTest()
         {
             Vector2 a = Vector2.Normalize(new Vector2(1.0f, 1.0f));
@@ -1081,7 +1089,6 @@ namespace System.Numerics.Tests
         // A test for Reflect (Vector2f, Vector2f)
         // Reflection when normal and source are the same
         [Fact]
-        [ActiveIssue(1011)]
         public void Vector2ReflectTest1()
         {
             Vector2 n = new Vector2(0.45f, 1.28f);

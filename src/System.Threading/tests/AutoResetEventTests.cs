@@ -37,6 +37,14 @@ namespace System.Threading.Tests
         }
 
         [Fact]
+        public void WaitHandleWait_Invalid()
+        {
+            Assert.Throws<ArgumentNullException>(() => WaitHandle.WaitAll(null));
+            Assert.Throws<ArgumentNullException>(() => WaitHandle.WaitAll(null, 100));
+            Assert.Throws<ArgumentNullException>(() => WaitHandle.WaitAll(null, TimeSpan.Zero));
+        }
+
+        [Fact]
         public void WaitHandleWaitAll()
         {
             AutoResetEvent[] handles = new AutoResetEvent[10];
@@ -51,7 +59,7 @@ namespace System.Threading.Tests
             }
             Assert.True(t.Result);
 
-            Assert.False(WaitHandle.WaitAll(handles, 0));
+            Assert.False(Task.Run(() => WaitHandle.WaitAll(handles, 0)).Result); // Task.Run used to ensure MTA thread (necessary for desktop)
         }
 
         [Fact]

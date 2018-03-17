@@ -7,14 +7,18 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Linq;
 using Xunit;
+using System.Threading.Tasks;
 
 namespace System.Diagnostics.Tests
 {
     public class ProcessThreadTests : ProcessTestBase
     {
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "Retrieving information about local processes is not supported on uap")]
         public void TestCommonPriorityAndTimeProperties()
         {
+            CreateDefaultProcess();
+
             ProcessThreadCollection threadCollection = _process.Threads;
             Assert.True(threadCollection.Count > 0);
             ProcessThread thread = threadCollection[0];
@@ -22,7 +26,10 @@ namespace System.Diagnostics.Tests
             {
                 if (ThreadState.Terminated != thread.ThreadState)
                 {
-                    Assert.True(thread.Id >= 0);
+                    // On OSX, thread id is a 64bit unsigned value. We truncate the ulong to int
+                    // due to .NET API surface area. Hence, on overflow id can be negative while
+                    // casting the ulong to int.
+                    Assert.True(thread.Id >= 0 || RuntimeInformation.IsOSPlatform(OSPlatform.OSX));
                     Assert.Equal(_process.BasePriority, thread.BasePriority);
                     Assert.True(thread.CurrentPriority >= 0);
                     Assert.True(thread.PrivilegedProcessorTime.TotalSeconds >= 0);
@@ -30,13 +37,15 @@ namespace System.Diagnostics.Tests
                     Assert.True(thread.TotalProcessorTime.TotalSeconds >= 0);
                 }
             }
-            catch (Win32Exception)
+            catch (Exception e) when (e is Win32Exception || e is InvalidOperationException)
             {
-                // Win32Exception is thrown when getting threadinfo fails. 
+                // Win32Exception is thrown when getting threadinfo fails, or
+                // InvalidOperationException if it fails because the thread already exited.
             }
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "Retrieving information about local processes is not supported on uap")]
         public void TestThreadCount()
         {
             int numOfThreads = 10;
@@ -59,69 +68,99 @@ namespace System.Diagnostics.Tests
             }
         }
 
-        [ActiveIssue(5805)]
         [Fact]
-        public void TestStartTimeProperty()
+        [PlatformSpecific(TestPlatforms.OSX|TestPlatforms.FreeBSD)] // OSX and FreeBSD throw PNSE from StartTime
+        public void TestStartTimeProperty_OSX()
         {
-            DateTime timeBeforeCreatingProcess = DateTime.UtcNow;
-            Process p = CreateProcessLong();
-            try
+            using (Process p = Process.GetCurrentProcess())
             {
-                p.Start();
+                ProcessThreadCollection threads = p.Threads;
+                Assert.NotNull(threads);
+                Assert.NotEmpty(threads);
 
-                ProcessThreadCollection threadCollection = p.Threads;
-                Assert.True(threadCollection.Count > 0);
+                ProcessThread thread = threads[0];
+                Assert.NotNull(thread);
 
-                ProcessThread thread = threadCollection[0];
-
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    Assert.Throws<PlatformNotSupportedException>(() => thread.StartTime);
-                    return;
-                }
-
-                if (ThreadState.Initialized != thread.ThreadState)
-                {
-                    // Time in unix, is measured in jiffies, which is incremented by one for every timer interrupt since the boot time.
-                    // Thus, because there are HZ timer interrupts in a second, there are HZ jiffies in a second. Hence 1\HZ, will
-                    // be the resolution of system timer. The lowest value of HZ on unix is 100, hence the timer resolution is 10 ms.
-                    // On Windows, timer resolution is 15 ms from MSDN DateTime.Now. Hence, allowing error in 15ms [max(10,15)].
-                    long intervalTicks = new TimeSpan(0, 0, 0, 0, 15).Ticks;
-                    long beforeTicks = timeBeforeCreatingProcess.Ticks - intervalTicks;
-                    long afterTicks = DateTime.UtcNow.Ticks + intervalTicks;
-                    Assert.InRange(thread.StartTime.ToUniversalTime().Ticks, beforeTicks, afterTicks);
-                }
-            }
-            finally
-            {
-                if (!p.HasExited)
-                    p.Kill();
-
-                Assert.True(p.WaitForExit(WaitInMS));
+                Assert.Throws<PlatformNotSupportedException>(() => thread.StartTime);
             }
         }
 
         [Fact]
+        [PlatformSpecific(TestPlatforms.Linux|TestPlatforms.Windows)] // OSX and FreeBSD throw PNSE from StartTime
+        [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "Retrieving information about local processes is not supported on uap")]
+        public async Task TestStartTimeProperty()
+        {
+            TimeSpan allowedWindow = TimeSpan.FromSeconds(1);
+
+            using (Process p = Process.GetCurrentProcess())
+            {
+                // Get the process' start time
+                DateTime startTime = p.StartTime.ToUniversalTime();
+
+                // Get the process' threads
+                ProcessThreadCollection threads = p.Threads;
+                Assert.NotNull(threads);
+                Assert.NotEmpty(threads);
+
+                // Get the current time
+                DateTime curTime = DateTime.UtcNow;
+
+                // Make sure each thread's start time is at least the process'
+                // start time and not beyond the current time.
+                int passed = 0;
+                foreach (ProcessThread t in threads.Cast<ProcessThread>())
+                {
+                    try
+                    {
+                        Assert.InRange(t.StartTime.ToUniversalTime(), startTime - allowedWindow, curTime + allowedWindow);
+                        passed++;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // The thread may have gone away between our getting its info and attempting to access its StartTime
+                    }
+                }
+                Assert.True(passed > 0, "Expected at least one thread to be valid for StartTime");
+
+                // Now add a thread, and from that thread, while it's still alive, verify
+                // that there's at least one thread greater than the current time we previously grabbed.
+                await Task.Factory.StartNew(() =>
+                {
+                    p.Refresh();
+                    try
+                    {
+                        Assert.Contains(p.Threads.Cast<ProcessThread>(), t => t.StartTime.ToUniversalTime() >= curTime - allowedWindow);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // A thread may have gone away between our getting its info and attempting to access its StartTime
+                    }
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            }
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "Retrieving information about local processes is not supported on uap")]
         public void TestStartAddressProperty()
         {
-            Process p = Process.GetCurrentProcess();
-            try
+            using (Process p = Process.GetCurrentProcess())
             {
-                if (p.Threads.Count != 0)
-                {
-                    ProcessThread thread = p.Threads[0];
-                    Assert.Equal(RuntimeInformation.IsOSPlatform(OSPlatform.OSX), thread.StartAddress == IntPtr.Zero);
-                }
-            }
-            finally
-            {
-                p.Dispose();
+                ProcessThreadCollection threads = p.Threads;
+                Assert.NotNull(threads);
+                Assert.NotEmpty(threads);
+
+                IntPtr startAddress = threads[0].StartAddress; 
+
+                // There's nothing we can really validate about StartAddress, other than that we can get its value
+                // without throwing.  All values (even zero) are valid on all platforms.
             }
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "Retrieving information about local processes is not supported on uap")]
         public void TestPriorityLevelProperty()
         {
+            CreateDefaultProcess();
             ProcessThread thread = _process.Threads[0];
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -134,6 +173,12 @@ namespace System.Diagnostics.Tests
             ThreadPriorityLevel originalPriority = thread.PriorityLevel;
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                Assert.Throws<PlatformNotSupportedException>(() => thread.PriorityLevel = ThreadPriorityLevel.AboveNormal);
+                return;
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("FREEBSD")))
             {
                 Assert.Throws<PlatformNotSupportedException>(() => thread.PriorityLevel = ThreadPriorityLevel.AboveNormal);
                 return;
@@ -152,13 +197,32 @@ namespace System.Diagnostics.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "Retrieving information about local processes is not supported on uap")]
         public void TestThreadStateProperty()
         {
+            CreateDefaultProcess();
+
             ProcessThread thread = _process.Threads[0];
             if (ThreadState.Wait != thread.ThreadState)
             {
                 Assert.Throws<InvalidOperationException>(() => thread.WaitReason);
             }
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.Uap, "Retrieving information about local processes is not supported on uap")]
+        public void Threads_GetMultipleTimes_ReturnsSameInstance()
+        {
+            CreateDefaultProcess();
+
+            Assert.Same(_process.Threads, _process.Threads);
+        }
+
+        [Fact]
+        public void Threads_GetNotStarted_ThrowsInvalidOperationException()
+        {
+            var process = new Process();
+            Assert.Throws<InvalidOperationException>(() => process.Threads);
         }
     }
 }

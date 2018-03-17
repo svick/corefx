@@ -10,13 +10,14 @@ namespace System.IO.Pipes.Tests
     public class AnonymousPipeTest_CrossProcess : RemoteExecutorTestBase
     {
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/corefx/issues/21275", TargetFrameworkMonikers.Uap)]
         public void PingPong()
         {
             // Create two anonymous pipes, one for each direction of communication.
             // Then spawn another process to communicate with.
             using (var outbound = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable))
             using (var inbound = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable))
-            using (var remote = RemoteInvoke(PingPong_OtherProcess, outbound.GetClientHandleAsString(), inbound.GetClientHandleAsString()))
+            using (var remote = RemoteInvoke(new Func<string, string, int>(PingPong_OtherProcess), outbound.GetClientHandleAsString(), inbound.GetClientHandleAsString()))
             {
                 // Close our local copies of the handles now that we've passed them of to the other process
                 outbound.DisposeLocalCopyOfClientHandle();

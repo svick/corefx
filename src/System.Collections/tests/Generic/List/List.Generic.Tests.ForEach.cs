@@ -3,8 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using Xunit;
 
 namespace System.Collections.Tests
@@ -15,7 +13,7 @@ namespace System.Collections.Tests
     public abstract partial class List_Generic_Tests<T> : IList_Generic_Tests<T>
     {
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void ForEach_Verify(int count)
         {
             List<T> list = GenericListFactory(count);

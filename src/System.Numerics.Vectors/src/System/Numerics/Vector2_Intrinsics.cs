@@ -27,7 +27,7 @@ namespace System.Numerics
         /// Constructs a vector whose elements are all the single specified value.
         /// </summary>
         /// <param name="value">The element to fill the vector with.</param>
-        [JitIntrinsic]
+        [Intrinsic]
         public Vector2(Single value) : this(value, value) { }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace System.Numerics
         /// </summary>
         /// <param name="x">The X component.</param>
         /// <param name="y">The Y component.</param>
-        [JitIntrinsic]
+        [Intrinsic]
         public Vector2(Single x, Single y)
         {
             X = x;
@@ -71,7 +71,7 @@ namespace System.Numerics
             }
             if (index < 0 || index >= array.Length)
             {
-                throw new ArgumentOutOfRangeException(SR.Format(SR.Arg_ArgumentOutOfRangeException, index));
+                throw new ArgumentOutOfRangeException(nameof(index), SR.Format(SR.Arg_ArgumentOutOfRangeException, index));
             }
             if ((array.Length - index) < 2)
             {
@@ -86,7 +86,7 @@ namespace System.Numerics
         /// </summary>
         /// <param name="other">The Vector2 to compare this instance to.</param>
         /// <returns>True if the other Vector2 is equal to this instance; False otherwise.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         public bool Equals(Vector2 other)
         {
             return this.X == other.X && this.Y == other.Y;
@@ -100,7 +100,7 @@ namespace System.Numerics
         /// <param name="value1">The first vector.</param>
         /// <param name="value2">The second vector.</param>
         /// <returns>The dot product.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Dot(Vector2 value1, Vector2 value2)
         {
@@ -114,7 +114,7 @@ namespace System.Numerics
         /// <param name="value1">The first source vector.</param>
         /// <param name="value2">The second source vector.</param>
         /// <returns>The minimized vector.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 Min(Vector2 value1, Vector2 value2)
         {
@@ -129,7 +129,7 @@ namespace System.Numerics
         /// <param name="value1">The first source vector</param>
         /// <param name="value2">The second source vector</param>
         /// <returns>The maximized vector</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 Max(Vector2 value1, Vector2 value2)
         {
@@ -143,11 +143,11 @@ namespace System.Numerics
         /// </summary>
         /// <param name="value">The source vector.</param>
         /// <returns>The absolute value vector.</returns>        
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 Abs(Vector2 value)
         {
-            return new Vector2(Math.Abs(value.X), Math.Abs(value.Y));
+            return new Vector2(MathF.Abs(value.X), MathF.Abs(value.Y));
         }
 
         /// <summary>
@@ -155,11 +155,11 @@ namespace System.Numerics
         /// </summary>
         /// <param name="value">The source vector.</param>
         /// <returns>The square root vector.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 SquareRoot(Vector2 value)
         {
-            return new Vector2((Single)Math.Sqrt(value.X), (Single)Math.Sqrt(value.Y));
+            return new Vector2(MathF.Sqrt(value.X), MathF.Sqrt(value.Y));
         }
         #endregion Public Static Methods
 
@@ -170,7 +170,7 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The summed vector.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 operator +(Vector2 left, Vector2 right)
         {
@@ -183,7 +183,7 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The difference vector.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 operator -(Vector2 left, Vector2 right)
         {
@@ -196,7 +196,7 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The product vector.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 operator *(Vector2 left, Vector2 right)
         {
@@ -209,7 +209,7 @@ namespace System.Numerics
         /// <param name="left">The scalar value.</param>
         /// <param name="right">The source vector.</param>
         /// <returns>The scaled vector.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 operator *(Single left, Vector2 right)
         {
@@ -222,7 +222,7 @@ namespace System.Numerics
         /// <param name="left">The source vector.</param>
         /// <param name="right">The scalar value.</param>
         /// <returns>The scaled vector.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 operator *(Vector2 left, Single right)
         {
@@ -235,7 +235,7 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The vector resulting from the division.</returns>
-        [JitIntrinsic]
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 operator /(Vector2 left, Vector2 right)
         {
@@ -248,14 +248,10 @@ namespace System.Numerics
         /// <param name="value1">The source vector.</param>
         /// <param name="value2">The scalar value.</param>
         /// <returns>The result of the division.</returns>
-        [JitIntrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 operator /(Vector2 value1, float value2)
         {
-            float invDiv = 1.0f / value2;
-            return new Vector2(
-                value1.X * invDiv,
-                value1.Y * invDiv);
+            return value1 / new Vector2(value2);
         }
 
         /// <summary>

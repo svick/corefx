@@ -90,6 +90,66 @@ namespace System.Runtime.Serialization.Xml.Tests
             Assert.StrictEqual(testString, returnedString);
         }
 
+        [Fact]
+        public static void ReadElementContentAsDateTimeTest()
+        {
+            string xmlFileContent = @"<root><date>2013-01-02T03:04:05.006Z</date></root>";
+            Stream sm = GenerateStreamFromString(xmlFileContent);
+            XmlDictionaryReader reader = XmlDictionaryReader.CreateTextReader(sm, XmlDictionaryReaderQuotas.Max);
+            reader.ReadToFollowing("date");
+            DateTime dt = reader.ReadElementContentAsDateTime();
+            DateTime expected = new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+            Assert.Equal(expected, dt);
+        }
+
+        [Fact]
+        public static void GetNonAtomizedNamesTest()
+        {
+            string localNameTest = "localNameTest";
+            string namespaceUriTest = "http://www.msn.com/";
+            var encoding = Encoding.UTF8;
+            var rndGen = new Random();
+            int byteArrayLength = rndGen.Next(100, 2000);
+            byte[] byteArray = new byte[byteArrayLength];
+            rndGen.NextBytes(byteArray);
+            MemoryStream ms = new MemoryStream();
+            XmlDictionaryWriter writer = XmlDictionaryWriter.CreateTextWriter(ms, encoding);
+            writer.WriteElementString(localNameTest, namespaceUriTest, "value");
+            writer.Flush();
+            ms.Position = 0;
+            XmlDictionaryReader reader = XmlDictionaryReader.CreateTextReader(ms, encoding, XmlDictionaryReaderQuotas.Max, null);
+            bool success = reader.ReadToDescendant(localNameTest);
+            Assert.True(success);
+            string localName;
+            string namespaceUriStr;
+            reader.GetNonAtomizedNames(out localName, out namespaceUriStr);
+            Assert.Equal(localNameTest, localName);
+            Assert.Equal(namespaceUriTest, namespaceUriStr);
+            writer.Close();
+        }
+
+        [Fact]
+        public static void ReadStringTest()
+        {
+            MemoryStream stream = new MemoryStream();
+            XmlDictionary dictionary = new XmlDictionary();
+            List<XmlDictionaryString> stringList = new List<XmlDictionaryString>();
+            stringList.Add(dictionary.Add("Name"));
+            stringList.Add(dictionary.Add("urn:Test"));
+
+            using (XmlDictionaryWriter writer = XmlDictionaryWriter.CreateBinaryWriter(stream, dictionary, null))
+            {
+                // write using the dictionary - element name, namespace, value 
+                string value = "value";
+                writer.WriteElementString(stringList[0], stringList[1], value);
+                writer.Flush();
+                stream.Position = 0;
+                XmlDictionaryReader reader = XmlDictionaryReader.CreateBinaryReader(stream, dictionary, new XmlDictionaryReaderQuotas());
+                reader.Read();
+                string s = reader.ReadString();
+                Assert.Equal(value, s);
+            }
+        }
         private static Stream GenerateStreamFromString(string s)
         {
             var stream = new MemoryStream();

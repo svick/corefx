@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Xunit;
 
@@ -49,6 +48,12 @@ namespace System.Collections.Tests
             int expectedCount = beforeList.Count((value) => EqualsDefaultElement(value));
             int removedCount = list.RemoveAll(EqualsDefaultElement);
             Assert.Equal(expectedCount, removedCount);
+        }
+
+        [Fact]
+        public void RemoveAll_NullMatchPredicate()
+        {
+            AssertExtensions.Throws<ArgumentNullException>("match", () => new List<T>().RemoveAll(null));
         }
 
         #endregion
@@ -111,7 +116,7 @@ namespace System.Collections.Tests
             Assert.All(InvalidParameters, invalidSet =>
             {
                 if (invalidSet.Item1 >= 0 && invalidSet.Item2 >= 0)
-                    Assert.Throws<ArgumentException>(() => list.RemoveRange(invalidSet.Item1, invalidSet.Item2));
+                    AssertExtensions.Throws<ArgumentException>(null, () => list.RemoveRange(invalidSet.Item1, invalidSet.Item2));
             });
         }
 

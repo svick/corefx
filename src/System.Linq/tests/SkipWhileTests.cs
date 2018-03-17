@@ -28,10 +28,10 @@ namespace System.Linq.Tests
         [Fact]
         public void SkipWhileThrowsOnNull()
         {
-            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).SkipWhile(i => i < 40));
-            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).SkipWhile((i, idx) => i == idx));
-            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 20).SkipWhile((Func<int, int, bool>)null));
-            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 20).SkipWhile((Func<int, bool>)null));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).SkipWhile(i => i < 40));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).SkipWhile((i, idx) => i == idx));
+            AssertExtensions.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 20).SkipWhile((Func<int, int, bool>)null));
+            AssertExtensions.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 20).SkipWhile((Func<int, bool>)null));
         }
 
         [Fact]
@@ -43,12 +43,19 @@ namespace System.Linq.Tests
                 Assert.Throws<DivideByZeroException>(() => en.MoveNext());
             }
         }
-        
+
         [Fact]
         public void SkipWhileHalf()
         {
             Assert.Equal(Enumerable.Range(10, 10), Enumerable.Range(0, 20).SkipWhile(i => i < 10));
             Assert.Equal(Enumerable.Range(10, 10), Enumerable.Range(0, 20).SkipWhile((i, idx) => idx < 10));
+        }
+
+        [Fact]
+        public void RunOnce()
+        {
+            Assert.Equal(Enumerable.Range(10, 10), Enumerable.Range(0, 20).RunOnce().SkipWhile(i => i < 10));
+            Assert.Equal(Enumerable.Range(10, 10), Enumerable.Range(0, 20).RunOnce().SkipWhile((i, idx) => idx < 10));
         }
 
         [Fact]
@@ -87,11 +94,11 @@ namespace System.Linq.Tests
             int[] source = { 8, 3, 12, 4, 6, 10 };
             int[] expected = { 3, 12, 4, 6, 10 };
 
-            Assert.Equal(expected, source.SkipWhile((e, i) => e % 2 == 0));
+            Assert.Equal(expected, source.SkipWhile(e => e % 2 == 0));
         }
 
         [Fact]
-        public void PredicateManyFalseOnSecondInex()
+        public void PredicateManyFalseOnSecondIndex()
         {
             int[] source = { 8, 3, 12, 4, 6, 10 };
             int[] expected = { 3, 12, 4, 6, 10 };
@@ -105,7 +112,7 @@ namespace System.Linq.Tests
             int[] source = { 3, 2, 4, 12, 6 };
             int[] expected = { 3, 2, 4, 12, 6 };
 
-            Assert.Equal(expected, source.SkipWhile((e, i) => e % 2 == 0));
+            Assert.Equal(expected, source.SkipWhile(e => e % 2 == 0));
         }
 
         [Fact]
@@ -134,9 +141,8 @@ namespace System.Linq.Tests
 
             Assert.Equal(expected, source.SkipWhile((element, index) => index < source.Length - 1));
         }
-        
-        [Fact]
-        [ActiveIssue("Valid test but too intensive to enable even in OuterLoop")]
+
+        [Fact(Skip = "Valid test but too intensive to enable even in OuterLoop")]
         public void IndexSkipWhileOverflowBeyondIntMaxValueElements()
         {
             var skipped = new FastInfiniteEnumerator<int>().SkipWhile((e, i) => true);

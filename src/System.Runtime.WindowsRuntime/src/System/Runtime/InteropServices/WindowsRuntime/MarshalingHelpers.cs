@@ -3,12 +3,15 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Windows.Input;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -81,7 +84,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Extracts properties from a managed NotifyCollectionChangedEventArgs and passes them to
         // a VM-implemented helper that creates a WinRT NotifyCollectionChangedEventArgs instance.
         // This method is called from IL stubs and needs to have its token stabilized.
-        static internal IntPtr ConvertToNative(NotifyCollectionChangedEventArgs managedArgs)
+        internal static IntPtr ConvertToNative(NotifyCollectionChangedEventArgs managedArgs)
         {
             if (managedArgs == null)
                 return IntPtr.Zero;
@@ -97,7 +100,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Extracts properties from a WinRT NotifyCollectionChangedEventArgs and creates a new
         // managed NotifyCollectionChangedEventArgs instance.
         // This method is called from IL stubs and needs to have its token stabilized.
-        static internal NotifyCollectionChangedEventArgs ConvertToManaged(IntPtr nativeArgsIP)
+        internal static NotifyCollectionChangedEventArgs ConvertToManaged(IntPtr nativeArgsIP)
         {
             if (nativeArgsIP == IntPtr.Zero)
                 return null;
@@ -113,7 +116,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         nativeArgs.OldStartingIndex);
         }
 
-        static internal NotifyCollectionChangedEventArgs CreateNotifyCollectionChangedEventArgs(
+        internal static NotifyCollectionChangedEventArgs CreateNotifyCollectionChangedEventArgs(
             NotifyCollectionChangedAction action, IList newItems, IList oldItems, int newStartingIndex, int oldStartingIndex)
         {
             switch (action)
@@ -143,7 +146,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Extracts PropertyName from a managed PropertyChangedEventArgs and passes them to
         // a VM-implemented helper that creates a WinRT PropertyChangedEventArgs instance.
         // This method is called from IL stubs and needs to have its token stabilized.
-        static internal IntPtr ConvertToNative(PropertyChangedEventArgs managedArgs)
+        internal static IntPtr ConvertToNative(PropertyChangedEventArgs managedArgs)
         {
             if (managedArgs == null)
                 return IntPtr.Zero;
@@ -154,7 +157,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Extracts properties from a WinRT PropertyChangedEventArgs and creates a new
         // managed PropertyChangedEventArgs instance.
         // This method is called from IL stubs and needs to have its token stabilized.
-        static internal PropertyChangedEventArgs ConvertToManaged(IntPtr nativeArgsIP)
+        internal static PropertyChangedEventArgs ConvertToManaged(IntPtr nativeArgsIP)
         {
             if (nativeArgsIP == IntPtr.Zero)
                 return null;
@@ -181,7 +184,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // void CollectionChanged.add(NotifyCollectionChangedEventHandler)
             add
             {
-                INotifyCollectionChanged_WinRT _this = JitHelpers.UnsafeCast<INotifyCollectionChanged_WinRT>(this);
+                INotifyCollectionChanged_WinRT _this = Unsafe.As<INotifyCollectionChanged_WinRT>(this);
 
                 // call the WinRT eventing support in mscorlib to subscribe the event
                 Func<NotifyCollectionChangedEventHandler, EventRegistrationToken> addMethod =
@@ -195,7 +198,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // void CollectionChanged.remove(NotifyCollectionChangedEventHandler)
             remove
             {
-                INotifyCollectionChanged_WinRT _this = JitHelpers.UnsafeCast<INotifyCollectionChanged_WinRT>(this);
+                INotifyCollectionChanged_WinRT _this = Unsafe.As<INotifyCollectionChanged_WinRT>(this);
 
                 // call the WinRT eventing support in mscorlib to unsubscribe the event
                 Action<EventRegistrationToken> removeMethod =
@@ -225,7 +228,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // EventRegistrationToken CollectionChanged.add(NotifyCollectionChangedEventHandler value)
         internal EventRegistrationToken add_CollectionChanged(NotifyCollectionChangedEventHandler value)
         {
-            INotifyCollectionChanged _this = JitHelpers.UnsafeCast<INotifyCollectionChanged>(this);
+            INotifyCollectionChanged _this = Unsafe.As<INotifyCollectionChanged>(this);
             EventRegistrationTokenTable<NotifyCollectionChangedEventHandler> table = s_weakTable.GetOrCreateValue(_this);
 
             EventRegistrationToken token = table.AddEventHandler(value);
@@ -237,7 +240,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // void CollectionChanged.remove(EventRegistrationToken token)
         internal void remove_CollectionChanged(EventRegistrationToken token)
         {
-            INotifyCollectionChanged _this = JitHelpers.UnsafeCast<INotifyCollectionChanged>(this);
+            INotifyCollectionChanged _this = Unsafe.As<INotifyCollectionChanged>(this);
             EventRegistrationTokenTable<NotifyCollectionChangedEventHandler> table = s_weakTable.GetOrCreateValue(_this);
 
             NotifyCollectionChangedEventHandler handler = table.ExtractHandler(token);
@@ -263,7 +266,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // void PropertyChanged.add(PropertyChangedEventHandler)
             add
             {
-                INotifyPropertyChanged_WinRT _this = JitHelpers.UnsafeCast<INotifyPropertyChanged_WinRT>(this);
+                INotifyPropertyChanged_WinRT _this = Unsafe.As<INotifyPropertyChanged_WinRT>(this);
 
                 // call the WinRT eventing support in mscorlib to subscribe the event
                 Func<PropertyChangedEventHandler, EventRegistrationToken> addMethod =
@@ -277,7 +280,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // void PropertyChanged.remove(PropertyChangedEventHandler)
             remove
             {
-                INotifyPropertyChanged_WinRT _this = JitHelpers.UnsafeCast<INotifyPropertyChanged_WinRT>(this);
+                INotifyPropertyChanged_WinRT _this = Unsafe.As<INotifyPropertyChanged_WinRT>(this);
 
                 // call the WinRT eventing support in mscorlib to unsubscribe the event
                 Action<EventRegistrationToken> removeMethod =
@@ -307,7 +310,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // EventRegistrationToken PropertyChanged.add(PropertyChangedEventHandler value)
         internal EventRegistrationToken add_PropertyChanged(PropertyChangedEventHandler value)
         {
-            INotifyPropertyChanged _this = JitHelpers.UnsafeCast<INotifyPropertyChanged>(this);
+            INotifyPropertyChanged _this = Unsafe.As<INotifyPropertyChanged>(this);
             EventRegistrationTokenTable<PropertyChangedEventHandler> table = s_weakTable.GetOrCreateValue(_this);
 
             EventRegistrationToken token = table.AddEventHandler(value);
@@ -319,7 +322,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // void PropertyChanged.remove(EventRegistrationToken token)
         internal void remove_PropertyChanged(EventRegistrationToken token)
         {
-            INotifyPropertyChanged _this = JitHelpers.UnsafeCast<INotifyPropertyChanged>(this);
+            INotifyPropertyChanged _this = Unsafe.As<INotifyPropertyChanged>(this);
             EventRegistrationTokenTable<PropertyChangedEventHandler> table = s_weakTable.GetOrCreateValue(_this);
 
             PropertyChangedEventHandler handler = table.ExtractHandler(token);
@@ -349,7 +352,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // void CanExecuteChanged.add(EventHandler)
             add
             {
-                ICommand_WinRT _this = JitHelpers.UnsafeCast<ICommand_WinRT>(this);
+                ICommand_WinRT _this = Unsafe.As<ICommand_WinRT>(this);
 
                 // call the WinRT eventing support in mscorlib to subscribe the event
                 Func<EventHandler<object>, EventRegistrationToken> addMethod =
@@ -366,7 +369,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // void CanExecuteChanged.remove(EventHandler)
             remove
             {
-                ICommand_WinRT _this = JitHelpers.UnsafeCast<ICommand_WinRT>(this);
+                ICommand_WinRT _this = Unsafe.As<ICommand_WinRT>(this);
 
                 // call the WinRT eventing support in mscorlib to unsubscribe the event
                 Action<EventRegistrationToken> removeMethod =
@@ -383,13 +386,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private bool CanExecute(object parameter)
         {
-            ICommand_WinRT _this = JitHelpers.UnsafeCast<ICommand_WinRT>(this);
+            ICommand_WinRT _this = Unsafe.As<ICommand_WinRT>(this);
             return _this.CanExecute(parameter);
         }
 
         private void Execute(object parameter)
         {
-            ICommand_WinRT _this = JitHelpers.UnsafeCast<ICommand_WinRT>(this);
+            ICommand_WinRT _this = Unsafe.As<ICommand_WinRT>(this);
             _this.Execute(parameter);
         }
     }
@@ -414,7 +417,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // EventRegistrationToken PropertyChanged.add(EventHandler<object> value)
         private EventRegistrationToken add_CanExecuteChanged(EventHandler<object> value)
         {
-            ICommand _this = JitHelpers.UnsafeCast<ICommand>(this);
+            ICommand _this = Unsafe.As<ICommand>(this);
             EventRegistrationTokenTable<EventHandler> table = s_weakTable.GetOrCreateValue(_this);
 
             EventHandler handler = ICommandAdapterHelpers.CreateWrapperHandler(value);
@@ -427,7 +430,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // void PropertyChanged.remove(EventRegistrationToken token)
         private void remove_CanExecuteChanged(EventRegistrationToken token)
         {
-            ICommand _this = JitHelpers.UnsafeCast<ICommand>(this);
+            ICommand _this = Unsafe.As<ICommand>(this);
             EventRegistrationTokenTable<EventHandler> table = s_weakTable.GetOrCreateValue(_this);
 
             EventHandler handler = table.ExtractHandler(token);
@@ -439,13 +442,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private bool CanExecute(object parameter)
         {
-            ICommand _this = JitHelpers.UnsafeCast<ICommand>(this);
+            ICommand _this = Unsafe.As<ICommand>(this);
             return _this.CanExecute(parameter);
         }
 
         private void Execute(object parameter)
         {
-            ICommand _this = JitHelpers.UnsafeCast<ICommand>(this);
+            ICommand _this = Unsafe.As<ICommand>(this);
             _this.Execute(parameter);
         }
     }
@@ -474,16 +477,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             EventHandler key,
             ConditionalWeakTable<EventHandler, EventHandler<object>>.CreateValueCallback callback)
         {
-            EventHandler<object> value;
-
-            // Find the key in the table using a value check rather than an instance check.
-            EventHandler existingKey = table.FindEquivalentKeyUnsafe(key, out value);
-            if (existingKey == null)
+            foreach (KeyValuePair<EventHandler, EventHandler<object>> item in table)
             {
-                value = callback(key);
-                table.Add(key, value);
+                if (Object.Equals(item.Key, key))
+                    return item.Value;
             }
 
+            EventHandler<object> value = callback(key);
+            table.Add(key, value);
             return value;
         }
     }

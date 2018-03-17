@@ -14,7 +14,7 @@ namespace System
     public static class Console
     {
         private const int DefaultConsoleBufferSize = 256; // default size of buffer used in stream readers/writers
-        private static readonly object InternalSyncObject = new object(); // for synchronizing changing of Console's static fields
+        private static object InternalSyncObject = new object(); // for synchronizing changing of Console's static fields
         private static TextReader s_in;
         private static TextWriter s_out, s_error;
         private static Encoding s_inputEncoding;
@@ -25,37 +25,20 @@ namespace System
         private static ConsoleCancelEventHandler _cancelCallbacks;
         private static ConsolePal.ControlCHandlerRegistrar _registrar;
 
-        internal static T EnsureInitialized<T>(ref T field, Func<T> initializer) where T : class
-        {
-            lock (InternalSyncObject)
-            {
-                T result = Volatile.Read(ref field);
-                if (result == null)
-                {
-                    result = initializer();
-                    Volatile.Write(ref field, result);
-                }
-                return result;
-            }
-        }
+        internal static T EnsureInitialized<T>(ref T field, Func<T> initializer) where T : class =>
+            LazyInitializer.EnsureInitialized(ref field, ref InternalSyncObject, initializer);
 
-        public static TextReader In
-        {
-            get
-            {
-                return Volatile.Read(ref s_in) ?? EnsureInitialized(ref s_in, () => ConsolePal.GetOrCreateReader());
-            }
-        }
+        public static TextReader In => EnsureInitialized(ref s_in, () => ConsolePal.GetOrCreateReader());
 
         public static Encoding InputEncoding
         {
             get
             {
-                return Volatile.Read(ref s_inputEncoding) ?? EnsureInitialized(ref s_inputEncoding, () => ConsolePal.InputEncoding);
+                return EnsureInitialized(ref s_inputEncoding, () => ConsolePal.InputEncoding);
             }
             set
             {
-                CheckNonNull(value, "value");
+                CheckNonNull(value, nameof(value));
                 lock (InternalSyncObject)
                 {
                     // Set the terminal console encoding.
@@ -75,11 +58,11 @@ namespace System
         {
             get
             {
-                return Volatile.Read(ref s_outputEncoding) ?? EnsureInitialized(ref s_outputEncoding, () => ConsolePal.OutputEncoding);
+                return EnsureInitialized(ref s_outputEncoding, () => ConsolePal.OutputEncoding);
             }
             set
             {
-                CheckNonNull(value, "value");
+                CheckNonNull(value, nameof(value));
 
                 lock (InternalSyncObject)
                 {
@@ -128,15 +111,9 @@ namespace System
             return ConsolePal.ReadKey(intercept);
         }
 
-        public static TextWriter Out
-        {
-            get { return Volatile.Read(ref s_out) ?? EnsureInitialized(ref s_out, () => CreateOutputWriter(OpenStandardOutput())); }
-        }
+        public static TextWriter Out => EnsureInitialized(ref s_out, () => CreateOutputWriter(OpenStandardOutput()));
 
-        public static TextWriter Error
-        {
-            get { return Volatile.Read(ref s_error) ?? EnsureInitialized(ref s_error, () => CreateOutputWriter(OpenStandardError())); }
-        }
+        public static TextWriter Error => EnsureInitialized(ref s_error, () => CreateOutputWriter(OpenStandardError()));
 
         private static TextWriter CreateOutputWriter(Stream outputStream)
         {
@@ -157,8 +134,7 @@ namespace System
         {
             get
             {
-                StrongBox<bool> redirected = Volatile.Read(ref _isStdInRedirected) ??
-                    EnsureInitialized(ref _isStdInRedirected, () => new StrongBox<bool>(ConsolePal.IsInputRedirectedCore()));
+                StrongBox<bool> redirected = EnsureInitialized(ref _isStdInRedirected, () => new StrongBox<bool>(ConsolePal.IsInputRedirectedCore()));
                 return redirected.Value;
             }
         }
@@ -167,8 +143,7 @@ namespace System
         {
             get
             {
-                StrongBox<bool> redirected = Volatile.Read(ref _isStdOutRedirected) ??
-                    EnsureInitialized(ref _isStdOutRedirected, () => new StrongBox<bool>(ConsolePal.IsOutputRedirectedCore()));
+                StrongBox<bool> redirected = EnsureInitialized(ref _isStdOutRedirected, () => new StrongBox<bool>(ConsolePal.IsOutputRedirectedCore()));
                 return redirected.Value;
             }
         }
@@ -177,8 +152,7 @@ namespace System
         {
             get
             {
-                StrongBox<bool> redirected = Volatile.Read(ref _isStdErrRedirected) ??
-                    EnsureInitialized(ref _isStdErrRedirected, () => new StrongBox<bool>(ConsolePal.IsErrorRedirectedCore()));
+                StrongBox<bool> redirected = EnsureInitialized(ref _isStdErrRedirected, () => new StrongBox<bool>(ConsolePal.IsErrorRedirectedCore()));
                 return redirected.Value;
             }
         }
@@ -189,9 +163,17 @@ namespace System
             set { ConsolePal.CursorSize = value; }
         }
 
-        public static bool NumberLock { get { return ConsolePal.NumberLock; } }
+        public static bool NumberLock
+        {
+            get { return ConsolePal.NumberLock; }
+        }
 
-        public static bool CapsLock { get { return ConsolePal.CapsLock; } }
+        public static bool CapsLock
+        {
+            get { return ConsolePal.CapsLock; }
+        }
+
+        internal const ConsoleColor UnknownColor = (ConsoleColor)(-1);
 
         public static ConsoleColor BackgroundColor
         {
@@ -241,34 +223,14 @@ namespace System
 
         public static int WindowWidth
         {
-            get
-            {
-                return ConsolePal.WindowWidth;
-            }
-            set
-            {
-                if (value <= 0)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(value), value, SR.ArgumentOutOfRange_NeedPosNum);
-                }
-                ConsolePal.WindowWidth = value;
-            }
+            get { return ConsolePal.WindowWidth; }
+            set { ConsolePal.WindowWidth = value; }
         }
 
         public static int WindowHeight
         {
-            get
-            {
-                return ConsolePal.WindowHeight;
-            }
-            set
-            {
-                if (value <= 0)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(value), value, SR.ArgumentOutOfRange_NeedPosNum);
-                }
-                ConsolePal.WindowHeight = value;
-            }
+            get { return ConsolePal.WindowHeight; }
+            set { ConsolePal.WindowHeight = value; }
         }
 
         public static void SetWindowPosition(int left, int top)
@@ -407,9 +369,29 @@ namespace System
             return ConsolePal.OpenStandardInput();
         }
 
+        public static Stream OpenStandardInput(int bufferSize)
+        {
+            // bufferSize is ignored, other than in argument validation, even in the .NET Framework
+            if (bufferSize < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bufferSize), SR.ArgumentOutOfRange_NeedNonNegNum);
+            }
+            return OpenStandardInput();
+        }
+
         public static Stream OpenStandardOutput()
         {
             return ConsolePal.OpenStandardOutput();
+        }
+
+        public static Stream OpenStandardOutput(int bufferSize)
+        {
+            // bufferSize is ignored, other than in argument validation, even in the .NET Framework
+            if (bufferSize < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bufferSize), SR.ArgumentOutOfRange_NeedNonNegNum);
+            }
+            return OpenStandardOutput();
         }
 
         public static Stream OpenStandardError()
@@ -417,9 +399,19 @@ namespace System
             return ConsolePal.OpenStandardError();
         }
 
+        public static Stream OpenStandardError(int bufferSize)
+        {
+            // bufferSize is ignored, other than in argument validation, even in the .NET Framework
+            if (bufferSize < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bufferSize), SR.ArgumentOutOfRange_NeedNonNegNum);
+            }
+            return OpenStandardError();
+        }
+
         public static void SetIn(TextReader newIn)
         {
-            CheckNonNull(newIn, "newIn");
+            CheckNonNull(newIn, nameof(newIn));
             newIn = SyncTextReader.GetSynchronizedTextReader(newIn);
             lock (InternalSyncObject)
             {
@@ -429,7 +421,7 @@ namespace System
 
         public static void SetOut(TextWriter newOut)
         {
-            CheckNonNull(newOut, "newOut");
+            CheckNonNull(newOut, nameof(newOut));
             newOut = SyncTextWriter.GetSynchronizedTextWriter(newOut);
             Volatile.Write(ref s_isOutTextWriterRedirected, true);
 
@@ -441,7 +433,7 @@ namespace System
 
         public static void SetError(TextWriter newError)
         {
-            CheckNonNull(newError, "newError");
+            CheckNonNull(newError, nameof(newError));
             newError = SyncTextWriter.GetSynchronizedTextWriter(newError);
             Volatile.Write(ref s_isErrorTextWriterRedirected, true);
 
@@ -746,7 +738,7 @@ namespace System
             // Block until the delegate is done. We need to be robust in the face of the task not executing
             // but we also want to get control back immediately after it is done and we don't want to give the
             // handler a fixed time limit in case it needs to display UI. Wait on the task twice, once with a
-            // timout and a second time without if we are sure that the handler actually started.
+            // timeout and a second time without if we are sure that the handler actually started.
             TimeSpan controlCWaitTime = new TimeSpan(0, 0, 30); // 30 seconds
             callBackTask.Wait(controlCWaitTime);
             

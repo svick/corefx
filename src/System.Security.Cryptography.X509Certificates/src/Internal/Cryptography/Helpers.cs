@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 
@@ -124,6 +125,14 @@ namespace Internal.Cryptography
             return true;
         }
 
+        internal static void AddRange<T>(this ICollection<T> coll, IEnumerable<T> newData)
+        {
+            foreach (T datum in newData)
+            {
+                coll.Add(datum);
+            }
+        }
+
         //
         // The following group of helpers emulates the non-public Calendar.IsValidDay() method used by X509Certificate.ToString(bool).
         //
@@ -140,6 +149,37 @@ namespace Internal.Cryptography
         private static bool IsValidYear(this Calendar calendar, int year, int era)
         {
             return (year >= calendar.GetYear(calendar.MinSupportedDateTime) && year <= calendar.GetYear(calendar.MaxSupportedDateTime));
+        }
+
+        internal static void DisposeAll(this IEnumerable<IDisposable> disposables)
+        {
+            foreach (IDisposable disposable in disposables)
+            {
+                disposable.Dispose();
+            }
+        }
+    }
+
+    internal struct PinAndClear : IDisposable
+    {
+        private byte[] _data;
+        private System.Runtime.InteropServices.GCHandle _gcHandle;
+
+        internal static PinAndClear Track(byte[] data)
+        {
+            return new PinAndClear
+            {
+                _gcHandle = System.Runtime.InteropServices.GCHandle.Alloc(
+                    data,
+                    System.Runtime.InteropServices.GCHandleType.Pinned),
+                _data = data,
+            };
+        }
+
+        public void Dispose()
+        {
+            Array.Clear(_data, 0, _data.Length);
+            _gcHandle.Free();
         }
     }
 }

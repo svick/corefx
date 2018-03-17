@@ -36,7 +36,7 @@ namespace System.Linq.Tests
             
             Assert.NotNull(source as IList<T>);
             
-            Assert.Throws<InvalidOperationException>(() => source.First());
+            Assert.Throws<InvalidOperationException>(() => source.RunOnce().First());
         }
 
         [Fact]
@@ -92,7 +92,7 @@ namespace System.Linq.Tests
 
             Assert.Null(source as IList<T>);
             
-            Assert.Throws<InvalidOperationException>(() => source.First());
+            Assert.Throws<InvalidOperationException>(() => source.RunOnce().First());
         }
 
         [Fact]
@@ -175,22 +175,32 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void PredicateTrueForSomeRunOnce()
+        {
+            int[] source = { 3, 7, 10, 7, 9, 2, 11, 17, 13, 8 };
+            Func<int, bool> predicate = IsEven;
+            int expected = 10;
+
+            Assert.Equal(expected, source.RunOnce().First(predicate));
+        }
+
+        [Fact]
         public void NullSource()
         {
-            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).First());
+            AssertExtensions.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).First());
         }
 
         [Fact]
         public void NullSourcePredicateUsed()
         {
-            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).First(i => i != 2));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).First(i => i != 2));
         }
 
         [Fact]
         public void NullPredicate()
         {
             Func<int, bool> predicate = null;
-            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 3).First(predicate));
+            AssertExtensions.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 3).First(predicate));
         }
     }
 }

@@ -16,8 +16,23 @@ namespace System.Globalization.Tests
             yield return new object[] { "!@#$%^&", new int[] { 0, 1, 2, 3, 4, 5, 6 } };
             yield return new object[] { "!\u20D1bo\uFE22\u20D1\u20EB|", new int[] { 0, 2, 3, 7 } };
             yield return new object[] { "1\uDBFF\uDFFF@\uFE22\u20D1\u20EB9", new int[] { 0, 1, 3, 7 } };
+            yield return new object[] { "a\u0300", new int[] { 0 } };
+            yield return new object[] { "\u0300\u0300", new int[] { 0, 1 } };
             yield return new object[] { "   ", new int[] { 0, 1, 2 } };
             yield return new object[] { "", new int[0] };
+
+            // Invalid Unicode
+            yield return new object[] { "\u0000\uFFFFa", new int[] { 0, 1, 2 } }; // Control chars
+            yield return new object[] { "\uD800a", new int[] { 0, 1 } }; // Unmatched high surrogate
+            yield return new object[] { "\uDC00a", new int[] { 0, 1 } }; // Unmatched low surrogate
+            yield return new object[] { "\u00ADa", new int[] { 0, 1 } }; // Format character
+
+            yield return new object[] { "\u0000\u0300\uFFFF\u0300", new int[] { 0, 1, 2, 3 } }; // Control chars + combining char
+            yield return new object[] { "\uD800\u0300", new int[] { 0, 1 } }; // Unmatched high surrogate + combining char
+            yield return new object[] { "\uDC00\u0300", new int[] { 0, 1 } }; // Unmatched low surrogate + combing char
+            yield return new object[] { "\u00AD\u0300", new int[] { 0, 1 } }; // Format character + combining char
+
+            yield return new object[] { "\u0300\u0300", new int[] { 0, 1 } }; // Two combining chars
         }
 
         [Theory]
@@ -26,27 +41,11 @@ namespace System.Globalization.Tests
         {
             Assert.Equal(expected, StringInfo.ParseCombiningCharacters(str));
         }
-
-        [Fact]
-        public void ParseCombiningCharacters_InvalidUnicodeChars()
-        {
-            ParseCombiningCharacters("\u0000\uFFFFa", new int[] { 0, 1, 2 }); // Control chars
-            ParseCombiningCharacters("\uD800a", new int[] { 0, 1 }); // Unmatched high surrogate
-            ParseCombiningCharacters("\uDC00a", new int[] { 0, 1 }); // Unmatched low surrogate
-            ParseCombiningCharacters("\u00ADa", new int[] { 0, 1 }); // Format character
-
-            ParseCombiningCharacters("\u0000\u0300\uFFFF\u0300", new int[] { 0, 1, 2, 3 }); // Control chars + combining char
-            ParseCombiningCharacters("\uD800\u0300", new int[] { 0, 1 }); // Unmatched high surrogate + combining char
-            ParseCombiningCharacters("\uDC00\u0300", new int[] { 0, 1 }); // Unmatched low surrogate + combing char
-            ParseCombiningCharacters("\u00AD\u0300", new int[] { 0, 1 }); // Format character + combining char
-
-            ParseCombiningCharacters("\u0300\u0300", new int[] { 0, 1 }); // Two combining chars
-        }
         
         [Fact]
         public void ParseCombiningCharacters_Null_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>("str", () => StringInfo.ParseCombiningCharacters(null)); // Str is null
+            AssertExtensions.Throws<ArgumentNullException>("str", () => StringInfo.ParseCombiningCharacters(null)); // Str is null
         }
     }
 }

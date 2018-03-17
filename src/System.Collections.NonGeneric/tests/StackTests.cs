@@ -3,9 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-
 using Xunit;
 
 namespace System.Collections.Tests
@@ -13,7 +13,7 @@ namespace System.Collections.Tests
     public static class StackTests
     {
         [Fact]
-        public static void TestCtor_Empty()
+        public static void Ctor_Empty()
         {
             var stack = new Stack();
             Assert.Equal(0, stack.Count);
@@ -26,17 +26,17 @@ namespace System.Collections.Tests
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        public static void TestCtor_Capacity(int capacity)
+        public static void Ctor_Int(int initialCapacity)
         {
-            var stack = new Stack(capacity);
+            var stack = new Stack(initialCapacity);
             Assert.Equal(0, stack.Count);
             Assert.False(stack.IsSynchronized);
         }
 
         [Fact]
-        public static void TestCtor_Capacity_Invalid()
+        public static void Ctor_Int_NegativeInitialCapacity_ThrowsArgumentOutOfRangeException()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => new Stack(-1)); // Capacity < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("initialCapacity", () => new Stack(-1)); // InitialCapacity < 0
         }
 
         [Theory]
@@ -46,7 +46,7 @@ namespace System.Collections.Tests
         [InlineData(100)]
         [InlineData(1000)]
         [InlineData(10000)]
-        public static void TestCtor_ICollection(int count)
+        public static void Ctor_ICollection(int count)
         {
             var array = new object[count];
             for (int i = 0; i < count; i++)
@@ -65,13 +65,14 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestCtor_ICollection_Invalid()
+        public static void Ctor_ICollection_NullCollection_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new Stack(null)); // Collection is null
+            AssertExtensions.Throws<ArgumentNullException>("col", () => new Stack(null)); // Collection is null
         }
 
         [Fact]
-        public static void TestDebuggerAttribute()
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Cannot do DebuggerAttribute testing on UapAot: requires internal Reflection on framework types.")]
+        public static void DebuggerAttribute()
         {
             DebuggerAttributes.ValidateDebuggerDisplayReferences(new Stack());
 
@@ -80,8 +81,18 @@ namespace System.Collections.Tests
             stack.Push(1);
             stack.Push("b");
             stack.Push(2);
-            DebuggerAttributes.ValidateDebuggerTypeProxyProperties(stack);
 
+            DebuggerAttributeInfo debuggerAttribute = DebuggerAttributes.ValidateDebuggerTypeProxyProperties(stack);
+            PropertyInfo infoProperty = debuggerAttribute.Properties.Single(property => property.Name == "Items");
+            object[] items = (object[])infoProperty.GetValue(debuggerAttribute.Instance);
+
+            Assert.Equal(stack.ToArray(), items);
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Cannot do DebuggerAttribute testing on UapAot: requires internal Reflection on framework types.")]
+        public static void DebuggerAttribute_NullStack_ThrowsArgumentNullException()
+        {
             bool threwNull = false;
             try
             {
@@ -89,15 +100,14 @@ namespace System.Collections.Tests
             }
             catch (TargetInvocationException ex)
             {
-                ArgumentNullException nullException = ex.InnerException as ArgumentNullException;
-                threwNull = nullException != null;
+                threwNull = ex.InnerException is ArgumentNullException;
             }
 
             Assert.True(threwNull);
         }
 
         [Fact]
-        public static void TestClear()
+        public static void Clear()
         {
             Stack stack1 = Helpers.CreateIntStack(100);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -115,7 +125,7 @@ namespace System.Collections.Tests
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
-        public static void TestClone(int count)
+        public static void Clone(int count)
         {
             Stack stack1 = Helpers.CreateIntStack(count);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -133,7 +143,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestClone_IsShallowCopy()
+        public static void Clone_IsShallowCopy()
         {
             var stack1 = new Stack();
             stack1.Push(new Foo(10));
@@ -150,7 +160,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestContains()
+        public static void Contains()
         {
             Stack stack1 = Helpers.CreateIntStack(100);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -180,7 +190,7 @@ namespace System.Collections.Tests
         [InlineData(10, 5)]
         [InlineData(100, 50)]
         [InlineData(1000, 500)]
-        public static void TestCopyTo_ObjectArray(int count, int index)
+        public static void CopyTo_ObjectArray(int count, int index)
         {
             Stack stack1 = Helpers.CreateIntStack(count);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -205,7 +215,7 @@ namespace System.Collections.Tests
         [InlineData(10, 5)]
         [InlineData(100, 50)]
         [InlineData(1000, 500)]
-        public static void TestCopyTo_IntArray(int count, int index)
+        public static void CopyTo_IntArray(int count, int index)
         {
             Stack stack1 = Helpers.CreateIntStack(count);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -221,18 +231,18 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestCopyTo_Invalid()
+        public static void CopyTo_Invalid()
         {
             Stack stack1 = Helpers.CreateIntStack(100);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
             {
-                Assert.Throws<ArgumentNullException>(() => stack2.CopyTo(null, 0)); // Array is null
-                Assert.Throws<ArgumentException>(() => stack2.CopyTo(new object[10, 10], 0)); // Array is multidimensional
+                AssertExtensions.Throws<ArgumentNullException>("array", () => stack2.CopyTo(null, 0)); // Array is null
+                AssertExtensions.Throws<ArgumentException>("array", null, () => stack2.CopyTo(new object[10, 10], 0)); // Array is multidimensional
 
-                Assert.Throws<ArgumentOutOfRangeException>(() => stack2.CopyTo(new object[100], -1)); // Index < 0
-                Assert.Throws<ArgumentException>(() => stack2.CopyTo(new object[0], 0)); // Index >= array.Count
-                Assert.Throws<ArgumentException>(() => stack2.CopyTo(new object[100], 1)); // Index + array.Count > stack.Count
-                Assert.Throws<ArgumentException>(() => stack2.CopyTo(new object[150], 51)); // Index + array.Count > stack.Count
+                AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => stack2.CopyTo(new object[100], -1)); // Index < 0
+                AssertExtensions.Throws<ArgumentException>(null, () => stack2.CopyTo(new object[0], 0)); // Index >= array.Count
+                AssertExtensions.Throws<ArgumentException>(null, () => stack2.CopyTo(new object[100], 1)); // Index + array.Count > stack.Count
+                AssertExtensions.Throws<ArgumentException>(null, () => stack2.CopyTo(new object[150], 51)); // Index + array.Count > stack.Count
             });
         }
 
@@ -241,35 +251,90 @@ namespace System.Collections.Tests
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
-        public static void TestGetEnumerator(int count)
+        public static void GetEnumerator(int count)
         {
             Stack stack1 = Helpers.CreateIntStack(count);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
             {
-                IEnumerator enumerator1 = stack2.GetEnumerator();
-                IEnumerator enumerator2 = stack2.GetEnumerator();
-
-                IEnumerator[] enumerators = { enumerator1, enumerator2 };
-                foreach (IEnumerator enumerator in enumerators)
+                Assert.NotSame(stack2.GetEnumerator(), stack2.GetEnumerator());
+                IEnumerator enumerator = stack2.GetEnumerator();
+                for (int i = 0; i < 2; i++)
                 {
-                    for (int i = 0; i < 2; i++)
+                    int counter = 0;
+                    while (enumerator.MoveNext())
                     {
-                        int counter = 0;
-                        while (enumerator.MoveNext())
-                        {
-                            counter++;
-                            Assert.NotNull(enumerator.Current);
-                        }
-                        Assert.Equal(count, counter);
-
-                        enumerator.Reset();
+                        counter++;
+                        Assert.NotNull(enumerator.Current);
                     }
+                    Assert.Equal(count, counter);
+                    enumerator.Reset();
                 }
             });
         }
 
         [Fact]
-        public static void TestGetEnumerator_Invalid()
+        public static void GetEnumerator_StartOfEnumeration_Clone()
+        {
+            Stack stack = Helpers.CreateIntStack(10);
+
+            IEnumerator enumerator = stack.GetEnumerator();
+            ICloneable cloneableEnumerator = (ICloneable)enumerator;
+
+            IEnumerator clonedEnumerator = (IEnumerator)cloneableEnumerator.Clone();
+            Assert.NotSame(enumerator, clonedEnumerator);
+
+            // Cloned and original enumerators should enumerate separately.
+            Assert.True(enumerator.MoveNext());
+            Assert.Equal(stack.Count - 1, enumerator.Current);
+            Assert.Throws<InvalidOperationException>(() => clonedEnumerator.Current);
+
+            Assert.True(clonedEnumerator.MoveNext());
+            Assert.Equal(stack.Count - 1, enumerator.Current);
+            Assert.Equal(stack.Count - 1, clonedEnumerator.Current);
+
+            // Cloned and original enumerators should enumerate in the same sequence.
+            for (int i = 1; i < stack.Count; i++)
+            {
+                Assert.True(enumerator.MoveNext());
+                Assert.NotEqual(enumerator.Current, clonedEnumerator.Current);
+
+                Assert.True(clonedEnumerator.MoveNext());
+                Assert.Equal(enumerator.Current, clonedEnumerator.Current);
+            }
+
+            Assert.False(enumerator.MoveNext());
+            Assert.Throws<InvalidOperationException>(() => enumerator.Current);
+            Assert.Equal(0, clonedEnumerator.Current);
+
+            Assert.False(clonedEnumerator.MoveNext());
+            Assert.Throws<InvalidOperationException>(() => enumerator.Current);
+            Assert.Throws<InvalidOperationException>(() => clonedEnumerator.Current);
+        }
+
+        [Fact]
+        public static void GetEnumerator_InMiddleOfEnumeration_Clone()
+        {
+            Stack stack = Helpers.CreateIntStack(10);
+
+            IEnumerator enumerator = stack.GetEnumerator();
+            enumerator.MoveNext();
+            ICloneable cloneableEnumerator = (ICloneable)enumerator;
+
+            // Cloned and original enumerators should start at the same spot, even
+            // if the original is in the middle of enumeration.
+            IEnumerator clonedEnumerator = (IEnumerator)cloneableEnumerator.Clone();
+            Assert.Equal(enumerator.Current, clonedEnumerator.Current);
+
+            for (int i = 0; i < stack.Count - 1; i++)
+            {
+                Assert.True(clonedEnumerator.MoveNext());
+            }
+
+            Assert.False(clonedEnumerator.MoveNext());
+        }
+
+        [Fact]
+        public static void GetEnumerator_Invalid()
         {
             Stack stack1 = Helpers.CreateIntStack(100);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -309,7 +374,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestPeek()
+        public static void Peek()
         {
             int count = 100;
             Stack stack1 = Helpers.CreateIntStack(count);
@@ -328,7 +393,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestPeek_Invalid()
+        public static void Peek_EmptyStack_ThrowsInvalidOperationException()
         {
             var stack1 = new Stack();
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -357,7 +422,7 @@ namespace System.Collections.Tests
         [InlineData(10, 5)]
         [InlineData(100, 50)]
         [InlineData(1000, 500)]
-        public static void TestPop(int pushCount, int popCount)
+        public static void Pop(int pushCount, int popCount)
         {
             Stack stack1 = Helpers.CreateIntStack(pushCount);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -372,7 +437,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestPop_Null()
+        public static void Pop_Null()
         {
             var stack1 = new Stack();
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -388,12 +453,12 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestPop_Invalid()
+        public static void Pop_EmptyStack_ThrowsInvalidOperationException()
         {
             var stack1 = new Stack();
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
             {
-                Assert.Throws<InvalidOperationException>(() => stack2.Pop());
+                Assert.Throws<InvalidOperationException>(() => stack2.Pop()); // Empty stack
             });
         }
 
@@ -402,7 +467,7 @@ namespace System.Collections.Tests
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        public static void TestPush(int count)
+        public static void Push(int count)
         {
             var stack1 = new Stack();
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -417,7 +482,7 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestPush_Null()
+        public static void Push_Null()
         {
             var stack1 = new Stack();
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -432,16 +497,16 @@ namespace System.Collections.Tests
         }
 
         [Fact]
-        public static void TestSynchronized_IsSynchronized()
+        public static void Synchronized_IsSynchronized()
         {
             Stack stack = Stack.Synchronized(new Stack());
             Assert.True(stack.IsSynchronized);
         }
 
         [Fact]
-        public static void TestSynchronizedInvalid()
+        public static void Synchronized_NullStack_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => Stack.Synchronized(null)); // Stack is null
+            AssertExtensions.Throws<ArgumentNullException>("stack", () => Stack.Synchronized(null)); // Stack is null
         }
 
         [Theory]
@@ -449,7 +514,7 @@ namespace System.Collections.Tests
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
-        public static void TestToArray(int count)
+        public static void ToArray(int count)
         {
             Stack stack1 = Helpers.CreateIntStack(count);
             Helpers.PerformActionOnAllStackWrappers(stack1, stack2 =>
@@ -468,15 +533,10 @@ namespace System.Collections.Tests
         {
             public Foo(int intValue)
             {
-                _intValue = intValue;
+                IntValue = intValue;
             }
-
-            private int _intValue;
-            public int IntValue
-            {
-                set { _intValue = value; }
-                get { return _intValue; }
-            }
+            
+            public int IntValue { get; set; }
         }
     }
 
@@ -485,20 +545,20 @@ namespace System.Collections.Tests
         private Stack _stackDaughter;
         private Stack _stackGrandDaughter;
 
-        private const int iNumberOfElements = 100;
+        private const int NumberOfElements = 100;
 
         [Fact]
-        public void TestGetSyncRootBasic()
+        public void GetSyncRootBasic()
         {
             // Testing SyncRoot is not as simple as its implementation looks like. This is the working
-            //scenrio we have in mind.
+            // scenario we have in mind.
             // 1) Create your Down to earth mother Stack
             // 2) Get a Fixed wrapper from it
             // 3) Get a Synchronized wrapper from 2)
             // 4) Get a synchronized wrapper of the mother from 1)
             // 5) all of these should SyncRoot to the mother earth
             var stackMother = new Stack();
-            for (int i = 0; i < iNumberOfElements; i++)
+            for (int i = 0; i < NumberOfElements; i++)
             {
                 stackMother.Push(i);
             }
@@ -530,7 +590,7 @@ namespace System.Collections.Tests
         private void SortElements()
         {
             _stackGrandDaughter.Clear();
-            for (int i = 0; i < iNumberOfElements; i++)
+            for (int i = 0; i < NumberOfElements; i++)
             {
                 _stackGrandDaughter.Push(i);
             }
@@ -539,7 +599,7 @@ namespace System.Collections.Tests
         private void ReverseElements()
         {
             _stackDaughter.Clear();
-            for (int i = 0; i < iNumberOfElements; i++)
+            for (int i = 0; i < NumberOfElements; i++)
             {
                 _stackDaughter.Push(i);
             }

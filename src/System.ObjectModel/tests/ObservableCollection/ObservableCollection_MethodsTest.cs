@@ -17,7 +17,7 @@ namespace System.Collections.ObjectModel.Tests
     public static class PublicMethodsTest
     {
         /// <summary>
-        /// Tests that is is possible to Add an item to the collection.
+        /// Tests that is possible to Add an item to the collection.
         /// </summary>
         [Fact]
         public static void AddTest()
@@ -61,13 +61,13 @@ namespace System.Collections.ObjectModel.Tests
             helper = new CollectionAndPropertyChangedTester();
             helper.RemoveItemTest(col, 1, "three", true, hasDuplicates: true);
             // want to ensure that there is one "three" left in collection and not both were removed.
-            int occurancesThree = 0;
+            int occurrencesThree = 0;
             foreach (var item in col)
             {
                 if (item.Equals("three"))
-                    occurancesThree++;
+                    occurrencesThree++;
             }
-            Assert.Equal(1, occurancesThree);
+            Assert.Equal(1, occurrencesThree);
         }
 
         /// <summary>
@@ -352,7 +352,7 @@ namespace System.Collections.ObjectModel.Tests
             Assert.Equal(-1, collection.IndexOf("seven"));
             Assert.Equal(-1, collection.IndexOf(null));
 
-            // testing that the first occurance is the index returned.
+            // testing that the first occurrence is the index returned.
             ObservableCollection<int> intCol = new ObservableCollection<int>();
             for (int i = 0; i < 4; ++i)
                 intCol.Add(i % 2);
@@ -423,16 +423,16 @@ namespace System.Collections.ObjectModel.Tests
             foreach (var index in iArrLargeValues)
             {
                 string[] aCopy = new string[collection.Count];
-                Assert.Throws<ArgumentException>(() => collection.CopyTo(aCopy, index));
+                AssertExtensions.Throws<ArgumentException>("destinationArray", null, () => collection.CopyTo(aCopy, index));
             }
 
             Assert.Throws<ArgumentNullException>(() => collection.CopyTo(null, 1));
 
             string[] copy = new string[collection.Count - 1];
-            Assert.Throws<ArgumentException>(() => collection.CopyTo(copy, 0));
+            AssertExtensions.Throws<ArgumentException>("destinationArray", "", () => collection.CopyTo(copy, 0));
 
             copy = new string[0];
-            Assert.Throws<ArgumentException>(() => collection.CopyTo(copy, 0));
+            AssertExtensions.Throws<ArgumentException>("destinationArray", "", () => collection.CopyTo(copy, 0));
         }
 
         /// <summary>

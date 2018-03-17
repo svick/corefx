@@ -10,10 +10,8 @@ namespace System.Linq
 {
     public static partial class Enumerable
     {
-        public static ILookup<TKey, TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
-        {
-            return ToLookup(source, keySelector, null);
-        }
+        public static ILookup<TKey, TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector) =>
+            ToLookup(source, keySelector, null);
 
         public static ILookup<TKey, TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, IEqualityComparer<TKey> comparer)
         {
@@ -30,10 +28,8 @@ namespace System.Linq
             return Lookup<TKey, TSource>.Create(source, keySelector, comparer);
         }
 
-        public static ILookup<TKey, TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector)
-        {
-            return ToLookup(source, keySelector, elementSelector, null);
-        }
+        public static ILookup<TKey, TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector) =>
+            ToLookup(source, keySelector, elementSelector, null);
 
         public static ILookup<TKey, TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector, IEqualityComparer<TKey> comparer)
         {
@@ -65,6 +61,8 @@ namespace System.Linq
         bool Contains(TKey key);
     }
 
+    [DebuggerDisplay("Count = {Count}")]
+    [DebuggerTypeProxy(typeof(SystemLinq_LookupDebugView<,>))]
     public class Lookup<TKey, TElement> : ILookup<TKey, TElement>, IIListProvider<IGrouping<TKey, TElement>>
     {
         private readonly IEqualityComparer<TKey> _comparer;
@@ -122,10 +120,7 @@ namespace System.Linq
             _groupings = new Grouping<TKey, TElement>[7];
         }
 
-        public int Count
-        {
-            get { return _count; }
-        }
+        public int Count => _count;
 
         public IEnumerable<TElement> this[TKey key]
         {
@@ -141,10 +136,7 @@ namespace System.Linq
             }
         }
 
-        public bool Contains(TKey key)
-        {
-            return GetGrouping(key, create: false) != null;
-        }
+        public bool Contains(TKey key) => GetGrouping(key, create: false) != null;
 
         public IEnumerator<IGrouping<TKey, TElement>> GetEnumerator()
         {
@@ -189,6 +181,7 @@ namespace System.Linq
                 do
                 {
                     g = g._next;
+                    g.Trim();
                     array[index] = resultSelector(g._key, g._elements);
                     ++index;
                 }
@@ -224,6 +217,7 @@ namespace System.Linq
                 do
                 {
                     g = g._next;
+                    g.Trim();
                     list.Add(resultSelector(g._key, g._elements));
                 }
                 while (g != _lastGrouping);
@@ -232,10 +226,7 @@ namespace System.Linq
             return list;
         }
 
-        int IIListProvider<IGrouping<TKey, TElement>>.GetCount(bool onlyIfCheap)
-        {
-            return _count;
-        }
+        int IIListProvider<IGrouping<TKey, TElement>>.GetCount(bool onlyIfCheap) => _count;
 
         public IEnumerable<TResult> ApplyResultSelector<TResult>(Func<TKey, IEnumerable<TElement>, TResult> resultSelector)
         {
@@ -245,23 +236,16 @@ namespace System.Linq
                 do
                 {
                     g = g._next;
-                    if (g._count != g._elements.Length)
-                    {
-                        Array.Resize(ref g._elements, g._count);
-                    }
-
+                    g.Trim();
                     yield return resultSelector(g._key, g._elements);
                 }
                 while (g != _lastGrouping);
             }
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        internal int InternalGetHashCode(TKey key)
+        private int InternalGetHashCode(TKey key)
         {
             // Handle comparer implementations that throw when passed null
             return (key == null) ? 0 : _comparer.GetHashCode(key) & 0x7FFFFFFF;

@@ -22,7 +22,7 @@ namespace System.Composition.Hosting.Core
     /// by being locked itself. Activation logic is unavoidably called under this lock.
     /// Bound part instances is always protected, by locking [this], and should never be written to
     /// after disposal and so is set to null under a lock in Dispose(). If it were allowed it would result in
-    /// diposable parts not being released. Dispose methods on parts are called outside the lock.
+    /// disposable parts not being released. Dispose methods on parts are called outside the lock.
     /// </remarks>
     /// <seealso cref="Export{T}"/>
     public sealed class LifetimeContext : CompositionContext, IDisposable
@@ -92,7 +92,7 @@ namespace System.Composition.Hosting.Core
 
             // To generate acceptable error messages here we're going to need to pass in a description
             // of the component, or otherwise find a way to get one.
-            throw ThrowHelper.CompositionException(string.Format(Properties.Resources.Component_NotCreatableOutsideSharingBoundary, sharingBoundary));
+            throw ThrowHelper.CompositionException(SR.Format(SR.Component_NotCreatableOutsideSharingBoundary, sharingBoundary));
         }
 
         /// <summary>

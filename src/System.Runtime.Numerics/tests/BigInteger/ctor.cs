@@ -6,7 +6,7 @@ using Xunit;
 
 namespace System.Numerics.Tests
 {
-    public class BigIntegerConstructorTest
+    public partial class BigIntegerConstructorTest
     {
         private static int s_samples = 10;
         private static Random s_random = new Random(100);
@@ -718,7 +718,7 @@ namespace System.Numerics.Tests
             // ctor(byte[]): array with a lot of leading zeros
             for (int i = 0; i < s_samples; i++)
             {
-                tempUInt64 = (UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue);
+                tempUInt64 = unchecked((UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue));
                 tempByteArray = BitConverter.GetBytes(tempUInt64);
 
                 VerifyCtorByteArray(
@@ -740,7 +740,7 @@ namespace System.Numerics.Tests
             // ctor(byte[]): array 4 bytes
             for (int i = 0; i < s_samples; i++)
             {
-                tempUInt64 = (UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue);
+                tempUInt64 = unchecked((UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue));
                 tempByteArray = BitConverter.GetBytes(tempUInt64);
 
                 if (tempUInt64 > Int32.MaxValue)
@@ -778,7 +778,7 @@ namespace System.Numerics.Tests
             // ctor(byte[]): array 5 bytes
             for (int i = 0; i < s_samples; i++)
             {
-                tempUInt64 = (UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue);
+                tempUInt64 = unchecked((UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue));
                 tempUInt64 <<= 8;
                 tempUInt64 += (UInt64)s_random.Next(0, 256);
                 tempByteArray = BitConverter.GetBytes(tempUInt64);
@@ -820,9 +820,9 @@ namespace System.Numerics.Tests
             // ctor(byte[]): array 8 bytes
             for (int i = 0; i < s_samples; i++)
             {
-                tempUInt64 = (UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue);
+                tempUInt64 = unchecked((UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue));
                 tempUInt64 <<= 32;
-                tempUInt64 += (UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue);
+                tempUInt64 += unchecked((UInt32)s_random.Next(Int32.MinValue, Int32.MaxValue));
                 tempByteArray = BitConverter.GetBytes(tempUInt64);
 
                 if (tempUInt64 > Int64.MaxValue)
@@ -891,6 +891,10 @@ namespace System.Numerics.Tests
             // ctor(byte[]): array is UInt32.MaxValue + 1
             VerifyCtorByteArray(new byte[] { 0, 0, 0, 0, 1 }, (UInt64)UInt32.MaxValue + 1);
 
+            // ctor(byte[]): array is Int32.MinValue with overlong representation.
+            VerifyCtorByteArray(new byte[] {0, 0, 0, 0x80, 0xFF});
+            Assert.Equal(new BigInteger(new byte[] { 0, 0, 0, 0x80, 0xFF, 0xFF, 0xFF }), int.MinValue);
+
             // ctor(byte[]): array is UInt64.MaxValue
             VerifyCtorByteArray(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0 }, UInt64.MaxValue);
 
@@ -953,6 +957,7 @@ namespace System.Numerics.Tests
 
             VerifyCtorByteArray(value);
         }
+        static partial void VerifyCtorByteSpan(byte[] value);
 
         private static void VerifyCtorByteArray(byte[] value)
         {
@@ -961,6 +966,7 @@ namespace System.Numerics.Tests
             bool isZero = MyBigIntImp.IsZero(value);
 
             bigInteger = new BigInteger(value);
+            VerifyCtorByteSpan(value);
 
             roundTrippedByteArray = bigInteger.ToByteArray();
 

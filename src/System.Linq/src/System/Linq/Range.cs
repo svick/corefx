@@ -25,6 +25,9 @@ namespace System.Linq
             return new RangeIterator(start, count);
         }
 
+        /// <summary>
+        /// An iterator that yields a range of consecutive integers.
+        /// </summary>
         private sealed class RangeIterator : Iterator<int>, IPartition<int>
         {
             private readonly int _start;
@@ -34,13 +37,10 @@ namespace System.Linq
             {
                 Debug.Assert(count > 0);
                 _start = start;
-                _end = start + count;
+                _end = unchecked(start + count);
             }
 
-            public override Iterator<int> Clone()
-            {
-                return new RangeIterator(_start, _end - _start);
-            }
+            public override Iterator<int> Clone() => new RangeIterator(_start, _end - _start);
 
             public override bool MoveNext()
             {
@@ -52,7 +52,7 @@ namespace System.Linq
                         _state = 2;
                         return true;
                     case 2:
-                        if (++_current == _end)
+                        if (unchecked(++_current) == _end)
                         {
                             break;
                         }
@@ -98,10 +98,7 @@ namespace System.Linq
                 return list;
             }
 
-            public int GetCount(bool onlyIfCheap)
-            {
-                return _end - _start;
-            }
+            public int GetCount(bool onlyIfCheap) => unchecked(_end - _start);
 
             public IPartition<int> Skip(int count)
             {
@@ -126,7 +123,7 @@ namespace System.Linq
 
             public int TryGetElementAt(int index, out bool found)
             {
-                if ((uint)index < (uint)(_end - _start))
+                if (unchecked((uint)index < (uint)(_end - _start)))
                 {
                     found = true;
                     return _start + index;

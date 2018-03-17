@@ -14,6 +14,8 @@ namespace System.Net.Test.Common
         private MemoryStream _readStream;
         private readonly bool _isServer;
         private object _readStreamLock = new object();
+        private TaskCompletionSource<object> _flushTcs;
+        private bool _isFlushed;
 
         public VirtualNetworkStream(VirtualNetwork network, bool isServer)
         {
@@ -68,7 +70,31 @@ namespace System.Net.Test.Common
 
         public override void Flush()
         {
-            throw new NotImplementedException();
+            _isFlushed = true;
+        }
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            if (_flushTcs != null)
+            {
+                throw new InvalidOperationException();
+            }
+            _flushTcs = new TaskCompletionSource<object>();
+
+            return _flushTcs.Task;
+        }
+
+        public bool HasBeenSyncFlushed => _isFlushed;
+
+        public void CompleteAsyncFlush()
+        {
+            if (_flushTcs == null)
+            {
+                throw new InvalidOperationException();
+            }
+
+            _flushTcs.SetResult(null);
+            _flushTcs = null;
         }
 
         public override void SetLength(long value)
@@ -107,30 +133,28 @@ namespace System.Net.Test.Common
 
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                int bytesRead = Read(buffer, offset, count);
-                return Task.FromResult<int>(bytesRead);
-            }
-            catch (Exception e)
-            {
-                return Task.FromException<int>(e);
-            }
+            return cancellationToken.IsCancellationRequested ?
+                Task.FromCanceled<int>(cancellationToken) :
+                Task.Run(() => Read(buffer, offset, count));
         }
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                Write(buffer, offset, count);
-                return Task.CompletedTask;
-            }
-            catch (Exception e)
-            {
-                return Task.FromException(e);
-            }
+            return cancellationToken.IsCancellationRequested ?
+                Task.FromCanceled<int>(cancellationToken) :
+                Task.Run(() => Write(buffer, offset, count));
         }
+
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state) =>
+            TaskToApm.Begin(ReadAsync(buffer, offset, count), callback, state);
+
+        public override int EndRead(IAsyncResult asyncResult) =>
+            TaskToApm.End<int>(asyncResult);
+
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state) =>
+            TaskToApm.Begin(WriteAsync(buffer, offset, count), callback, state);
+
+        public override void EndWrite(IAsyncResult asyncResult) =>
+            TaskToApm.End(asyncResult);
     }
 }

@@ -36,7 +36,7 @@ namespace System.Linq.Tests
             
             Assert.NotNull(source as IList<T>);
             
-            Assert.Throws<InvalidOperationException>(() => source.Last());
+            Assert.Throws<InvalidOperationException>(() => source.RunOnce().Last());
         }
 
         [Fact]
@@ -92,7 +92,7 @@ namespace System.Linq.Tests
 
             Assert.Null(source as IList<T>);
             
-            Assert.Throws<InvalidOperationException>(() => source.Last());
+            Assert.Throws<InvalidOperationException>(() => source.RunOnce().Last());
         }
 
         [Fact]
@@ -175,6 +175,16 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void IListPredicateTrueForSomeRunOnce()
+        {
+            int[] source = { 3, 7, 10, 7, 9, 2, 11, 18, 13, 9 };
+            Func<int, bool> predicate = IsEven;
+            int expected = 18;
+
+            Assert.Equal(expected, source.RunOnce().Last(predicate));
+        }
+
+        [Fact]
         public void NotIListIListEmptySourcePredicate()
         {
             IEnumerable<int> source = Enumerable.Range(1, 0);
@@ -223,22 +233,32 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void NotIListPredicateTrueForSomeRunOnce()
+        {
+            IEnumerable<int> source = ForceNotCollection(new int[] { 3, 7, 10, 7, 9, 2, 11, 18, 13, 9 });
+            Func<int, bool> predicate = IsEven;
+            int expected = 18;
+
+            Assert.Equal(expected, source.RunOnce().Last(predicate));
+        }
+
+        [Fact]
         public void NullSource()
         {
-            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).Last());
+            AssertExtensions.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).Last());
         }
 
         [Fact]
         public void NullSourcePredicateUsed()
         {
-            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).Last(i => i != 2));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).Last(i => i != 2));
         }
 
         [Fact]
         public void NullPredicate()
         {
             Func<int, bool> predicate = null;
-            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 3).Last(predicate));
+            AssertExtensions.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 3).Last(predicate));
         }
     }
 }

@@ -43,7 +43,7 @@ namespace Windows.Foundation
         private const double EmptyWidth = Double.NegativeInfinity;
         private const double EmptyHeight = Double.NegativeInfinity;
 
-        private readonly static Rect s_empty = CreateEmptyRect();
+        private static readonly Rect s_empty = CreateEmptyRect();
 
         public Rect(double x,
                     double y,
@@ -51,9 +51,9 @@ namespace Windows.Foundation
                     double height)
         {
             if (width < 0)
-                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(width));
+                throw new ArgumentOutOfRangeException(nameof(width), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (height < 0)
-                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(height));
+                throw new ArgumentOutOfRangeException(nameof(height), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             _x = (float)x;
             _y = (float)y;
@@ -86,22 +86,6 @@ namespace Windows.Foundation
             }
         }
 
-        internal static Rect Create(double x,
-                                    double y,
-                                    double width,
-                                    double height)
-        {
-            if (x == EmptyX && y == EmptyY && width == EmptyWidth && height == EmptyHeight)
-            {
-                return Rect.Empty;
-            }
-            else
-            {
-                return new Rect(x, y, width, height);
-            }
-        }
-
-
         public double X
         {
             get { return _x; }
@@ -120,7 +104,7 @@ namespace Windows.Foundation
             set
             {
                 if (value < 0)
-                    throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(Width));
+                    throw new ArgumentOutOfRangeException(nameof(Width), SR.ArgumentOutOfRange_NeedNonNegNum);
 
                 _width = (float)value;
             }
@@ -132,7 +116,7 @@ namespace Windows.Foundation
             set
             {
                 if (value < 0)
-                    throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(Height));
+                    throw new ArgumentOutOfRangeException(nameof(Height), SR.ArgumentOutOfRange_NeedNonNegNum);
 
                 _height = (float)value;
             }
@@ -228,7 +212,7 @@ namespace Windows.Foundation
                 }
                 else
                 {
-                    //  Max with 0 to prevent double weirdness from causing us to be (-epsilon..0)                    
+                    //  Max with 0 to prevent double weirdness from causing us to be (-epsilon..0)
                     double maxRight = Math.Max(Right, rect.Right);
                     Width = Math.Max(maxRight - left, 0);
                 }

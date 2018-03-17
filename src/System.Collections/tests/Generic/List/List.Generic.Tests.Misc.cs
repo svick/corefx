@@ -3,8 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using Xunit;
 
 namespace System.Collections.Tests
@@ -98,7 +96,7 @@ namespace System.Collections.Tests
                     Assert.Throws<ArgumentOutOfRangeException>(() => _ilist.Insert(bad[i], items[0])); //"ArgumentOutOfRangeException expected."
                 }
 
-                Assert.Throws<ArgumentException>(() => _ilist.Insert(0, new LinkedListNode<string>("blargh"))); //"ArgumentException expected."
+                AssertExtensions.Throws<ArgumentException>("value", () => _ilist.Insert(0, new LinkedListNode<string>("blargh"))); //"ArgumentException expected."
             }
 
             #endregion
@@ -287,7 +285,7 @@ namespace System.Collections.Tests
 
                 for (int i = 0; i < bad.Length; i++)
                 {
-                    Assert.Throws<ArgumentException>(() => list.GetRange(bad[i], bad[++i])); //"ArgumentException expected."
+                    AssertExtensions.Throws<ArgumentException>(null, () => list.GetRange(bad[i], bad[++i])); //"ArgumentException expected."
                 }
 
                 bad = new int[] {
@@ -559,7 +557,7 @@ namespace System.Collections.Tests
                 IList _ilist = list;
 
                 Assert.False(_ilist.Contains(new LinkedListNode<string>("rah")),
-                    "Err_68850ahiuedpz Expected Contains to return false with inavlid type");
+                    "Err_68850ahiuedpz Expected Contains to return false with invalid type");
             }
 
             #endregion
@@ -691,7 +689,7 @@ namespace System.Collections.Tests
 
                 for (int i = 0; i < items.Length; i++)
                 {
-                    Assert.Equal(((Object)arr[i]), items[i]); //"Should be equal."
+                    Assert.Equal(((object)arr[i]), items[i]); //"Should be equal."
                 }
             }
 
@@ -700,10 +698,10 @@ namespace System.Collections.Tests
                 List<T> list = new List<T>(items);
                 T[] arr = list.ToArray();
                 list[0] = item;
-                if (((Object)arr[0]) == null)
+                if (((object)arr[0]) == null)
                     Assert.NotNull(list[0]); //"Should NOT be null"
                 else
-                    Assert.NotEqual(((Object)arr[0]), list[0]); //"Should NOT be equal."
+                    Assert.NotEqual(((object)arr[0]), list[0]); //"Should NOT be equal."
             }
 
             #endregion

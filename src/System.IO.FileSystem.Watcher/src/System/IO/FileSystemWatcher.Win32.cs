@@ -14,20 +14,25 @@ namespace System.IO
         /// <summary>Start monitoring the current directory.</summary>
         private void StartRaisingEvents()
         {
+            // If we're called when "Initializing" is true, set enabled to true
+            if (IsSuspended())
+            {
+                _enabled = true;
+                return;
+            }
+
             // If we're already running, don't do anything.
             if (!IsHandleInvalid(_directoryHandle))
                 return;
 
             // Create handle to directory being monitored
-            var defaultSecAttrs = default(Interop.mincore.SECURITY_ATTRIBUTES);
-            _directoryHandle = Interop.mincore.CreateFile(
+            _directoryHandle = Interop.Kernel32.CreateFile(
                 lpFileName: _directory,
-                dwDesiredAccess: Interop.mincore.FileOperations.FILE_LIST_DIRECTORY,
+                dwDesiredAccess: Interop.Kernel32.FileOperations.FILE_LIST_DIRECTORY,
                 dwShareMode: FileShare.Read | FileShare.Delete | FileShare.Write,
-                securityAttrs: ref defaultSecAttrs,
                 dwCreationDisposition: FileMode.Open,
-                dwFlagsAndAttributes: Interop.mincore.FileOperations.FILE_FLAG_BACKUP_SEMANTICS | Interop.mincore.FileOperations.FILE_FLAG_OVERLAPPED,
-                hTemplateFile: IntPtr.Zero);
+                dwFlagsAndAttributes: Interop.Kernel32.FileOperations.FILE_FLAG_BACKUP_SEMANTICS | Interop.Kernel32.FileOperations.FILE_FLAG_OVERLAPPED);
+
             if (IsHandleInvalid(_directoryHandle))
             {
                 _directoryHandle = null;
@@ -67,6 +72,9 @@ namespace System.IO
         {
             _enabled = false;
 
+            if (IsSuspended())
+                return;
+
             // If we're not running, do nothing.
             if (IsHandleInvalid(_directoryHandle))
                 return;
@@ -77,7 +85,7 @@ namespace System.IO
             // Close the directory handle.  This will cause the async operation to stop processing.
             // This operation doesn't need to be atomic because the API will deal with a closed
             // handle appropriately. If we get here while asynchronously waiting on a change notification, 
-            // closing the directory handle should cause ReadDirectoryChangesCallback be be called,
+            // closing the directory handle should cause ReadDirectoryChangesCallback be called,
             // cleaning up the operation.  Note that it's critical to also null out the handle.  If the
             // handle is currently in use in a P/Invoke, it will have its reference count temporarily
             // increased, such that the disposal operation won't take effect and close the handle
@@ -136,7 +144,7 @@ namespace System.IO
                 // Get the overlapped pointer to use for this iteration.
                 overlappedPointer = state.ThreadPoolBinding.AllocateNativeOverlapped(state.PreAllocatedOverlapped);
                 int size;
-                continueExecuting = Interop.mincore.ReadDirectoryChangesW(
+                continueExecuting = Interop.Kernel32.ReadDirectoryChangesW(
                     state.DirectoryHandle,
                     state.Buffer, // the buffer is kept pinned for the duration of the sync and async operation by the PreAllocatedOverlapped
                     _internalBufferSize,
@@ -236,6 +244,9 @@ namespace System.IO
 
         private void ParseEventBufferAndNotifyForEach(byte[] buffer)
         {
+            Debug.Assert(buffer != null);
+            Debug.Assert(buffer.Length > 0);
+
             // Parse each event from the buffer and notify appropriate delegates
 
             /******
@@ -263,7 +274,7 @@ namespace System.IO
             {
                 unsafe
                 {
-                    fixed (byte* buffPtr = buffer)
+                    fixed (byte* buffPtr = &buffer[0])
                     {
                         // Get next offset:
                         nextOffset = *((int*)(buffPtr + offset));
@@ -304,43 +315,34 @@ namespace System.IO
                  */
 
                 // If the action is RENAMED_FROM, save the name of the file
-                if (action == Interop.mincore.FileOperations.FILE_ACTION_RENAMED_OLD_NAME)
+                if (action == Interop.Kernel32.FileOperations.FILE_ACTION_RENAMED_OLD_NAME)
                 {
-                    Debug.Assert(oldName == null, "Two FILE_ACTION_RENAMED_OLD_NAME in a row!  [" + oldName + "], [ " + name + "]");
                     oldName = name;
                 }
-                else if (action == Interop.mincore.FileOperations.FILE_ACTION_RENAMED_NEW_NAME)
+                else if (action == Interop.Kernel32.FileOperations.FILE_ACTION_RENAMED_NEW_NAME)
                 {
-                    if (oldName != null)
-                    {
-                        NotifyRenameEventArgs(WatcherChangeTypes.Renamed, name, oldName);
-                        oldName = null;
-                    }
-                    else
-                    {
-                        Debug.Fail("FILE_ACTION_RENAMED_NEW_NAME with no old name! [ " + name + "]");
-                        NotifyRenameEventArgs(WatcherChangeTypes.Renamed, name, oldName);
-                        oldName = null;
-                    }
+                    // oldName may be null here if we received a FILE_ACTION_RENAMED_NEW_NAME with no old name
+                    NotifyRenameEventArgs(WatcherChangeTypes.Renamed, name, oldName);
+                    oldName = null;
                 }
                 else
                 {
                     if (oldName != null)
                     {
-                        Debug.Fail("Previous FILE_ACTION_RENAMED_OLD_NAME with no new name!  [" + oldName + "]");
+                        // Previous FILE_ACTION_RENAMED_OLD_NAME with no new name
                         NotifyRenameEventArgs(WatcherChangeTypes.Renamed, null, oldName);
                         oldName = null;
                     }
 
                     switch (action)
                     {
-                        case Interop.mincore.FileOperations.FILE_ACTION_ADDED:
+                        case Interop.Kernel32.FileOperations.FILE_ACTION_ADDED:
                             NotifyFileSystemEventArgs(WatcherChangeTypes.Created, name);
                             break;
-                        case Interop.mincore.FileOperations.FILE_ACTION_REMOVED:
+                        case Interop.Kernel32.FileOperations.FILE_ACTION_REMOVED:
                             NotifyFileSystemEventArgs(WatcherChangeTypes.Deleted, name);
                             break;
-                        case Interop.mincore.FileOperations.FILE_ACTION_MODIFIED:
+                        case Interop.Kernel32.FileOperations.FILE_ACTION_MODIFIED:
                             NotifyFileSystemEventArgs(WatcherChangeTypes.Changed, name);
                             break;
                         default:
@@ -354,7 +356,7 @@ namespace System.IO
 
             if (oldName != null)
             {
-                Debug.Fail("FILE_ACTION_RENAMED_OLD_NAME with no new name!  [" + oldName + "]");
+                // Previous FILE_ACTION_RENAMED_OLD_NAME with no new name
                 NotifyRenameEventArgs(WatcherChangeTypes.Renamed, null, oldName);
                 oldName = null;
             }
@@ -369,6 +371,7 @@ namespace System.IO
             internal AsyncReadState(int session, byte[] buffer, SafeFileHandle handle, ThreadPoolBoundHandle binding)
             {
                 Debug.Assert(buffer != null);
+                Debug.Assert(buffer.Length > 0);
                 Debug.Assert(handle != null);
                 Debug.Assert(binding != null);
 

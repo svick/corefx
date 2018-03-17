@@ -2,14 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/***************************************************************************\
-*
-* File: XmlCompatibilityReader.cs
-*
-* Purpose:
-*
-\***************************************************************************/
-
 using System;
 using System.Xml;
 using System.Collections;
@@ -118,7 +110,7 @@ namespace System.IO.Packaging
                 {
                     // if we are mapping what was used as a new namespace to a newer name,
                     // scan the _newNamespaces dictionary and update the entries. We collect
-                    // a list to avoid updating the dictonary during enumeration.
+                    // a list to avoid updating the dictionary during enumeration.
                     List<string> keysToUpdate = new List<string>();
 
                     foreach (KeyValuePair<string, string> pair in _namespaceMap)
@@ -1986,7 +1978,7 @@ namespace System.IO.Packaging
         private const string XmlnsDeclaration = "xmlns";
         private const string MarkupCompatibilityURI = "http://schemas.openxmlformats.org/markup-compatibility/2006";
 
-        static private string[] s_predefinedNamespaces = new string[4] {
+        private static string[] s_predefinedNamespaces = new string[4] {
             "http://www.w3.org/2000/xmlns/",
             "http://www.w3.org/XML/1998/namespace",
             "http://www.w3.org/2001/XMLSchema-instance",

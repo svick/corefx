@@ -52,13 +52,13 @@ namespace System.IO
             _positionSetFunc = positionSetFunc ?? (_ => { throw new NotSupportedException(); });
             _positionGetFunc = positionGetFunc ?? (() => { throw new NotSupportedException(); });
 
-            _readFunc = readFunc ?? ((buffer, offset, count) => readAsyncFunc(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult());
+            _readFunc = readFunc;
             _readAsyncFunc = readAsyncFunc ?? ((buffer, offset, count, token) => base.ReadAsync(buffer, offset, count, token));
 
             _seekFunc = seekFunc ?? ((_, __) => { throw new NotSupportedException(); });
             _setLengthFunc = setLengthFunc ?? (_ => { throw new NotSupportedException(); });
 
-            _writeFunc = writeFunc ?? ((buffer, offset, count) => writeAsyncFunc(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult());
+            _writeFunc = writeFunc;
             _writeAsyncFunc = writeAsyncFunc ?? ((buffer, offset, count, token) => base.WriteAsync(buffer, offset, count, token));
         }
 

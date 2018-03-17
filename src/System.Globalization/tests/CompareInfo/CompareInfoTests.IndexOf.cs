@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-
 using Xunit;
 
 namespace System.Globalization.Tests
@@ -15,13 +14,17 @@ namespace System.Globalization.Tests
         private static CompareInfo s_hungarianCompare = new CultureInfo("hu-HU").CompareInfo;
         private static CompareInfo s_turkishCompare = new CultureInfo("tr-TR").CompareInfo;
 
-        private static readonly RandomDataGenerator s_randomDataGenerator = new RandomDataGenerator();
-        
         public static IEnumerable<object[]> IndexOf_TestData()
         {
             // Empty string
             yield return new object[] { s_invariantCompare, "foo", "", 0, 3, CompareOptions.None, 0 };
+            yield return new object[] { s_invariantCompare, "foo", "", 2, 1, CompareOptions.None, 2 };
             yield return new object[] { s_invariantCompare, "", "", 0, 0, CompareOptions.None, 0 };
+
+            // OrdinalIgnoreCase
+            yield return new object[] { s_invariantCompare, "Hello", "l", 0, 5, CompareOptions.OrdinalIgnoreCase, 2 };
+            yield return new object[] { s_invariantCompare, "Hello", "L", 0, 5, CompareOptions.OrdinalIgnoreCase, 2 };
+            yield return new object[] { s_invariantCompare, "Hello", "h", 0, 5, CompareOptions.OrdinalIgnoreCase, 0 };
 
             // Long strings
             yield return new object[] { s_invariantCompare, new string('b', 100) + new string('a', 5555), "aaaaaaaaaaaaaaa", 0, 5655, CompareOptions.None, 100 };
@@ -57,48 +60,68 @@ namespace System.Globalization.Tests
             yield return new object[] { s_invariantCompare, "More Test's", "Tests", 0, 11, CompareOptions.IgnoreSymbols, 5 };
             yield return new object[] { s_invariantCompare, "More Test's", "Tests", 0, 11, CompareOptions.None, -1 };
             yield return new object[] { s_invariantCompare, "cbabababdbaba", "ab", 0, 13, CompareOptions.None, 2 };
-        }
 
-        public static IEnumerable<object[]> IndexOf_Random_TestData()
-        {
-            string[] interestingStrings = new string[] { "", "a", "1", "-", "A", "!", "abc", "aBc", "a\u0400Bc", "I", "i", "\u0130", "\u0131", "A", "\uFF21", "\uFE57" };
-            foreach (string string1 in interestingStrings)
-            {
-                foreach (string string2 in interestingStrings)
-                {
-                    yield return new object[] { s_currentCompare, string1, string2, 0, string1.Length, CompareOptions.Ordinal, PredictIndexOfOrdinalResult(string1, string2) };
-                }
-            }
+            // Ordinal should be case-sensitive
+            yield return new object[] { s_currentCompare, "a", "a", 0, 1, CompareOptions.Ordinal, 0 };
+            yield return new object[] { s_currentCompare, "a", "A", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "abc", "aBc", 0, 3, CompareOptions.Ordinal, -1 };
 
-            // Random
-            for (int i = 0; i < 1000; i++)
-            {
-                string string1 = s_randomDataGenerator.GetString(-55, false, 5, 20);
-                string string2 = s_randomDataGenerator.GetString(-55, false, 5, 20);
-                string string3 = string1 + string2;
-                yield return new object[] { s_currentCompare, string1, string1, 0, string1.Length, CompareOptions.Ordinal, 0 };
-                yield return new object[] { s_currentCompare, string2, string2, 0, string2.Length, CompareOptions.Ordinal, 0 };
-                yield return new object[] { s_currentCompare, string1, string2, 0, string1.Length, CompareOptions.Ordinal, PredictIndexOfOrdinalResult(string1, string2) };
-                yield return new object[] { s_currentCompare, string3, string2, 0, string3.Length, CompareOptions.Ordinal, PredictIndexOfOrdinalResult(string3, string2) };
-            }
+            // Ordinal with numbers and symbols
+            yield return new object[] { s_currentCompare, "a", "1", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "1", "1", 0, 1, CompareOptions.Ordinal, 0 };
+            yield return new object[] { s_currentCompare, "1", "!", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "a", "-", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "-", "-", 0, 1, CompareOptions.Ordinal, 0 };
+            yield return new object[] { s_currentCompare, "-", "!", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "!", "!", 0, 1, CompareOptions.Ordinal, 0 };
+
+            // Ordinal with unicode
+            yield return new object[] { s_currentCompare, "\uFF21", "\uFE57", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\uFE57", "\uFF21", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\uFF21", "a\u0400Bc", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\uFE57", "a\u0400Bc", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "a", "a\u0400Bc", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "a\u0400Bc", "a", 0, 4, CompareOptions.Ordinal, 0 };
+
+            // Ordinal with I or i (American and Turkish)
+            yield return new object[] { s_currentCompare, "I", "i", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "I", "I", 0, 1, CompareOptions.Ordinal, 0 };
+            yield return new object[] { s_currentCompare, "i", "I", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "i", "i", 0, 1, CompareOptions.Ordinal, 0 };
+            yield return new object[] { s_currentCompare, "I", "\u0130", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\u0130", "I", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "i", "\u0130", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\u0130", "i", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "I", "\u0131", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\0131", "I", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "i", "\u0131", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\u0131", "i", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\u0130", "\u0130", 0, 1, CompareOptions.Ordinal, 0 };
+            yield return new object[] { s_currentCompare, "\u0131", "\u0131", 0, 1, CompareOptions.Ordinal, 0 };
+            yield return new object[] { s_currentCompare, "\u0130", "\u0131", 0, 1, CompareOptions.Ordinal, -1 };
+            yield return new object[] { s_currentCompare, "\u0131", "\u0130", 0, 1, CompareOptions.Ordinal, -1 };
+            
+            // Platform differences
+            yield return new object[] { s_hungarianCompare, "foobardzsdzs", "rddzs", 0, 12, CompareOptions.None, PlatformDetection.IsWindows ? 5 : -1};
         }
 
         public static IEnumerable<object[]> IndexOf_Aesc_Ligature_TestData()
         {
-            // Searches for the ligature Æ;
+            bool isWindows = PlatformDetection.IsWindows;
+            // Searches for the ligature Ã†
             string source1 = "Is AE or ae the same as \u00C6 or \u00E6?";
-            yield return new object[] { s_invariantCompare, source1, "AE", 8, 18, CompareOptions.None, 24 };
+            yield return new object[] { s_invariantCompare, source1, "AE", 8, 18, CompareOptions.None, isWindows ? 24 : -1};
             yield return new object[] { s_invariantCompare, source1, "ae", 8, 18, CompareOptions.None, 9 };
             yield return new object[] { s_invariantCompare, source1, "\u00C6", 8, 18, CompareOptions.None, 24 };
-            yield return new object[] { s_invariantCompare, source1, "\u00E6", 8, 18, CompareOptions.None, 9 };
+            yield return new object[] { s_invariantCompare, source1, "\u00E6", 8, 18, CompareOptions.None, isWindows ? 9 : -1};
             yield return new object[] { s_invariantCompare, source1, "AE", 8, 18, CompareOptions.Ordinal, -1 };
             yield return new object[] { s_invariantCompare, source1, "ae", 8, 18, CompareOptions.Ordinal, 9 };
             yield return new object[] { s_invariantCompare, source1, "\u00C6", 8, 18, CompareOptions.Ordinal, 24 };
             yield return new object[] { s_invariantCompare, source1, "\u00E6", 8, 18, CompareOptions.Ordinal, -1 };
             yield return new object[] { s_invariantCompare, source1, "AE", 8, 18, CompareOptions.IgnoreCase, 9 };
             yield return new object[] { s_invariantCompare, source1, "ae", 8, 18, CompareOptions.IgnoreCase, 9 };
-            yield return new object[] { s_invariantCompare, source1, "\u00C6", 8, 18, CompareOptions.IgnoreCase, 9 };
-            yield return new object[] { s_invariantCompare, source1, "\u00E6", 8, 18, CompareOptions.IgnoreCase, 9 };
+            yield return new object[] { s_invariantCompare, source1, "\u00C6", 8, 18, CompareOptions.IgnoreCase, isWindows? 9 : 24 };
+            yield return new object[] { s_invariantCompare, source1, "\u00E6", 8, 18, CompareOptions.IgnoreCase, isWindows? 9 : 24 };
         }
 
         public static IEnumerable<object[]> IndexOf_U_WithDiaeresis_TestData()
@@ -120,9 +143,9 @@ namespace System.Globalization.Tests
         }
 
         [Theory]
-        [MemberData("IndexOf_TestData")]
-        [MemberData("IndexOf_Random_TestData")]
-        [MemberData("IndexOf_U_WithDiaeresis_TestData")]
+        [MemberData(nameof(IndexOf_TestData))]
+        [MemberData(nameof(IndexOf_Aesc_Ligature_TestData))]
+        [MemberData(nameof(IndexOf_U_WithDiaeresis_TestData))]
         public void IndexOf_String(CompareInfo compareInfo, string source, string value, int startIndex, int count, CompareOptions options, int expected)
         {
             if (value.Length == 1)
@@ -183,109 +206,123 @@ namespace System.Globalization.Tests
             Assert.Equal(expected, compareInfo.IndexOf(source, value, startIndex, count, options));
         }
 
-        [Theory]
-        [MemberData("IndexOf_Aesc_Ligature_TestData")]
-        [ActiveIssue(5463, PlatformID.AnyUnix)]
-        public void IndexOf_Aesc_Ligature(CompareInfo compareInfo, string source, string value, int startIndex, int count, CompareOptions options, int expected)
-        {
-            // TODO: Remove this function, and combine into IndexOf_String once 5463 is fixed
-            IndexOf_String(compareInfo, source, value, startIndex, count, options, expected);
-        }
-
         [Fact]
-        [ActiveIssue(5463, PlatformID.AnyUnix)]
         public void IndexOf_UnassignedUnicode()
         {
-            IndexOf_String(s_invariantCompare, "FooBar", "Foo" + UnassignedUnicodeCharacter() + "Bar", 0, 6, CompareOptions.None, 0);
-            IndexOf_String(s_invariantCompare, "~FooBar", "Foo" + UnassignedUnicodeCharacter() + "Bar", 0, 7, CompareOptions.IgnoreNonSpace, 1);
-        }
-
-        [Fact]
-        [ActiveIssue(5463, PlatformID.AnyUnix)]
-        public void IndexOf_Hungarian()
-        {
-            // TODO: Remove this function, and combine into IndexOf_TestData once 5463 is fixed
-            IndexOf_String(s_hungarianCompare, "foobardzsdzs", "rddzs", 0, 12, CompareOptions.None, 5);
+            bool isWindows = PlatformDetection.IsWindows; 
+            IndexOf_String(s_invariantCompare, "FooBar", "Foo\uFFFFBar", 0, 6, CompareOptions.None, isWindows ? 0 : -1);
+            IndexOf_String(s_invariantCompare, "~FooBar", "Foo\uFFFFBar", 0, 7, CompareOptions.IgnoreNonSpace, isWindows ? 1 : -1);
         }
 
         [Fact]
         public void IndexOf_Invalid()
         {
             // Source is null
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, "a"));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, "a", CompareOptions.None));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, "a", 0, 0));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, "a", 0, CompareOptions.None));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, "a", 0, 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, "a"));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, "a", CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, "a", 0, 0));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, "a", 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, "a", 0, 0, CompareOptions.None));
 
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, 'a'));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, 'a', CompareOptions.None));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, 'a', 0, 0));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, 'a', 0, CompareOptions.None));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, 'a', 0, 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, 'a'));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, 'a', CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, 'a', 0, 0));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, 'a', 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, 'a', 0, 0, CompareOptions.None));
 
             // Value is null
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf("", null));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf("", null, CompareOptions.None));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf("", null, 0, 0));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf("", null, 0, CompareOptions.None));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf("", null, 0, 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("value", () => s_invariantCompare.IndexOf("", null));
+            AssertExtensions.Throws<ArgumentNullException>("value", () => s_invariantCompare.IndexOf("", null, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("value", () => s_invariantCompare.IndexOf("", null, 0, 0));
+            AssertExtensions.Throws<ArgumentNullException>("value", () => s_invariantCompare.IndexOf("", null, 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("value", () => s_invariantCompare.IndexOf("", null, 0, 0, CompareOptions.None));
 
             // Source and value are null
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, null));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, null, CompareOptions.None));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, null, 0, 0));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, null, 0, CompareOptions.None));
-            Assert.Throws<ArgumentNullException>(() => s_invariantCompare.IndexOf(null, null, 0, 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, null));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, null, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, null, 0, 0));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, null, 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentNullException>("source", () => s_invariantCompare.IndexOf(null, null, 0, 0, CompareOptions.None));
 
             // Options are invalid
-            Assert.Throws<ArgumentException>(() => s_invariantCompare.IndexOf("Test's", "Tests", CompareOptions.StringSort));
-            Assert.Throws<ArgumentException>(() => s_invariantCompare.IndexOf("Test's", "Tests", (CompareOptions)(-1)));
-            Assert.Throws<ArgumentException>(() => s_invariantCompare.IndexOf("Test's", "Tests", (CompareOptions)0x11111111));
-        }
-        
-        private static char UnassignedUnicodeCharacter()
-        {
-            for (char ch = '\uFFFF'; ch > '\u0000'; ch++)
-            {
-                if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.OtherNotAssigned)
-                {
-                    return ch;
-                }
-            }
-            return char.MinValue; // There are no unassigned unicode characters from \u0000 - \uFFFF
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", CompareOptions.StringSort));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, CompareOptions.StringSort));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, 2, CompareOptions.StringSort));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', CompareOptions.StringSort));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'b', 0, CompareOptions.StringSort));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'c', 0, 2, CompareOptions.StringSort));
+
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", CompareOptions.Ordinal | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, CompareOptions.Ordinal | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, 2, CompareOptions.Ordinal | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', CompareOptions.Ordinal | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'b', 0, CompareOptions.Ordinal | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'c', 0, 2, CompareOptions.Ordinal | CompareOptions.IgnoreWidth));
+
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", CompareOptions.OrdinalIgnoreCase | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, CompareOptions.OrdinalIgnoreCase | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, 2, CompareOptions.OrdinalIgnoreCase | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', CompareOptions.OrdinalIgnoreCase | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'b', 0, CompareOptions.OrdinalIgnoreCase | CompareOptions.IgnoreWidth));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'c', 0, 2, CompareOptions.OrdinalIgnoreCase | CompareOptions.IgnoreWidth));
+
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", (CompareOptions)(-1)));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, (CompareOptions)(-1)));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, 2, (CompareOptions)(-1)));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', (CompareOptions)(-1)));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', 0, (CompareOptions)(-1)));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', 0, 2, (CompareOptions)(-1)));
+
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", (CompareOptions)0x11111111));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, (CompareOptions)0x11111111));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", "Tests", 0, 2, (CompareOptions)0x11111111));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', (CompareOptions)0x11111111));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', 0, (CompareOptions)0x11111111));
+            AssertExtensions.Throws<ArgumentException>("options", () => s_invariantCompare.IndexOf("Test's", 'a', 0, 2, (CompareOptions)0x11111111));
+
+            // StartIndex < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", "Test", -1, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", "Test", -1, 4));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", "Test", -1, 4, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", 'a', -1, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", 'a', -1, 4));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", 'a', -1, 4, CompareOptions.None));
+
+            // StartIndex > source.Length
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", "Test", 5, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", "Test", 5, 0));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", "Test", 5, 0, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", 'a', 5, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", 'a', 5, 0));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("startIndex", () => s_invariantCompare.IndexOf("Test", 'a', 5, 0, CompareOptions.None));
+
+            // Count < 0
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", "Test", 0, -1));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", "Test", 0, -1, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", 'a', 0, -1));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", 'a', 0, -1, CompareOptions.None));
+
+            // Count > source.Length
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", "Test", 0, 5));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", "Test", 0, 5, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", 'a', 0, 5));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", 'a', 0, 5, CompareOptions.None));
+
+            // StartIndex + count > source.Length
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", "Test", 2, 4));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", "Test", 2, 4, CompareOptions.None));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", 'a', 2, 4));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>("count", () => s_invariantCompare.IndexOf("Test", 'a', 2, 4, CompareOptions.None));
         }
 
-        private static int PredictIndexOfOrdinalResult(string string1, string string2)
+        [Fact]
+        public static void IndexOf_MinusOneCompatability()
         {
-            if (string1 == null)
-            {
-                if (string2 == null) return 0;
-                else return -1;
-            }
-            if (string2 == null) return -1;
- 
-            if (string2.Length > string1.Length) return -1;
- 
-            for (int i = 0; i <= string1.Length - string2.Length; i++)
-            {
-                bool match = true;
-                for (int j = 0; j<string2.Length; j++)
-                {
-                    if (string1[i + j] != string2[j])
-                    {
-                        match = false;
-                        break;
-                    }
-                }
-                if (match) return i;
-            }
-            return -1;
-        }
-
-        private static int NormalizeCompare(int result)
-        {
-            return Math.Sign(result);
+            // This behavior was for .NET Framework 1.1 compatability.
+            // Allowing empty source strings with invalid offsets was quickly outed.
+            // with invalid offsets.
+            Assert.Equal(0, s_invariantCompare.IndexOf("", "", -1, CompareOptions.None));
+            Assert.Equal(-1, s_invariantCompare.IndexOf("", "a", -1, CompareOptions.None));
         }
     }
 }

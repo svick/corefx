@@ -5,14 +5,13 @@
 using System.Diagnostics.Contracts;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.WindowsRuntime.Internal;
 using Windows.Foundation;
 using Windows.Storage.Streams;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     /// <summary>
-    /// Contains a extension methods that expose operations on WinRT <code>Windows.Foundation.IBuffer</code>.
+    /// Contains extension methods that expose operations on WinRT <code>Windows.Foundation.IBuffer</code>.
     /// </summary>
     public static class WindowsRuntimeBufferExtensions
     {
@@ -55,7 +54,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
             if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
-            if (length < 0) throw new ArgumentOutOfRangeException(nameof(capacity));
+            if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             if (source.Length - offset < length) throw new ArgumentException(SR.Argument_InsufficientArrayElementsAfterOffset);
             if (source.Length - offset < capacity) throw new ArgumentException(SR.Argument_InsufficientArrayElementsAfterOffset);
             if (capacity < length) throw new ArgumentException(SR.Argument_InsufficientBufferCapacity);
@@ -107,7 +106,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (destination == null) throw new ArgumentNullException(nameof(destination));
             if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
             if (sourceIndex < 0) throw new ArgumentOutOfRangeException(nameof(sourceIndex));
-            if (destinationIndex < 0) throw new ArgumentOutOfRangeException(nameof(destinationIndex));
             if (source.Length <= sourceIndex) throw new ArgumentException(SR.Argument_IndexOutOfArrayBounds, nameof(sourceIndex));
             if (source.Length - sourceIndex < count) throw new ArgumentException(SR.Argument_InsufficientArrayElementsAfterOffset);
             if (destination.Capacity - destinationIndex < count) throw new ArgumentException(SR.Argument_InsufficientSpaceInTargetBuffer);
@@ -146,7 +144,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
-            if (sourceIndex < 0) throw new ArgumentOutOfRangeException(nameof(sourceIndex));
             if (source.Capacity <= sourceIndex) throw new ArgumentException(SR.Argument_BufferIndexExceedsCapacity);
             if (source.Capacity - sourceIndex < count) throw new ArgumentException(SR.Argument_InsufficientSpaceInSourceBuffer);
             Contract.EndContractBlock();
@@ -181,7 +178,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (destination == null) throw new ArgumentNullException(nameof(destination));
             if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
-            if (sourceIndex < 0) throw new ArgumentOutOfRangeException(nameof(sourceIndex));
             if (destinationIndex < 0) throw new ArgumentOutOfRangeException(nameof(destinationIndex));
             if (source.Capacity <= sourceIndex) throw new ArgumentException(SR.Argument_BufferIndexExceedsCapacity);
             if (source.Capacity - sourceIndex < count) throw new ArgumentException(SR.Argument_InsufficientSpaceInSourceBuffer);
@@ -223,9 +219,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (destination == null) throw new ArgumentNullException(nameof(destination));
-            if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
-            if (sourceIndex < 0) throw new ArgumentOutOfRangeException(nameof(sourceIndex));
-            if (destinationIndex < 0) throw new ArgumentOutOfRangeException(nameof(destinationIndex));
             if (source.Capacity <= sourceIndex) throw new ArgumentException(SR.Argument_BufferIndexExceedsCapacity);
             if (source.Capacity - sourceIndex < count) throw new ArgumentException(SR.Argument_InsufficientSpaceInSourceBuffer);
             if (destination.Capacity <= destinationIndex) throw new ArgumentException(SR.Argument_BufferIndexExceedsCapacity);
@@ -315,7 +308,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
 
         /// <summary>
-        /// Checks if the underlying memory backing two <code>IBuffer</code> intances is actually the same memory.
+        /// Checks if the underlying memory backing two <code>IBuffer</code> instances is actually the same memory.
         /// When applied to <code>IBuffer</code> instances backed by managed arrays this method is preferable to a naive comparison
         /// (such as <code>((IBufferByteAccess) buffer).Buffer == ((IBufferByteAccess) otherBuffer).Buffer</code>) because it avoids
         /// pinning the backing array which would be necessary if a direct memory pointer was obtained.
@@ -441,9 +434,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
 
             Int32 originInStream = streamData.Offset;
-
-            Debug.Assert(underlyingStream.Length <= Int32.MaxValue);
-
             Int32 buffCapacity = Math.Min(length, underlyingStream.Capacity - positionInStream);
             Int32 buffLength = Math.Max(0, Math.Min(length, ((Int32)underlyingStream.Length) - positionInStream));
             return new WindowsRuntimeBuffer(streamData.Array, originInStream + positionInStream, buffLength, buffCapacity);
@@ -485,7 +475,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public static Byte GetByte(this IBuffer source, UInt32 byteOffset)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
-            if (byteOffset < 0) throw new ArgumentOutOfRangeException(nameof(byteOffset));
             if (source.Capacity <= byteOffset) throw new ArgumentException(SR.Argument_BufferIndexExceedsCapacity, nameof(byteOffset));
 
             Contract.EndContractBlock();

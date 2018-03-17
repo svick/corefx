@@ -1,4 +1,3 @@
-﻿// Copyright (c) Justin Van Patten. All rights reserved.
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
@@ -26,17 +25,16 @@ namespace System.Collections.Tests
             return Convert.ToBase64String(bytes);
         }
 
-        protected override object CreateTValue(int seed)
-        {
-            return CreateTKey(seed);
-        }
+        protected override object CreateTValue(int seed) => CreateTKey(seed);
+
+        protected override Type ICollection_NonGeneric_CopyTo_IndexLargerThanArrayCount_ThrowType => typeof(ArgumentOutOfRangeException);
 
         #endregion
 
         #region IDictionary tests
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_NonGeneric_ItemSet_NullValueWhenDefaultValueIsNonNull(int count)
         {
             IDictionary dictionary = new SortedList<string, int>();
@@ -44,58 +42,58 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_NonGeneric_ItemSet_KeyOfWrongType(int count)
         {
             if (!IsReadOnly)
             {
                 IDictionary dictionary = new SortedList<string, string>();
-                Assert.Throws<ArgumentException>("key", () => dictionary[23] = CreateTValue(12345));
+                AssertExtensions.Throws<ArgumentNullException>("key", () => dictionary[23] = CreateTValue(12345));
                 Assert.Empty(dictionary);
             }
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_NonGeneric_ItemSet_ValueOfWrongType(int count)
         {
             if (!IsReadOnly)
             {
                 IDictionary dictionary = new SortedList<string, string>();
                 object missingKey = GetNewKey(dictionary);
-                Assert.Throws<ArgumentException>(() => dictionary[missingKey] = 324);
+                AssertExtensions.Throws<ArgumentException>("value", () => dictionary[missingKey] = 324);
                 Assert.Empty(dictionary);
             }
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_NonGeneric_Add_KeyOfWrongType(int count)
         {
             if (!IsReadOnly)
             {
                 IDictionary dictionary = new SortedList<string, string>();
                 object missingKey = 23;
-                Assert.Throws<ArgumentException>(() => dictionary.Add(missingKey, CreateTValue(12345)));
+                AssertExtensions.Throws<ArgumentException>("key", () => dictionary.Add(missingKey, CreateTValue(12345)));
                 Assert.Empty(dictionary);
             }
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_NonGeneric_Add_ValueOfWrongType(int count)
         {
             if (!IsReadOnly)
             {
                 IDictionary dictionary = new SortedList<string, string>();
                 object missingKey = GetNewKey(dictionary);
-                Assert.Throws<ArgumentException>(() => dictionary.Add(missingKey, 324));
+                AssertExtensions.Throws<ArgumentException>("value", () => dictionary.Add(missingKey, 324));
                 Assert.Empty(dictionary);
             }
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_NonGeneric_Add_NullValueWhenDefaultTValueIsNonNull(int count)
         {
             if (!IsReadOnly)
@@ -108,7 +106,7 @@ namespace System.Collections.Tests
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void IDictionary_NonGeneric_Contains_KeyOfWrongType(int count)
         {
             if (!IsReadOnly)
@@ -118,21 +116,30 @@ namespace System.Collections.Tests
             }
         }
 
+        [Fact]
+        [ActiveIssue("dotnet/corefx#7019", TargetFrameworkMonikers.NetFramework)]
+        public void CantAcceptDuplicateKeysFromSourceDictionary()
+        {
+            Dictionary<string, int> source = new Dictionary<string, int> { { "a", 1 }, { "A", 1 } };
+            AssertExtensions.Throws<ArgumentException>(null, () => new SortedList<string, int>(source, StringComparer.OrdinalIgnoreCase));
+        }
+
+
         #endregion
 
         #region ICollection tests
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void ICollection_NonGeneric_CopyTo_ArrayOfIncorrectKeyValuePairType(int count)
         {
             ICollection collection = NonGenericICollectionFactory(count);
             KeyValuePair<string, int>[] array = new KeyValuePair<string, int>[count * 3 / 2];
-            Assert.Throws<ArgumentException>(() => collection.CopyTo(array, 0));
+            AssertExtensions.Throws<ArgumentException>("array", null, () => collection.CopyTo(array, 0));
         }
 
         [Theory]
-        [MemberData("ValidCollectionSizes")]
+        [MemberData(nameof(ValidCollectionSizes))]
         public void ICollection_NonGeneric_CopyTo_ArrayOfCorrectKeyValuePairType(int count)
         {
             ICollection collection = NonGenericICollectionFactory(count);

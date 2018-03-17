@@ -38,6 +38,12 @@ namespace System.IO.Tests
         }
 
         [Fact]
+        public void Root()
+        {
+            Assert.True(new DirectoryInfo(Path.GetPathRoot(Directory.GetCurrentDirectory())).Exists);
+        }
+
+        [Fact]
         public void DotPath()
         {
             Assert.True(new DirectoryInfo(Path.Combine(TestDirectory, ".")).Exists);
@@ -53,6 +59,14 @@ namespace System.IO.Tests
         public void NonExistentDirectories()
         {
             Assert.False(new DirectoryInfo("Da drar vi til fjells").Exists);
+        }
+
+        [Theory, MemberData(nameof(TrailingCharacters))]
+        public void MissingDirectory(char trailingChar)
+        {
+            string path = GetTestFilePath();
+            FileInfo info = new FileInfo(Path.Combine(path, "file" + trailingChar));
+            Assert.False(info.Exists);
         }
 
         [Fact]
@@ -98,7 +112,7 @@ namespace System.IO.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]  // Uses P/Invokes
         public void FalseForNonRegularFile()
         {
             string fileName = GetTestFilePath();
