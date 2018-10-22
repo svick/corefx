@@ -537,13 +537,13 @@ namespace System.Data.SqlClient.SNI
         /// </summary>
         /// <param name="packet">SNI packet</param>
         /// <returns>SNI error code</returns>
-        public override uint ReceiveAsync(ref SNIPacket packet, bool isMars = false)
+        public override uint ReceiveAsync(ref SNIPacket packet)
         {
             packet = new SNIPacket(_bufferSize);
 
             try
             {
-                packet.ReadFromStreamAsync(_stream, _receiveCallback, isMars);
+                packet.ReadFromStreamAsync(_stream, _receiveCallback);
                 return TdsEnums.SNI_SUCCESS_IO_PENDING;
             }
             catch (Exception e) when (e is ObjectDisposedException || e is SocketException || e is IOException)
@@ -561,7 +561,17 @@ namespace System.Data.SqlClient.SNI
         {
             try
             {
-                if (!_socket.Connected || _socket.Poll(0, SelectMode.SelectError))
+                // _socket.Poll method with argument SelectMode.SelectRead returns 
+                //      True : if Listen has been called and a connection is pending, or
+                //      True : if data is available for reading, or
+                //      True : if the connection has been closed, reset, or terminated, i.e no active connection.
+                //      False : otherwise.
+                // _socket.Available property returns the number of bytes of data available to read.
+                //
+                // Since _socket.Connected alone doesn't guarantee if the connection is still active, we use it in 
+                // combination with _socket.Poll method and _socket.Available == 0 check. When both of them 
+                // return true we can safely determine that the connection is no longer active.
+                if (!_socket.Connected || (_socket.Poll(100, SelectMode.SelectRead) && _socket.Available == 0))
                 {
                     return TdsEnums.SNI_ERROR;
                 }

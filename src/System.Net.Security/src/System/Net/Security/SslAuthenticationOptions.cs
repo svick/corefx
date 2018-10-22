@@ -37,12 +37,15 @@ namespace System.Net.Security
             // Common options.
             AllowRenegotiation = sslServerAuthenticationOptions.AllowRenegotiation;
             ApplicationProtocols = sslServerAuthenticationOptions.ApplicationProtocols;
-            CertValidationDelegate = sslServerAuthenticationOptions._certValidationDelegate;
             CheckCertName = false;
             EnabledSslProtocols = sslServerAuthenticationOptions.EnabledSslProtocols;
             EncryptionPolicy = sslServerAuthenticationOptions.EncryptionPolicy;
             IsServer = true;
             RemoteCertRequired = sslServerAuthenticationOptions.ClientCertificateRequired;
+            if (NetEventSource.IsEnabled)
+            {
+                NetEventSource.Info(this, $"Server RemoteCertRequired: {RemoteCertRequired}.");
+            }
             RemoteCertificateValidationCallback = sslServerAuthenticationOptions.RemoteCertificateValidationCallback;
             TargetHost = string.Empty;
 
@@ -66,6 +69,7 @@ namespace System.Net.Security
         internal bool CheckCertName { get; set; }
         internal RemoteCertValidationCallback CertValidationDelegate { get; set; }
         internal LocalCertSelectionCallback CertSelectionDelegate { get; set; }
+        internal ServerCertSelectionCallback ServerCertSelectionDelegate { get; set; }
     }
 }
 

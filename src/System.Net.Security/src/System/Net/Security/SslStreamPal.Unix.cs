@@ -159,7 +159,7 @@ namespace System.Net.Security
                 }
 
                 // When the handshake is done, and the context is server, check if the alpnHandle target was set to null during ALPN.
-                // If it was, then that indiciates ALPN failed, send failure.
+                // If it was, then that indicates ALPN failed, send failure.
                 // We have this workaround, as openssl supports terminating handshake only from version 1.1.0,
                 // whereas ALPN is supported from version 1.0.2.
                 SafeSslHandle sslContext = ((SafeDeleteSslContext)context).SslContext;
@@ -254,6 +254,11 @@ namespace System.Net.Security
                 code == Interop.Ssl.SslErrorCode.SSL_ERROR_WANT_WRITE)
             {
                 return new SecurityStatusPal(SecurityStatusPalErrorCode.OK);
+            }
+            else if (code == Interop.Ssl.SslErrorCode.SSL_ERROR_SSL)
+            {
+                // OpenSSL failure occurred.  The error queue contains more details, when building the exception the queue will be cleared.
+                return new SecurityStatusPal(SecurityStatusPalErrorCode.InternalError, Interop.Crypto.CreateOpenSslCryptographicException());
             }
             else
             {

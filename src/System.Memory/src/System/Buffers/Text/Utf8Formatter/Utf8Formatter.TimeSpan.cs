@@ -12,7 +12,7 @@ namespace System.Buffers.Text
         /// Formats a TimeSpan as a UTF8 string.
         /// </summary>
         /// <param name="value">Value to format</param>
-        /// <param name="buffer">Buffer to write the UTF8-formatted value to</param>
+        /// <param name="destination">Buffer to write the UTF8-formatted value to</param>
         /// <param name="bytesWritten">Receives the length of the formatted text in bytes</param>
         /// <param name="format">The standard format to use</param>
         /// <returns>
@@ -28,7 +28,7 @@ namespace System.Buffers.Text
         /// <exceptions>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
         /// </exceptions>
-        public static bool TryFormat(TimeSpan value, Span<byte> buffer, out int bytesWritten, StandardFormat format = default)
+        public static bool TryFormat(TimeSpan value, Span<byte> destination, out int bytesWritten, StandardFormat format = default)
         {
             char symbol = FormattingHelpers.GetSymbolOrDefault(format, 'c');
 
@@ -62,7 +62,7 @@ namespace System.Buffers.Text
                     ticks = -ticks;
                     if (ticks < 0)
                     {
-                        Debug.Assert(ticks == Int64.MinValue /* -9223372036854775808 */);
+                        Debug.Assert(ticks == long.MinValue /* -9223372036854775808 */);
 
                         // We computed these ahead of time; they're straight from the decimal representation of Int64.MinValue.
                         fraction = 4775808;
@@ -75,7 +75,7 @@ namespace System.Buffers.Text
                 fraction = (uint)fraction64;
             }
 
-AfterComputeFraction:
+        AfterComputeFraction:
 
             int fractionDigits = 0;
             if (symbol == 'c')
@@ -131,7 +131,7 @@ AfterComputeFraction:
             Debug.Assert(minutes < 60);
 
             // At this point, we can switch over to 32-bit divmod since the data has shrunk far enough.
-            Debug.Assert(totalHoursRemaining <= UInt32.MaxValue);
+            Debug.Assert(totalHoursRemaining <= uint.MaxValue);
 
             uint days = 0;
             uint hours = 0;
@@ -171,7 +171,7 @@ AfterComputeFraction:
                 requiredOutputLength++; // for the leading '-' sign
             }
 
-            if (buffer.Length < requiredOutputLength)
+            if (destination.Length < requiredOutputLength)
             {
                 bytesWritten = 0;
                 return false;
@@ -184,32 +184,32 @@ AfterComputeFraction:
             // Write leading '-' if necessary
             if (value.Ticks < 0)
             {
-                buffer[idx++] = Utf8Constants.Minus;
+                destination[idx++] = Utf8Constants.Minus;
             }
 
             // Write day (and separator) if necessary
             if (dayDigits > 0)
             {
-                FormattingHelpers.WriteDigits(days, buffer.Slice(idx, dayDigits));
+                FormattingHelpers.WriteDigits(days, destination.Slice(idx, dayDigits));
                 idx += dayDigits;
-                buffer[idx++] = (symbol == 'c') ? Utf8Constants.Period : Utf8Constants.Colon;
+                destination[idx++] = (symbol == 'c') ? Utf8Constants.Period : Utf8Constants.Colon;
             }
 
             // Write "[h]h:mm:ss"
-            FormattingHelpers.WriteDigits(hours, buffer.Slice(idx, hourDigits));
+            FormattingHelpers.WriteDigits(hours, destination.Slice(idx, hourDigits));
             idx += hourDigits;
-            buffer[idx++] = Utf8Constants.Colon;
-            FormattingHelpers.WriteDigits((uint)minutes, buffer.Slice(idx, 2));
+            destination[idx++] = Utf8Constants.Colon;
+            FormattingHelpers.WriteDigits((uint)minutes, destination.Slice(idx, 2));
             idx += 2;
-            buffer[idx++] = Utf8Constants.Colon;
-            FormattingHelpers.WriteDigits((uint)seconds, buffer.Slice(idx, 2));
+            destination[idx++] = Utf8Constants.Colon;
+            FormattingHelpers.WriteDigits((uint)seconds, destination.Slice(idx, 2));
             idx += 2;
 
             // Write fraction (and separator) if necessary
             if (fractionDigits > 0)
             {
-                buffer[idx++] = Utf8Constants.Period;
-                FormattingHelpers.WriteDigits(fraction, buffer.Slice(idx, fractionDigits));
+                destination[idx++] = Utf8Constants.Period;
+                FormattingHelpers.WriteDigits(fraction, destination.Slice(idx, fractionDigits));
                 idx += fractionDigits;
             }
 

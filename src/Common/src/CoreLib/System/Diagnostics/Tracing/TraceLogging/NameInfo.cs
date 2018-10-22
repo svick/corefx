@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using Interlocked = System.Threading.Interlocked;
 
 #if ES_BUILD_STANDALONE
@@ -41,11 +42,6 @@ namespace System.Diagnostics.Tracing
         internal readonly int identity;
         internal readonly byte[] nameMetadata;
 
-#if FEATURE_PERFTRACING
-        private IntPtr eventHandle = IntPtr.Zero;
-        private readonly object eventHandleCreationLock = new object();
-#endif
-
         public NameInfo(string name, EventTags tags, int typeMetadataSize)
         {
             this.name = name;
@@ -82,13 +78,14 @@ namespace System.Diagnostics.Tracing
         }
 
 #if FEATURE_PERFTRACING
-        public IntPtr GetOrCreateEventHandle(EventProvider provider, EventDescriptor descriptor, TraceLoggingEventTypes eventTypes)
+        public IntPtr GetOrCreateEventHandle(EventProvider provider, TraceLoggingEventHandleTable eventHandleTable, EventDescriptor descriptor, TraceLoggingEventTypes eventTypes)
         {
-            if (eventHandle == IntPtr.Zero)
+            IntPtr eventHandle;
+            if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
             {
-                lock (eventHandleCreationLock)
+                lock (eventHandleTable)
                 {
-                    if (eventHandle == IntPtr.Zero)
+                    if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
                     {
                         byte[] metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(
                             descriptor.EventId,
@@ -97,6 +94,7 @@ namespace System.Diagnostics.Tracing
                             (EventLevel)descriptor.Level,
                             descriptor.Version,
                             eventTypes);
+                        uint metadataLength = (metadataBlob != null) ? (uint)metadataBlob.Length : 0;
 
                         unsafe
                         {
@@ -110,9 +108,12 @@ namespace System.Diagnostics.Tracing
                                     descriptor.Version,
                                     descriptor.Level,
                                     pMetadataBlob,
-                                    (uint)metadataBlob.Length);
+                                    metadataLength);
                             }
                         }
+
+                        // Cache the event handle.
+                        eventHandleTable.SetEventHandle(descriptor.EventId, eventHandle);
                     }
                 }
             }

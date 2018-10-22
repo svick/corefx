@@ -9,19 +9,19 @@ namespace System.Buffers.Text
     //
     public static partial class Utf8Parser
     {
-        private static bool TryParseByteN(ReadOnlySpan<byte> text, out byte value, out int bytesConsumed)
+        private static bool TryParseByteN(ReadOnlySpan<byte> source, out byte value, out int bytesConsumed)
         {
-            if (text.Length < 1)
+            if (source.Length < 1)
                 goto FalseExit;
 
             int index = 0;
-            int c = text[index];
+            int c = source[index];
             if (c == '+')
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto FalseExit;
-                c = text[index];
+                c = source[index];
             }
 
             int answer;
@@ -38,10 +38,10 @@ namespace System.Buffers.Text
             for (; ; )
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto Done;
 
-                c = text[index];
+                c = source[index];
                 if (c == Utf8Constants.Comma)
                     continue;
 
@@ -57,21 +57,21 @@ namespace System.Buffers.Text
                     goto FalseExit; // Overflow
             }
 
-FractionalPartWithoutLeadingDigits: // If we got here, we found a decimal point before we found any digits. This is legal as long as there's at least one zero after the decimal point.
+        FractionalPartWithoutLeadingDigits: // If we got here, we found a decimal point before we found any digits. This is legal as long as there's at least one zero after the decimal point.
             answer = 0;
             index++;
-            if ((uint)index >= (uint)text.Length)
+            if ((uint)index >= (uint)source.Length)
                 goto FalseExit;
-            if (text[index] != '0')
+            if (source[index] != '0')
                 goto FalseExit;
 
-FractionalDigits: // "N" format allows a fractional portion despite being an integer format but only if the post-fraction digits are all 0.
+        FractionalDigits: // "N" format allows a fractional portion despite being an integer format but only if the post-fraction digits are all 0.
             do
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto Done;
-                c = text[index];
+                c = source[index];
             }
             while (c == '0');
 
@@ -79,30 +79,30 @@ FractionalDigits: // "N" format allows a fractional portion despite being an int
                 goto FalseExit; // The fractional portion contained a non-zero digit. Treat this as an error, not an early termination.
             goto Done;
 
-FalseExit:
+        FalseExit:
             bytesConsumed = default;
             value = default;
             return false;
 
-Done:
+        Done:
             bytesConsumed = index;
             value = (byte)answer;
             return true;
         }
 
-        private static bool TryParseUInt16N(ReadOnlySpan<byte> text, out ushort value, out int bytesConsumed)
+        private static bool TryParseUInt16N(ReadOnlySpan<byte> source, out ushort value, out int bytesConsumed)
         {
-            if (text.Length < 1)
+            if (source.Length < 1)
                 goto FalseExit;
 
             int index = 0;
-            int c = text[index];
+            int c = source[index];
             if (c == '+')
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto FalseExit;
-                c = text[index];
+                c = source[index];
             }
 
             int answer;
@@ -119,10 +119,10 @@ Done:
             for (; ; )
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto Done;
 
-                c = text[index];
+                c = source[index];
                 if (c == Utf8Constants.Comma)
                     continue;
 
@@ -138,21 +138,21 @@ Done:
                     goto FalseExit; // Overflow
             }
 
-FractionalPartWithoutLeadingDigits: // If we got here, we found a decimal point before we found any digits. This is legal as long as there's at least one zero after the decimal point.
+        FractionalPartWithoutLeadingDigits: // If we got here, we found a decimal point before we found any digits. This is legal as long as there's at least one zero after the decimal point.
             answer = 0;
             index++;
-            if ((uint)index >= (uint)text.Length)
+            if ((uint)index >= (uint)source.Length)
                 goto FalseExit;
-            if (text[index] != '0')
+            if (source[index] != '0')
                 goto FalseExit;
 
-FractionalDigits: // "N" format allows a fractional portion despite being an integer format but only if the post-fraction digits are all 0.
+        FractionalDigits: // "N" format allows a fractional portion despite being an integer format but only if the post-fraction digits are all 0.
             do
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto Done;
-                c = text[index];
+                c = source[index];
             }
             while (c == '0');
 
@@ -160,30 +160,30 @@ FractionalDigits: // "N" format allows a fractional portion despite being an int
                 goto FalseExit; // The fractional portion contained a non-zero digit. Treat this as an error, not an early termination.
             goto Done;
 
-FalseExit:
+        FalseExit:
             bytesConsumed = default;
             value = default;
             return false;
 
-Done:
+        Done:
             bytesConsumed = index;
             value = (ushort)answer;
             return true;
         }
 
-        private static bool TryParseUInt32N(ReadOnlySpan<byte> text, out uint value, out int bytesConsumed)
+        private static bool TryParseUInt32N(ReadOnlySpan<byte> source, out uint value, out int bytesConsumed)
         {
-            if (text.Length < 1)
+            if (source.Length < 1)
                 goto FalseExit;
 
             int index = 0;
-            int c = text[index];
+            int c = source[index];
             if (c == '+')
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto FalseExit;
-                c = text[index];
+                c = source[index];
             }
 
             int answer;
@@ -200,10 +200,10 @@ Done:
             for (; ; )
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto Done;
 
-                c = text[index];
+                c = source[index];
                 if (c == Utf8Constants.Comma)
                     continue;
 
@@ -219,21 +219,21 @@ Done:
                 answer = answer * 10 + c - '0';
             }
 
-FractionalPartWithoutLeadingDigits: // If we got here, we found a decimal point before we found any digits. This is legal as long as there's at least one zero after the decimal point.
+        FractionalPartWithoutLeadingDigits: // If we got here, we found a decimal point before we found any digits. This is legal as long as there's at least one zero after the decimal point.
             answer = 0;
             index++;
-            if ((uint)index >= (uint)text.Length)
+            if ((uint)index >= (uint)source.Length)
                 goto FalseExit;
-            if (text[index] != '0')
+            if (source[index] != '0')
                 goto FalseExit;
 
-FractionalDigits: // "N" format allows a fractional portion despite being an integer format but only if the post-fraction digits are all 0.
+        FractionalDigits: // "N" format allows a fractional portion despite being an integer format but only if the post-fraction digits are all 0.
             do
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto Done;
-                c = text[index];
+                c = source[index];
             }
             while (c == '0');
 
@@ -241,30 +241,30 @@ FractionalDigits: // "N" format allows a fractional portion despite being an int
                 goto FalseExit; // The fractional portion contained a non-zero digit. Treat this as an error, not an early termination.
             goto Done;
 
-FalseExit:
+        FalseExit:
             bytesConsumed = default;
             value = default;
             return false;
 
-Done:
+        Done:
             bytesConsumed = index;
             value = (uint)answer;
             return true;
         }
 
-        private static bool TryParseUInt64N(ReadOnlySpan<byte> text, out ulong value, out int bytesConsumed)
+        private static bool TryParseUInt64N(ReadOnlySpan<byte> source, out ulong value, out int bytesConsumed)
         {
-            if (text.Length < 1)
+            if (source.Length < 1)
                 goto FalseExit;
 
             int index = 0;
-            int c = text[index];
+            int c = source[index];
             if (c == '+')
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto FalseExit;
-                c = text[index];
+                c = source[index];
             }
 
             long answer;
@@ -281,10 +281,10 @@ Done:
             for (; ; )
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto Done;
 
-                c = text[index];
+                c = source[index];
                 if (c == Utf8Constants.Comma)
                     continue;
 
@@ -300,21 +300,21 @@ Done:
                 answer = answer * 10 + c - '0';
             }
 
-FractionalPartWithoutLeadingDigits: // If we got here, we found a decimal point before we found any digits. This is legal as long as there's at least one zero after the decimal point.
+        FractionalPartWithoutLeadingDigits: // If we got here, we found a decimal point before we found any digits. This is legal as long as there's at least one zero after the decimal point.
             answer = 0;
             index++;
-            if ((uint)index >= (uint)text.Length)
+            if ((uint)index >= (uint)source.Length)
                 goto FalseExit;
-            if (text[index] != '0')
+            if (source[index] != '0')
                 goto FalseExit;
 
-FractionalDigits: // "N" format allows a fractional portion despite being an integer format but only if the post-fraction digits are all 0.
+        FractionalDigits: // "N" format allows a fractional portion despite being an integer format but only if the post-fraction digits are all 0.
             do
             {
                 index++;
-                if ((uint)index >= (uint)text.Length)
+                if ((uint)index >= (uint)source.Length)
                     goto Done;
-                c = text[index];
+                c = source[index];
             }
             while (c == '0');
 
@@ -322,12 +322,12 @@ FractionalDigits: // "N" format allows a fractional portion despite being an int
                 goto FalseExit; // The fractional portion contained a non-zero digit. Treat this as an error, not an early termination.
             goto Done;
 
-FalseExit:
+        FalseExit:
             bytesConsumed = default;
             value = default;
             return false;
 
-Done:
+        Done:
             bytesConsumed = index;
             value = (ulong)answer;
             return true;

@@ -19,7 +19,7 @@ namespace System.Buffers.Text
 
         // The three-letter abbreviation is packed into a 24-bit unsigned integer
         // where the least significant byte represents the first letter.
-        private static readonly uint[] DayAbbreviations = new uint[]
+        private static readonly uint[] s_dayAbbreviations = new uint[]
         {
             'S' + ('u' << 8) + ('n' << 16),
             'M' + ('o' << 8) + ('n' << 16),
@@ -30,7 +30,7 @@ namespace System.Buffers.Text
             'S' + ('a' << 8) + ('t' << 16),
         };
 
-        private static readonly uint[] DayAbbreviationsLowercase = new uint[]
+        private static readonly uint[] s_dayAbbreviationsLowercase = new uint[]
         {
             's' + ('u' << 8) + ('n' << 16),
             'm' + ('o' << 8) + ('n' << 16),
@@ -41,7 +41,7 @@ namespace System.Buffers.Text
             's' + ('a' << 8) + ('t' << 16)
         };
 
-        private static readonly uint[] MonthAbbreviations = new uint[]
+        private static readonly uint[] s_monthAbbreviations = new uint[]
         {
             'J' + ('a' << 8) + ('n' << 16),
             'F' + ('e' << 8) + ('b' << 16),
@@ -57,7 +57,7 @@ namespace System.Buffers.Text
             'D' + ('e' << 8) + ('c' << 16),
         };
 
-        private static readonly uint[] MonthAbbreviationsLowercase = new uint[]
+        private static readonly uint[] s_monthAbbreviationsLowercase = new uint[]
         {
             'j' + ('a' << 8) + ('n' << 16),
             'f' + ('e' << 8) + ('b' << 16),
@@ -77,7 +77,7 @@ namespace System.Buffers.Text
         /// Formats a DateTimeOffset as a UTF8 string.
         /// </summary>
         /// <param name="value">Value to format</param>
-        /// <param name="buffer">Buffer to write the UTF8-formatted value to</param>
+        /// <param name="destination">Buffer to write the UTF8-formatted value to</param>
         /// <param name="bytesWritten">Receives the length of the formatted text in bytes</param>
         /// <param name="format">The standard format to use</param>
         /// <returns>
@@ -95,9 +95,9 @@ namespace System.Buffers.Text
         /// </remarks>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
         /// </exceptions>
-        public static bool TryFormat(DateTimeOffset value, Span<byte> buffer, out int bytesWritten, StandardFormat format = default)
+        public static bool TryFormat(DateTimeOffset value, Span<byte> destination, out int bytesWritten, StandardFormat format = default)
         {
-            TimeSpan offset = Utf8Constants.s_nullUtcOffset;
+            TimeSpan offset = Utf8Constants.NullUtcOffset;
             char symbol = format.Symbol;
             if (format.IsDefault)
             {
@@ -108,16 +108,16 @@ namespace System.Buffers.Text
             switch (symbol)
             {
                 case 'R':
-                    return TryFormatDateTimeR(value.UtcDateTime, buffer, out bytesWritten);
+                    return TryFormatDateTimeR(value.UtcDateTime, destination, out bytesWritten);
 
                 case 'l':
-                    return TryFormatDateTimeL(value.UtcDateTime, buffer, out bytesWritten);
+                    return TryFormatDateTimeL(value.UtcDateTime, destination, out bytesWritten);
 
                 case 'O':
-                    return TryFormatDateTimeO(value.DateTime, value.Offset, buffer, out bytesWritten);
+                    return TryFormatDateTimeO(value.DateTime, value.Offset, destination, out bytesWritten);
 
                 case 'G':
-                    return TryFormatDateTimeG(value.DateTime, offset, buffer, out bytesWritten);
+                    return TryFormatDateTimeG(value.DateTime, offset, destination, out bytesWritten);
 
                 default:
                     return ThrowHelper.TryFormatThrowFormatException(out bytesWritten);
@@ -128,7 +128,7 @@ namespace System.Buffers.Text
         /// Formats a DateTime as a UTF8 string.
         /// </summary>
         /// <param name="value">Value to format</param>
-        /// <param name="buffer">Buffer to write the UTF8-formatted value to</param>
+        /// <param name="destination">Buffer to write the UTF8-formatted value to</param>
         /// <param name="bytesWritten">Receives the length of the formatted text in bytes</param>
         /// <param name="format">The standard format to use</param>
         /// <returns>
@@ -145,23 +145,23 @@ namespace System.Buffers.Text
         /// <exceptions>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
         /// </exceptions>
-        public static bool TryFormat(DateTime value, Span<byte> buffer, out int bytesWritten, StandardFormat format = default)
+        public static bool TryFormat(DateTime value, Span<byte> destination, out int bytesWritten, StandardFormat format = default)
         {
             char symbol = FormattingHelpers.GetSymbolOrDefault(format, 'G');
 
             switch (symbol)
             {
                 case 'R':
-                    return TryFormatDateTimeR(value, buffer, out bytesWritten);
+                    return TryFormatDateTimeR(value, destination, out bytesWritten);
 
                 case 'l':
-                    return TryFormatDateTimeL(value, buffer, out bytesWritten);
+                    return TryFormatDateTimeL(value, destination, out bytesWritten);
 
                 case 'O':
-                    return TryFormatDateTimeO(value, Utf8Constants.s_nullUtcOffset, buffer, out bytesWritten);
+                    return TryFormatDateTimeO(value, Utf8Constants.NullUtcOffset, destination, out bytesWritten);
 
                 case 'G':
-                    return TryFormatDateTimeG(value, Utf8Constants.s_nullUtcOffset, buffer, out bytesWritten);
+                    return TryFormatDateTimeG(value, Utf8Constants.NullUtcOffset, destination, out bytesWritten);
 
                 default:
                     return ThrowHelper.TryFormatThrowFormatException(out bytesWritten);

@@ -28,27 +28,25 @@ namespace System.Runtime.InteropServices
         /// Get an array segment from the underlying <see cref="ReadOnlySequence{T}"/>.
         /// If unable to get the array segment, return false with a default array segment.
         /// </summary>
-        public static bool TryGetArray<T>(ReadOnlySequence<T> sequence, out ArraySegment<T> arraySegment)
+        public static bool TryGetArray<T>(ReadOnlySequence<T> sequence, out ArraySegment<T> segment)
         {
-            return sequence.TryGetArray(out arraySegment);
-        }
-
-        /// <summary>
-        /// Get <see cref="OwnedMemory{T}"/> from the underlying <see cref="ReadOnlySequence{T}"/>.
-        /// If unable to get the <see cref="OwnedMemory{T}"/>, return false.
-        /// </summary>
-        public static bool TryGetOwnedMemory<T>(ReadOnlySequence<T> sequence, out OwnedMemory<T> ownedMemory, out int start, out int length)
-        {
-            return sequence.TryGetOwnedMemory(out ownedMemory, out start, out length);
+            return sequence.TryGetArray(out segment);
         }
 
         /// <summary>
         /// Get <see cref="ReadOnlyMemory{T}"/> from the underlying <see cref="ReadOnlySequence{T}"/>.
         /// If unable to get the <see cref="ReadOnlyMemory{T}"/>, return false.
         /// </summary>
-        public static bool TryGetReadOnlyMemory<T>(ReadOnlySequence<T> sequence, out ReadOnlyMemory<T> readOnlyMemory)
+        public static bool TryGetReadOnlyMemory<T>(ReadOnlySequence<T> sequence, out ReadOnlyMemory<T> memory)
         {
-            return sequence.TryGetReadOnlyMemory(out readOnlyMemory);
+            if (!sequence.IsSingleSegment)
+            {
+                memory = default;
+                return false;
+            }
+
+            memory = sequence.First;
+            return true;
         }
 
         /// <summary>

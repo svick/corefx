@@ -8,9 +8,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
-#if !FEATURE_PORTABLE_SPAN
+
 using Internal.Runtime.CompilerServices;
-#endif // FEATURE_PORTABLE_SPAN
 
 namespace System
 {
@@ -26,13 +25,15 @@ namespace System
         // as code uses Unsafe.As to cast between them.
 
         // The highest order bit of _index is used to discern whether _object is an array/string or an owned memory
-        // if (_index >> 31) == 1, _object is an OwnedMemory<T>
-        // else, _object is a T[] or string
+        // if (_index >> 31) == 1, _object is an MemoryManager<T>
+        // else, _object is a T[] or string.
+        //     if (_length >> 31) == 1, _object is a pre-pinned array, so Pin() will not allocate a new GCHandle
+        //     else, Pin() needs to allocate a new GCHandle to pin the object.
         private readonly object _object;
         private readonly int _index;
         private readonly int _length;
 
-        internal const int RemoveOwnedFlagBitMask = 0x7FFFFFFF;
+        internal const int RemoveFlagsBitMask = 0x7FFFFFFF;
 
         /// <summary>
         /// Creates a new memory over the entirety of the target array.
@@ -105,7 +106,7 @@ namespace System
         /// <summary>
         /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="ReadOnlyMemory{T}"/>
         /// </summary>
-        public static implicit operator ReadOnlyMemory<T>(ArraySegment<T> arraySegment) => new ReadOnlyMemory<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
+        public static implicit operator ReadOnlyMemory<T>(ArraySegment<T> segment) => new ReadOnlyMemory<T>(segment.Array, segment.Offset, segment.Count);
 
         /// <summary>
         /// Returns an empty <see cref="ReadOnlyMemory{T}"/>
@@ -115,12 +116,12 @@ namespace System
         /// <summary>
         /// The number of items in the memory.
         /// </summary>
-        public int Length => _length;
+        public int Length => _length & RemoveFlagsBitMask;
 
         /// <summary>
         /// Returns true if Length is 0.
         /// </summary>
-        public bool IsEmpty => _length == 0;
+        public bool IsEmpty => (_length & RemoveFlagsBitMask) == 0;
 
         /// <summary>
         /// For <see cref="ReadOnlyMemory{Char}"/>, returns a new instance of string that represents the characters pointed to by the memory.
@@ -130,9 +131,9 @@ namespace System
         {
             if (typeof(T) == typeof(char))
             {
-                return (_object is string str) ? str.Substring(_index, _length) : Span.ToString();
+                return (_object is string str) ? str.Substring(_index, _length & RemoveFlagsBitMask) : Span.ToString();
             }
-            return string.Format("System.ReadOnlyMemory<{0}>[{1}]", typeof(T).Name, _length);
+            return string.Format("System.ReadOnlyMemory<{0}>[{1}]", typeof(T).Name, _length & RemoveFlagsBitMask);
         }
 
         /// <summary>
@@ -145,12 +146,16 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlyMemory<T> Slice(int start)
         {
-            if ((uint)start > (uint)_length)
+            // Used to maintain the high-bit which indicates whether the Memory has been pre-pinned or not.
+            int capturedLength = _length;
+            int actualLength = capturedLength & RemoveFlagsBitMask;
+            if ((uint)start > (uint)actualLength)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
             }
 
-            return new ReadOnlyMemory<T>(_object, _index + start, _length - start);
+            // It is expected for (capturedLength - start) to be negative if the memory is already pre-pinned.
+            return new ReadOnlyMemory<T>(_object, _index + start, capturedLength - start);
         }
 
         /// <summary>
@@ -164,12 +169,16 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlyMemory<T> Slice(int start, int length)
         {
-            if ((uint)start > (uint)_length || (uint)length > (uint)(_length - start))
+            // Used to maintain the high-bit which indicates whether the Memory has been pre-pinned or not.
+            int capturedLength = _length;
+            int actualLength = _length & RemoveFlagsBitMask;
+            if ((uint)start > (uint)actualLength || (uint)length > (uint)(actualLength - start))
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
             }
 
-            return new ReadOnlyMemory<T>(_object, _index + start, length);
+            // Set the high-bit to match the this._length high bit (1 for pre-pinned, 0 for unpinned).
+            return new ReadOnlyMemory<T>(_object, _index + start, length | (capturedLength & ~RemoveFlagsBitMask));
         }
 
         /// <summary>
@@ -182,19 +191,18 @@ namespace System
             {
                 if (_index < 0)
                 {
-                    return ((OwnedMemory<T>)_object).Span.Slice(_index & RemoveOwnedFlagBitMask, _length);
+                    Debug.Assert(_length >= 0);
+                    Debug.Assert(_object != null);
+                    return ((MemoryManager<T>)_object).GetSpan().Slice(_index & RemoveFlagsBitMask, _length);
                 }
                 else if (typeof(T) == typeof(char) && _object is string s)
                 {
-#if FEATURE_PORTABLE_SPAN
-                    return new ReadOnlySpan<T>(Unsafe.As<Pinnable<T>>(s), MemoryExtensions.StringAdjustment, s.Length).Slice(_index, _length);
-#else
+                    Debug.Assert(_length >= 0);
                     return new ReadOnlySpan<T>(ref Unsafe.As<char, T>(ref s.GetRawStringData()), s.Length).Slice(_index, _length);
-#endif // FEATURE_PORTABLE_SPAN
                 }
                 else if (_object != null)
                 {
-                    return new ReadOnlySpan<T>((T[])_object, _index, _length);
+                    return new ReadOnlySpan<T>((T[])_object, _index, _length & RemoveFlagsBitMask);
                 }
                 else
                 {
@@ -226,50 +234,43 @@ namespace System
         /// <param name="destination">The span to copy items into.</param>
         public bool TryCopyTo(Memory<T> destination) => Span.TryCopyTo(destination.Span);
 
-        /// <summary>Creates a handle for the memory.</summary>
-        /// <param name="pin">
-        /// If pin is true, the GC will not move the array until the returned <see cref="MemoryHandle"/>
-        /// is disposed, enabling the memory's address can be taken and used.
-        /// </param>
-        public unsafe MemoryHandle Retain(bool pin = false)
+        /// <summary>
+        /// Creates a handle for the memory.
+        /// The GC will not move the memory until the returned <see cref="MemoryHandle"/>
+        /// is disposed, enabling taking and using the memory's address.
+        /// <exception cref="System.ArgumentException">
+        /// An instance with nonprimitive (non-blittable) members cannot be pinned.
+        /// </exception>
+        /// </summary>
+        public unsafe MemoryHandle Pin()
         {
-            MemoryHandle memoryHandle = default;
-            if (pin)
+            if (_index < 0)
             {
-                if (_index < 0)
+                Debug.Assert(_object != null);
+                return ((MemoryManager<T>)_object).Pin((_index & RemoveFlagsBitMask));
+            }
+            else if (typeof(T) == typeof(char) && _object is string s)
+            {
+                GCHandle handle = GCHandle.Alloc(s, GCHandleType.Pinned);
+                void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref s.GetRawStringData()), _index);
+                return new MemoryHandle(pointer, handle);
+            }
+            else if (_object is T[] array)
+            {
+                // Array is already pre-pinned
+                if (_length < 0)
                 {
-                    memoryHandle = ((OwnedMemory<T>)_object).Pin((_index & RemoveOwnedFlagBitMask) * Unsafe.SizeOf<T>());
-                }
-                else if (typeof(T) == typeof(char) && _object is string s)
-                {
-                    GCHandle handle = GCHandle.Alloc(s, GCHandleType.Pinned);
-#if FEATURE_PORTABLE_SPAN
-                    void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
-#else
-                    void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref s.GetRawStringData()), _index);
-#endif // FEATURE_PORTABLE_SPAN
-                    memoryHandle = new MemoryHandle(null, pointer, handle);
-                }
-                else if (_object is T[] array)
-                {
-                    var handle = GCHandle.Alloc(array, GCHandleType.Pinned);
-#if FEATURE_PORTABLE_SPAN
-                    void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
-#else
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
-#endif // FEATURE_PORTABLE_SPAN
-                    memoryHandle = new MemoryHandle(null, pointer, handle);
+                    return new MemoryHandle(pointer);
                 }
-            }
-            else
-            {
-                if (_index < 0)
+                else
                 {
-                    ((OwnedMemory<T>)_object).Retain();
-                    memoryHandle = new MemoryHandle((OwnedMemory<T>)_object);
+                    GCHandle handle = GCHandle.Alloc(array, GCHandleType.Pinned);
+                    void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
+                    return new MemoryHandle(pointer, handle);
                 }
             }
-            return memoryHandle;
+            return default;
         }
 
         /// <summary>

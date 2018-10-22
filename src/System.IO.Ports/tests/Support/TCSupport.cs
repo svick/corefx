@@ -32,6 +32,12 @@ namespace Legacy.Support
 
         private static void InitializeSerialInfo()
         {
+            if (PlatformDetection.IsWindowsNanoServer)
+            {
+                s_localMachineSerialPortRequirements = SerialPortRequirements.None;
+                return;
+            }
+
             GenerateSerialInfo();
 
             if (s_localMachineSerialInfo.LoopbackPortName != null)
@@ -150,6 +156,7 @@ namespace Legacy.Support
 
                         openablePortNames.Add(portName);
                     }
+                    catch (UnauthorizedAccessException) { }
                     catch (Exception e)
                     {
                         PrintInfo("Exception opening port {0}: {1}", portName, e);
