@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using Xunit;
 
@@ -408,6 +410,43 @@ namespace System.Collections.Tests
         }
 
         [Fact]
+        public void ComparerRehash()
+        {
+            TestComparerRehash(null, true);
+            TestComparerRehash(EqualityComparer<string>.Default, true);
+            TestComparerRehash(StringComparer.Ordinal, true);
+        }
+
+        private static void TestComparerRehash(IEqualityComparer<string> equalityComparer, bool nonRandomizedComparer = false)
+        {
+            var expectedComparer = equalityComparer ?? EqualityComparer<string>.Default;
+
+            var dict = new Dictionary<string, string>(equalityComparer);
+
+            Assert.Same(expectedComparer, dict.Comparer);
+            Assert.Equal(
+                nonRandomizedComparer ? "NonRandomizedStringEqualityComparer" : expectedComparer.GetType().Name,
+                dict.GetType().GetField("_comparer", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(dict).GetType().Name);
+
+            CauseRehash(dict);
+
+            Assert.Same(expectedComparer, dict.Comparer);
+            Assert.Same(
+                equalityComparer == EqualityComparer<string>.Default ? null : equalityComparer,
+                dict.GetType().GetField("_comparer", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(dict));
+        }
+
+        private static void CauseRehash(Dictionary<string, string> dictionary)
+        {
+            for (int i = 0; i < 102; i++)
+            {
+                string s = string.Concat(Enumerable.Repeat("\uA0A2\uA0A2", i));
+
+                dictionary.Add(s, s);
+            }
+        }
+
+        [Fact]
         public void ComparerSerialization()
         {
             // Strings switch between randomized and non-randomized comparers, 
@@ -451,6 +490,75 @@ namespace System.Collections.Tests
             }
 
             Assert.True(equalityComparer.Equals(dict.Comparer));
+        }
+
+        [Fact]
+        public void ComparerRehashSerialization()
+        {
+            TestComparerRehashSerialization(EqualityComparer<string>.Default);
+            // OrdinalCaseSensitiveComparer is internal and (de)serializes as OrdinalComparer
+            TestComparerRehashSerialization(StringComparer.Ordinal, "System.OrdinalComparer");
+        }
+
+        private static void TestComparerRehashSerialization(IEqualityComparer<string> equalityComparer, string internalTypeName = null)
+        {
+            var bf = new BinaryFormatter();
+            var s = new MemoryStream();
+
+            var dict = new Dictionary<string, string>(equalityComparer);
+
+            CauseRehash(dict);
+
+            dict.Clear();
+
+            Assert.Same(equalityComparer, dict.Comparer);
+
+            bf.Serialize(s, dict);
+            s.Position = 0;
+            dict = (Dictionary<string, string>)bf.Deserialize(s);
+
+            if (internalTypeName == null)
+            {
+                Assert.IsType(equalityComparer.GetType(), dict.Comparer);
+            }
+            else
+            {
+                Assert.Equal(internalTypeName, dict.Comparer.GetType().ToString());
+            }
+
+            Assert.True(equalityComparer.Equals(dict.Comparer));
+        }
+
+        [Fact]
+        public void ComparerCompatibilitySerialization()
+        {
+            var bf = new BinaryFormatter();
+            var s = new MemoryStream();
+
+            var equalityComparer = new FakeNetFrameworkComparer();
+
+            var dict = new Dictionary<string, string>(equalityComparer);
+
+            Assert.Same(equalityComparer, dict.Comparer);
+
+            bf.Serialize(s, dict);
+            s.Position = 0;
+            dict = (Dictionary<string, string>)bf.Deserialize(s);
+
+            Assert.Same(EqualityComparer<string>.Default, dict.Comparer);
+        }
+
+        [Serializable]
+        private class FakeNetFrameworkComparer : IEqualityComparer<string>, ISerializable
+        {
+            public bool Equals(string x, string y) => EqualityComparer<string>.Default.Equals(x, y);
+
+            public int GetHashCode(string obj) => EqualityComparer<string>.Default.GetHashCode(obj);
+
+            public void GetObjectData(SerializationInfo info, StreamingContext context)
+            {
+                info.SetType(Type.GetType("System.Collections.Generic.NonRandomizedStringEqualityComparer"));
+            }
         }
 
         private sealed class DictionarySubclass<TKey, TValue> : Dictionary<TKey, TValue>
